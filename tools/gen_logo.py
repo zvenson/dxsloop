@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""The SLOOP logo: a four-colour sail (the four tracks: blue, green, yellow, orange) on the
-mast of a 270-degree dial (the knobs of the UI), a hull, and a geometric monoline wordmark.
+"""The zvenFM logo: an FM waveform (a sine with a sine in its phase) in the four track colours
+inside the 270-degree dial of the UI's knobs, and a geometric monoline wordmark "zvenFM".
+(The dial and the monoline wordmark keep SLOOP's logo language, which this firmware grew from.)
 
   tools/gen_logo.py OUT.h          firmware boot splash (RLE, 16-colour palette, RGB565)
-  tools/gen_logo.py --assets DIR   sloop-logo.svg, sloop-logo.png, sloop-icon.svg/png, sloop-splash.png
+  tools/gen_logo.py --assets DIR   zvenfm-logo.svg/png, zvenfm-icon.svg/png, zvenfm-splash.png
 """
 import math
 import sys
@@ -15,24 +16,30 @@ from PIL import Image, ImageDraw
 BLUE, GREEN, YELLOW, ORANGE = (40, 124, 255), (30, 204, 112), (255, 198, 24), (255, 98, 26)
 WHITE, BLACK = (242, 242, 242), (0, 0, 0)
 HEX = lambda c: "#%02X%02X%02X" % c
-SAIL = [BLUE, GREEN, YELLOW, ORANGE]
+WAVE = [BLUE, GREEN, YELLOW, ORANGE]
 
 # ---- geometry (units: the icon is 240 x 240, the wordmark x-height is 72) -------------------
-ICON = dict(r=106, w=12, mast_dx=-30, top=-80, bot=38, sail_w=96, gap=6, hull=64)
-XH, SW = 72, 12                                  # wordmark x-height, stroke
+ICON = dict(r=106, w=12, wave_w=150, wave_h=40, wave_y=-6, stroke=11, base=58, base_y=62)
+XH, SW, CAP = 72, 12, 104                        # x-height, stroke, cap height (F, M)
 
 
-def sail_bands(cx, cy, k):
+def wave_points(cx, cy, k, n=240):
+    """y = sin(t + I(t) sin(2t)) over two periods; the index I rises left to right: FM in one line"""
     g = ICON
-    mx, top, bot = cx + g["mast_dx"] * k, cy + g["top"] * k, cy + g["bot"] * k
-    sx, h, wmax, gap = mx + 11 * k, bot - top, g["sail_w"] * k, g["gap"] * k
-    bh = (h - 3 * gap) / 4
-    out = []
-    for i, c in enumerate(SAIL):
-        y0 = top + i * (bh + gap)
-        y1 = y0 + bh
-        out.append((c, [(sx, y0), (sx + wmax * (y0 - top) / h, y0), (sx + wmax * (y1 - top) / h, y1), (sx, y1)]))
-    return mx, top, bot, out
+    w, h, y0 = g["wave_w"] * k, g["wave_h"] * k, cy + g["wave_y"] * k
+    pts = []
+    for i in range(n + 1):
+        u = i / n
+        t = u * 4 * math.pi
+        idx = 1.5 * u * u
+        pts.append((cx - w / 2 + u * w, y0 - h * math.sin(t + idx * math.sin(2 * t))))
+    return pts
+
+
+def wave_segments(cx, cy, k):
+    pts = wave_points(cx, cy, k)
+    n = len(pts) - 1
+    return [(c, pts[i * n // 4: (i + 1) * n // 4 + 1]) for i, c in enumerate(WAVE)]
 
 
 def rrect(d, box, r, fill):
@@ -45,6 +52,13 @@ def rrect(d, box, r, fill):
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill)
 
 
+def poly_line(d, pts, col, w):
+    """a round-joined thick polyline (PIL's joint="curve" leaves gaps at small scales)"""
+    d.line(pts, fill=col, width=max(1, round(w)))
+    for x, y in pts[:: max(1, len(pts) // 60)] + [pts[-1]]:
+        d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=col)
+
+
 def draw_icon(d, ox, oy, k):
     g = ICON
     cx, cy, r, w = ox + 120 * k, oy + 120 * k, g["r"] * k, g["w"] * k
@@ -53,58 +67,72 @@ def draw_icon(d, ox, oy, k):
         x = cx + (r - w / 2) * math.cos(math.radians(a))
         y = cy + (r - w / 2) * math.sin(math.radians(a))
         d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=WHITE)
-    mx, top, bot, bands = sail_bands(cx, cy, k)
-    rrect(d, [mx - 5 * k, top - 4 * k, mx + 5 * k, bot + 14 * k], 5 * k, WHITE)
-    for c, poly in bands:
-        d.polygon(poly, fill=c)
-    rrect(d, [cx - g["hull"] * k, bot + 24 * k, cx + g["hull"] * k, bot + 36 * k], 6 * k, WHITE)
+    for c, pts in wave_segments(cx, cy, k):
+        poly_line(d, pts, c, g["stroke"] * k)
+    rrect(d, [cx - g["base"] * k, cy + g["base_y"] * k, cx + g["base"] * k, cy + (g["base_y"] + 12) * k], 6 * k, WHITE)
+
+
+# ---- the wordmark: z v e n F M, monoline strokes with round caps --------------------------------
+def glyphs():
+    """each letter: (advance width, [("l", x0, y0, x1, y1) | ("a", cx, cy, rx, ry, a0, a1)]),
+    y = 0 at the x-height line, XH at the baseline, negative above (the caps)"""
+    h, s = XH, SW / 2
+    zw, vw, nw, fw, mw = 0.62 * h, 0.70 * h, 0.66 * h, 0.58 * h, 0.92 * h
+    top = XH - CAP
+    return [
+        (zw, [("l", s, s, zw - s, s), ("l", zw - s, s, s, h - s), ("l", s, h - s, zw - s, h - s)]),
+        (vw, [("l", s, s, vw / 2, h - s), ("l", vw / 2, h - s, vw - s, s)]),
+        (h, [("a", h / 2, h / 2, h / 2 - s, h / 2 - s, 40, 360), ("l", s, h / 2, h - s, h / 2)]),
+        (nw, [("l", s, s, s, h - s), ("a", nw / 2, nw / 2, nw / 2 - s, nw / 2 - s, 180, 360),
+              ("l", nw - s, nw / 2, nw - s, h - s)]),
+        (fw, [("l", s, top + s, s, h - s), ("l", s, top + s, fw - s, top + s), ("l", s, (top + h) / 2, fw - 0.2 * h, (top + h) / 2)]),
+        (mw, [("l", s, h - s, s, top + s), ("l", s, top + s, mw / 2, (top + h) / 2 + 6), ("l", mw / 2, (top + h) / 2 + 6, mw - s, top + s),
+              ("l", mw - s, top + s, mw - s, h - s)]),
+    ]
+
+
+GAP = 16
+WORD_COLS = [WHITE, WHITE, WHITE, WHITE, ORANGE, ORANGE]   # "zven" white, "FM" in the accent
 
 
 def word_width(k):
-    rx = 0.29 * XH
-    return (2 * rx + 20 + SW + 20 + 3 * XH + 2 * 18) * k
+    gl = glyphs()
+    return (sum(g[0] for g in gl) + GAP * (len(gl) - 1)) * k
 
 
-def draw_word(d, ox, oy, k, col=WHITE):
-    w, xh = SW * k, XH * k
-
-    def cap(x, y):
-        d.ellipse([x - w / 2, y - w / 2, x + w / 2, y + w / 2], fill=col)
-
-    def line(x0, y0, x1, y1):
-        d.line([(x0, y0), (x1, y1)], fill=col, width=max(1, round(w)))
-        cap(x0, y0)
-        cap(x1, y1)
-
-    base, x = oy + xh, ox
-    ry, rx = (xh + w) / 4, 0.29 * xh
-    b1, b2 = [x, oy, x + 2 * rx, oy + 2 * ry], [x, base - 2 * ry, x + 2 * rx, base]
-    d.arc(b1, start=90, end=335, fill=col, width=max(1, round(w)))
-    d.arc(b2, start=270, end=515, fill=col, width=max(1, round(w)))
-    for b, a in ((b1, 335), (b2, 155)):
-        cx, cy, a = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2, math.radians(a)
-        cap(cx + (rx - w / 2) * math.cos(a), cy + (ry - w / 2) * math.sin(a))
-    x += 2 * rx + 20 * k
-    line(x + w / 2, oy - 32 * k, x + w / 2, base - w / 2)
-    x += w + 20 * k
-    R = xh / 2
-    for _ in range(3):
-        d.ellipse([x, oy, x + 2 * R, oy + 2 * R], outline=col, width=max(1, round(w)))
-        if _ < 2:
-            x += 2 * R + 18 * k
-    line(x + w / 2, oy + R, x + w / 2, base + 36 * k)
+def draw_word(d, ox, oy, k):
+    w = SW * k
+    x = ox
+    for (adv, strokes), col in zip(glyphs(), WORD_COLS):
+        def cap(px, py):
+            d.ellipse([px - w / 2, py - w / 2, px + w / 2, py + w / 2], fill=col)
+        for st in strokes:
+            if st[0] == "l":
+                _, x0, y0, x1, y1 = st
+                p0, p1 = (x + x0 * k, oy + y0 * k), (x + x1 * k, oy + y1 * k)
+                d.line([p0, p1], fill=col, width=max(1, round(w)))
+                cap(*p0)
+                cap(*p1)
+            else:
+                _, cx, cy, rx, ry, a0, a1 = st
+                cx, cy, rx, ry = x + cx * k, oy + cy * k, (rx + SW / 2) * k, (ry + SW / 2) * k
+                d.arc([cx - rx, cy - ry, cx + rx, cy + ry], start=a0, end=a1, fill=col, width=max(1, round(w)))
+                for a in (a0, a1):
+                    cap(cx + (rx - w / 2) * math.cos(math.radians(a)), cy + (ry - w / 2) * math.sin(math.radians(a)))
+        x += (adv + GAP) * k
 
 
-def render(kind, W, H, k, bg=BLACK, ss=4):
+def render(kind, W, H, k, bg=BLACK, ss=4, kw=None):
     im = Image.new("RGB", (W * ss, H * ss), bg)
     d = ImageDraw.Draw(im)
     K = k * ss
+    KW = (kw or k) * ss
     if kind == "h":                                   # icon + wordmark side by side
         draw_icon(d, 10 * K, (H * ss - 240 * K) / 2, K)
-        draw_word(d, 270 * K, H * ss / 2 - 36 * K, K)
+        draw_word(d, 280 * K, H * ss / 2 - 30 * K, KW)
     elif kind == "v":                                 # icon over the wordmark (the boot splash)
         draw_icon(d, (W * ss - 240 * K) / 2, 0, K)
-        draw_word(d, (W * ss - word_width(K)) / 2, 262 * K, K)
+        draw_word(d, (W * ss - word_width(KW)) / 2, 236 * K + (CAP - XH) * KW, KW)
     else:
         draw_icon(d, (W * ss - 240 * K) / 2, (H * ss - 240 * K) / 2, K)
     return im.resize((W, H), Image.LANCZOS)
@@ -112,7 +140,7 @@ def render(kind, W, H, k, bg=BLACK, ss=4):
 
 # ---- SVG (stroke centred on the path) ---------------------------------------------------------
 def svg_icon(ox, oy):
-    g, k = ICON, 1.0
+    g = ICON
     cx, cy, w = ox + 120, oy + 120, g["w"]
     r = g["r"] - w / 2
     a0, a1 = math.radians(135), math.radians(405)
@@ -120,58 +148,48 @@ def svg_icon(ox, oy):
     p1 = (cx + r * math.cos(a1), cy + r * math.sin(a1))
     s = [f'<path d="M{p0[0]:.2f} {p0[1]:.2f} A{r:.2f} {r:.2f} 0 1 1 {p1[0]:.2f} {p1[1]:.2f}" fill="none" '
          f'stroke="{HEX(WHITE)}" stroke-width="{w}" stroke-linecap="round"/>']
-    mx, top, bot, bands = sail_bands(cx, cy, k)
-    s.append(f'<rect x="{mx - 5:.2f}" y="{top - 4:.2f}" width="10" height="{bot + 14 - top + 4:.2f}" rx="5" fill="{HEX(WHITE)}"/>')
-    for c, poly in bands:
-        s.append('<polygon points="' + " ".join(f"{x:.2f},{y:.2f}" for x, y in poly) + f'" fill="{HEX(c)}"/>')
-    s.append(f'<rect x="{cx - g["hull"]:.2f}" y="{bot + 24:.2f}" width="{2 * g["hull"]}" height="12" rx="6" fill="{HEX(WHITE)}"/>')
+    for c, pts in wave_segments(cx, cy, 1.0):
+        s.append('<polyline points="' + " ".join(f"{x:.2f},{y:.2f}" for x, y in pts) +
+                 f'" fill="none" stroke="{HEX(c)}" stroke-width="{g["stroke"]}" stroke-linecap="round" stroke-linejoin="round"/>')
+    s.append(f'<rect x="{cx - g["base"]:.2f}" y="{cy + g["base_y"]:.2f}" width="{2 * g["base"]}" height="12" rx="6" fill="{HEX(WHITE)}"/>')
     return s
 
 
 def svg_word(ox, oy):
-    w, xh, col = SW, XH, HEX(WHITE)
-    base, x = oy + xh, ox
-    ry, rx = (xh + w) / 4 - w / 2, 0.29 * xh - w / 2
-    c1 = (x + 0.29 * xh, oy + (xh + w) / 4)
-    c2 = (x + 0.29 * xh, base - (xh + w) / 4)
-
-    def pt(c, a):
-        a = math.radians(a)
-        return c[0] + rx * math.cos(a), c[1] + ry * math.sin(a)
-    s = []
-    # top bowl 90 -> 335 (clockwise on screen), bottom bowl 270 -> 515
-    for c, a, b in ((c1, 90, 335), (c2, 270, 515)):
-        p, q = pt(c, a), pt(c, b)
-        large = 1 if (b - a) > 180 else 0
-        s.append(f'<path d="M{p[0]:.2f} {p[1]:.2f} A{rx:.2f} {ry:.2f} 0 {large} 1 {q[0]:.2f} {q[1]:.2f}" fill="none" '
-                 f'stroke="{col}" stroke-width="{w}" stroke-linecap="round"/>')
-    x += 2 * 0.29 * xh + 20
-    s.append(f'<line x1="{x + w / 2:.2f}" y1="{oy - 32 + w / 2:.2f}" x2="{x + w / 2:.2f}" y2="{base - w / 2:.2f}" '
-             f'stroke="{col}" stroke-width="{w}" stroke-linecap="round"/>')
-    x += w + 20
-    R = xh / 2
-    for i in range(3):
-        s.append(f'<circle cx="{x + R:.2f}" cy="{oy + R:.2f}" r="{R - w / 2:.2f}" fill="none" stroke="{col}" stroke-width="{w}"/>')
-        if i < 2:
-            x += 2 * R + 18
-    s.append(f'<line x1="{x + w / 2:.2f}" y1="{oy + R:.2f}" x2="{x + w / 2:.2f}" y2="{base + 36 - w / 2:.2f}" '
-             f'stroke="{col}" stroke-width="{w}" stroke-linecap="round"/>')
+    s, x = [], ox
+    for (adv, strokes), col in zip(glyphs(), WORD_COLS):
+        c = HEX(col)
+        for st in strokes:
+            if st[0] == "l":
+                _, x0, y0, x1, y1 = st
+                s.append(f'<line x1="{x + x0:.2f}" y1="{oy + y0:.2f}" x2="{x + x1:.2f}" y2="{oy + y1:.2f}" '
+                         f'stroke="{c}" stroke-width="{SW}" stroke-linecap="round"/>')
+            else:
+                _, cx, cy, rx, ry, a0, a1 = st
+                cx, cy = x + cx, oy + cy
+                p = (cx + rx * math.cos(math.radians(a0)), cy + ry * math.sin(math.radians(a0)))
+                q = (cx + rx * math.cos(math.radians(a1)), cy + ry * math.sin(math.radians(a1)))
+                large = 1 if (a1 - a0) > 180 else 0
+                s.append(f'<path d="M{p[0]:.2f} {p[1]:.2f} A{rx:.2f} {ry:.2f} 0 {large} 1 {q[0]:.2f} {q[1]:.2f}" '
+                         f'fill="none" stroke="{c}" stroke-width="{SW}" stroke-linecap="round"/>')
+        x += adv + GAP
     return s
 
 
 def svg(kind):
     if kind == "h":
-        W, H = 760, 260
-        body = svg_icon(10, 10) + svg_word(270, H / 2 - 36)
+        W, H = 820, 260
+        body = svg_icon(10, 10) + svg_word(280, H / 2 - 30)
     else:
         W, H = 240, 240
         body = svg_icon(0, 0)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
-            f'aria-label="SLOOP">\n<rect width="{W}" height="{H}" fill="#000"/>\n' + "\n".join(body) + "\n</svg>\n")
+            f'aria-label="zvenFM">\n<rect width="{W}" height="{H}" fill="#000"/>\n' + "\n".join(body) + "\n</svg>\n")
 
 
 # ---- firmware splash ---------------------------------------------------------------------------
 SPLASH_W, SPLASH_H = 240, 188
+SPLASH_K, SPLASH_KW = 0.56, 0.44
 
 
 def rgb565(c):
@@ -179,8 +197,12 @@ def rgb565(c):
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
 
+def splash_image():
+    return render("v", SPLASH_W, SPLASH_H, SPLASH_K, kw=SPLASH_KW)
+
+
 def splash_header(path):
-    im = render("v", SPLASH_W, SPLASH_H, 0.56)
+    im = splash_image()
     # a fixed palette: black, and each logo colour at 1/3, 2/3 and full (the anti-aliased edges)
     cols = [BLACK]
     for c in (WHITE, BLUE, GREEN, YELLOW, ORANGE):
@@ -201,10 +223,10 @@ def splash_header(path):
             j += 1
         rle.append(((j - i - 1) << 4) | px[i])
         i = j
-    L = ["/* generated by tools/gen_logo.py: the SLOOP boot splash */", "#pragma once", "#include <stdint.h>",
-         f"#define SLOOP_SPLASH_W {SPLASH_W}", f"#define SLOOP_SPLASH_H {SPLASH_H}",
-         "static const uint16_t SLOOP_SPLASH_PAL[16] = {" + ", ".join(f"0x{rgb565(c):04X}" for c in cols) + "};",
-         f"static const uint8_t SLOOP_SPLASH_RLE[{len(rle)}] = {{"]
+    L = ["/* generated by tools/gen_logo.py: the zvenFM boot splash */", "#pragma once", "#include <stdint.h>",
+         f"#define ZVEN_SPLASH_W {SPLASH_W}", f"#define ZVEN_SPLASH_H {SPLASH_H}",
+         "static const uint16_t ZVEN_SPLASH_PAL[16] = {" + ", ".join(f"0x{rgb565(c):04X}" for c in cols) + "};",
+         f"static const uint8_t ZVEN_SPLASH_RLE[{len(rle)}] = {{"]
     for k in range(0, len(rle), 24):
         L.append("    " + ", ".join(str(b) for b in rle[k:k + 24]) + ",")
     L.append("};")
@@ -215,11 +237,11 @@ def splash_header(path):
 def assets(out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "sloop-logo.svg").write_text(svg("h"))
-    (out / "sloop-icon.svg").write_text(svg("i"))
-    render("h", 1520, 520, 2.0).save(out / "sloop-logo.png")
-    render("i", 512, 512, 512 / 240).save(out / "sloop-icon.png")
-    render("v", SPLASH_W, SPLASH_H, 0.56).resize((SPLASH_W * 2, SPLASH_H * 2), Image.NEAREST).save(out / "sloop-splash.png")
+    (out / "zvenfm-logo.svg").write_text(svg("h"))
+    (out / "zvenfm-icon.svg").write_text(svg("i"))
+    render("h", 1640, 520, 2.0).save(out / "zvenfm-logo.png")
+    render("i", 512, 512, 512 / 240).save(out / "zvenfm-icon.png")
+    splash_image().resize((SPLASH_W * 2, SPLASH_H * 2), Image.NEAREST).save(out / "zvenfm-splash.png")
     print(f"logo: assets in {out}")
 
 

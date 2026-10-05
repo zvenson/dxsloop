@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* SLOOP menu (HOME held): COLOR, LOWCUT, ZOOM, HARDWARE CALIBRATION, ABOUT. */
+/* zvenFM menu (HOME held): COLOR, LOWCUT, ZOOM, HARDWARE CALIBRATION, ABOUT. */
 /* ------------------------------------------------------------ menu --- */
 enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_PANEL, MI_ABOUT, MI_BACK, MI_COUNT };
 static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "HARDWARE CALIBRATION", "ABOUT", "BACK"};
@@ -22,10 +22,14 @@ static void draw_menu(void)
         cv_begin(240, pass ? 95u : 124u, C_BLACK);
         cv_oy = pass ? -124 : 0;
         if (ui.menu == 2) {
-            cv_text(4, 4, &FONT_L, "SLOOP", C_WHITE);
-            cv_rect(96, 10, 8, 4, TE_COL[0]), cv_rect(96, 16, 12, 4, TE_COL[1]);   /* the sail */
-            cv_rect(96, 22, 16, 4, TE_COL[2]), cv_rect(96, 28, 20, 4, TE_COL[3]);
-            cv_text(4, 36, &FONT_S, "BASED ON FELUCCA", C_AMB);
+            {
+                int32_t x = cv_text(4, 4, &FONT_L, "ZVEN", C_WHITE);   /* (FONT_L: capitals only) */
+                uint32_t b;
+                x = cv_text(x, 4, &FONT_L, "FM", TE_COL[3]);
+                for (b = 0; b < 4u; b++)                /* the four track colours, as on the logo */
+                    cv_rect(x + 8 + (int32_t)b * 7, 26 - (int32_t)(b % 2u) * 10, 5, 4 + (int32_t)(b % 2u) * 10, TE_COL[b]);
+            }
+            cv_text(4, 36, &FONT_S, "FM SYNTH ON SLOOP / FELUCCA", C_AMB);
             cv_text(4, 54, &FONT_S, FELUCCA_VERSION, C_HI);
             cv_text(236 - text_w(&FONT_S, __DATE__), 54, &FONT_S, __DATE__, C_GRAY);   /* build date */
             cv_text(cv_text(4, 72, &FONT_S, "LEO KUROSHITA", C_HI) + 8, 72, &FONT_S, "@KUROGEDELIC", C_AMB);
@@ -34,10 +38,10 @@ static void draw_menu(void)
             cv_text(4, 119, &FONT_S, "GPL-3.0, NO WARRANTY", C_HI);
             cv_text(4, 132, &FONT_S, "GITHUB.COM/ISOD89/SLOOP-FM1", C_AMB);   /* (the source of this firmware) */
             cv_text(4, 146, &FONT_S, "FONT: TERMINUS (OFL)", C_DIM);
-            cv_text(4, 159, &FONT_S, "SAMPLES: VERSILIAN (CC0)", C_DIM);
-            cv_text(4, 172, &FONT_S, "+ SONIC PI (CC0)", C_DIM);
-            cv_text(4, 185, &FONT_S, "PHASE: CRISPYZEBRA (GPL)", C_DIM);
-            cv_text(4, 198, &FONT_S, "VOICE: REF. KLATTSCH (MIT)", C_DIM);
+            cv_text(4, 159, &FONT_S, "DX7 CORE: DEXED MSFA", C_DIM);
+            cv_text(4, 172, &FONT_S, "(APACHE-2.0, GOOGLE /", C_DIM);
+            cv_text(4, 185, &FONT_S, " P. GAUTHIER)", C_DIM);
+            cv_text(4, 198, &FONT_S, "ZVENFM: SVEN TROGUS", C_DIM);
         } else {
             for (i = 0; i < MI_COUNT; i++) {
                 int32_t y = 4 + (int32_t)i * 24;

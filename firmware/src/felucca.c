@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* SLOOP (based on FELUCCA): one compilation unit (the HAL is header-only). Order matters. */
+/* zvenFM (an FM synth on SLOOP, based on FELUCCA): one compilation unit (the HAL is header-only). Order matters. */
 #include <stdint.h>
 #include "fm1_time.h"
 #include "fm1_sys.h"
@@ -182,5 +182,5 @@ static void ota_commit(const uint8_t *parm)
 #if FELUCCA_OTA
 #include "recovery.c"        /* early, polled USB updater; no synth or settings */
 #endif
-#include "splash.c"          /* SLOOP boot logo (build/gen/sloop_logo.h) */
+#include "splash.c"          /* zvenFM boot logo (build/gen/zvenfm_logo.h) */
 #include "main.c"

@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "SLOOP 2.2"  /* the beat machine firmware for the FM-1 (based on Felucca) */
+#define FELUCCA_VERSION "zvenFM 1.0"  /* the FM synth firmware for the FM-1 (on SLOOP 2.2, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
