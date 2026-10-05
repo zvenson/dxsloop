@@ -11,9 +11,9 @@
 #include "hostsim.c"
 #undef main
 #define PROJ_HOST 1
-static uint32_t trk_def_engine(uint32_t i)       /* ui.c TRK_DEF: ANALOG, DIGITAL, LOFI */
+static uint32_t trk_def_engine(uint32_t i)       /* ui.c TRK_DEF: the DX7 on every part */
 {
-    static const uint8_t E[NPART] = {0, 1, 3};
+    static const uint8_t E[NPART] = {0, 0, 0};
     return i < NPART ? E[i] : 0u;
 }
 #include "../firmware/src/project.c"
@@ -181,8 +181,8 @@ int main(void)
         ok &= track_ok_v2(&q.t[t], &v2.t[t], t);
     bad += check("FUN2 -> FUN4: every parameter mapped, SLICER OFF, CHORD OFF (4 tracks)", ok);
     bad += check("FUN2 -> FUN4: engine bytes kept (WHEEL 7, ANALOG 0, TRIO 6), drum 0",
-                 q.t[0].engine == 7 && q.t[1].engine == 0 && q.t[2].engine == 6 && q.t[3].engine == 0 &&
-                 str_eq(ENGINES[7]->name, "WHEEL") && str_eq(ENGINES[6]->name, "TRIO") && NENGINES > 8);
+                 q.t[0].engine == 7 && q.t[1].engine == 0 && q.t[2].engine == 6 && q.t[3].engine == 0);
+    /* (zvenFM has the DX7 only: an old engine byte loads as engine % NENGINES, see proj_apply) */
 
     /* a FUN4 round trip: stored as is (an engine added since: 8) */
     q.t[1].engine = 8;

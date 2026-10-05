@@ -449,11 +449,6 @@ static void persist_boot(void)                    /* before settings_init / pane
     fl_plain_window_init();                        /* flash above 0x93000 reads as plaintext through XIP
                                                     * (user sample sets are played from there) */
     {
-        uint32_t k;
-        for (k = 0; k < SMP_USER_SLOTS; k++)
-            smp_user_scan(k);
-    }
-    {
         int n = st_load(OBJ_SETTINGS, &p, sizeof p);
         if ((n == (int)sizeof p && p.magic == PERSIST_MAGIC)
 #if FELUCCA_ARRANGER

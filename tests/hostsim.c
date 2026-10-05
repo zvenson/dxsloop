@@ -91,7 +91,9 @@ static void host_tracks_init(void)                /* as felucca_init: defaults, 
 static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
 {
     static const uint8_t FX_DEF[4] = {0, 24, 28, 36};
-    const preset_t *p = &ENGINES[e]->presets[pi % ENGINES[e]->npresets];
+    const preset_t *p;
+    e %= NENGINES;                               /* zvenFM: one engine; the old engine numbers map onto it */
+    p = &ENGINES[e]->presets[pi % ENGINES[e]->npresets];
     uint32_t i;
     t->eng_req = (uint8_t)e;
     t->preset = (uint8_t)(pi % ENGINES[e]->npresets);
@@ -113,7 +115,7 @@ static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
 static void host_preset(track_t *t, uint32_t e, uint32_t pi)
 {
     host_preset_req(t, e, pi);
-    t->engine = (uint8_t)e;
+    t->engine = (uint8_t)(e % NENGINES);
 }
 
 /* the sequencer clock as the harness sees it: the step of t at the clock (as the next block plays it),
@@ -426,12 +428,11 @@ static int steal_test(const char *dir)
  * Writes DIR/engine_switch.wav. */
 static void xfade_sine(track_t *t)
 {
-    host_preset(t, 0, 5);                          /* ANALOG, as a plain held sine */
-    t->p[P_E0] = 3;                                /* (SIN, whichever preset that is) */
-    t->p[P_E1] = t->p[P_E2] = t->p[P_E3] = 0;
+    host_preset(t, 0, 16);                         /* DX7 INIT VOICE: one sine carrier */
+    t->p[P_E0] = 16;
+    t->p[P_E1] = t->p[P_E3] = t->p[P_E4] = t->p[P_E5] = 0;
+    t->p[P_E2] = -40;                              /* slower carrier attack: no click of its own */
     t->p[P_ED_FX] = 0;
-    t->p[P_E4] = 127;
-    t->p[P_E5] = t->p[P_E6] = 0;
     t->p[P_ED_FLT] = 0;
     t->p[P_ATK] = 40;
     t->p[P_SUS] = 127;

@@ -500,7 +500,8 @@ static int chk_budget(char *msg, uint32_t n)
     snprintf(msg, n, "3 POLY parts, random notes: at most %u voices active (budget %u), VOICE part at most %u (cap 4), "
              "%u voices taken, %u still fading after their KILL_BLOCKS, all free %.2f s after the note-offs",
              worst, NVOICE, vworst, voice_kills - kills0, fading, R.free_s);
-    return worst <= NVOICE && vworst <= 4u && !fading && R.free_s >= 0 && voice_kills > kills0;
+    return worst <= NVOICE && (vworst <= 4u || !ENGINES[E[2] % NENGINES]->poly) && !fading && R.free_s >= 0 &&
+           voice_kills > kills0;
 }
 
 /* a stolen voice fades: plain sines (filter open, no sends) on 3 parts; part 1 holds 7 notes, part 2 one,
@@ -589,6 +590,10 @@ static int chk_keep_unison(char *m, uint32_t n) { return chk_keep(m, n, V_UNISON
 /* the VOICE engine's cap: 8 keys in POLY and in UNISON (alone: the budget does not limit it) */
 static int chk_voice_cap(char *msg, uint32_t n)
 {
+    if (!ENGINES[5 % NENGINES]->poly) {               /* zvenFM: no engine with a voice cap */
+        snprintf(msg, n, "no engine with a voice cap: nothing to check");
+        return 1;
+    }
     uint32_t mode, k, i, most[2] = {0, 0};
     for (mode = 0; mode < 2u; mode++) {
         track_t *t = &trk[0];
@@ -737,7 +742,11 @@ static job_t *add(uint32_t kind, const char *name)
     job_t *j = &J[nj++];
     memset(j, 0, sizeof *j);
     j->kind = (uint8_t)kind;
+    char *c;
     snprintf(j->name, sizeof j->name, "%s", name);
+    for (c = j->name; *c; c++)                     /* (golden.txt: one word per name) */
+        if (*c == ' ')
+            *c = '_';
     return j;
 }
 
@@ -749,8 +758,8 @@ int main(int argc, char **argv)
     uint32_t jobs_at_once = getenv("JOBS") ? (uint32_t)atoi(getenv("JOBS")) : 8u;
     static const char *const MN[4] = {"POLY", "MONO", "LEGATO", "UNISON"};
     static const char *const SN[6] = {"dry", "chorus", "delay", "reverb", "all", "dist"};
-    static const uint8_t MODE_E[3][2] = {{0, 0}, {1, 1}, {5, 0}};   /* engine, preset */
-    static const uint8_t SEND_E[2][2] = {{0, 7}, {1, 0}};   /* ANALOG TRAP PLUCK, DIGITAL RHODES */
+    static const uint8_t MODE_E[3][2] = {{0, 2}, {0, 0}, {0, 6}};   /* engine, preset: DX7 FM BASS, EPIANO 1, STRINGS */
+    static const uint8_t SEND_E[2][2] = {{0, 12}, {0, 0}};   /* DX7 PLUCK, EPIANO 1 */
     static uint8_t cpu_parts[MAXJ][NPART + 1][3];
     static kv_t gold[MAXJ], cpu[MAXJ];
     uint32_t ng, nc, e, pi, i, g0, g1, c0, c1, k0, ncpu = 0;
@@ -773,11 +782,12 @@ int main(int argc, char **argv)
             j->e = (uint8_t)e;
             j->pi = (uint8_t)pi;
         }
-    add(J_DRUMS, "drums/gm_kit");
+    add(J_DRUMS, "drums/fm_kit");
     for (i = 0; i < 3u; i++)
         for (k0 = 0; k0 < 4u; k0++) {
             job_t *j;
-            snprintf(name, sizeof name, "mode/%s/%s", ENGINES[MODE_E[i][0]]->name, MN[k0]);
+            snprintf(name, sizeof name, "mode/%s/%s/%s", ENGINES[MODE_E[i][0]]->name,
+                     ENGINES[MODE_E[i][0]]->presets[MODE_E[i][1]].name, MN[k0]);
             j = add(J_MODE, name);
             j->e = MODE_E[i][0];
             j->pi = MODE_E[i][1];
@@ -786,7 +796,8 @@ int main(int argc, char **argv)
     for (i = 0; i < 2u; i++)
         for (k0 = 0; k0 < 6u; k0++) {
             job_t *j;
-            snprintf(name, sizeof name, "sends/%s/%s", ENGINES[SEND_E[i][0]]->name, SN[k0]);
+            snprintf(name, sizeof name, "sends/%s/%s/%s", ENGINES[SEND_E[i][0]]->name,
+                     ENGINES[SEND_E[i][0]]->presets[SEND_E[i][1]].name, SN[k0]);
             j = add(J_SENDS, name);
             j->e = SEND_E[i][0];
             j->pi = SEND_E[i][1];

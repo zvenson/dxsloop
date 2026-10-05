@@ -22,26 +22,27 @@ int main(int argc,char **argv)
     assert(lane_of_key(0)==0 && lane_of_key(1)==0 && lane_of_key(26)==15 && key_of_lane(15)==26);
     for(i=35;i<=81;i++)assert(lane_of_note(i)<DRUM_LANES);
     for(i=0;i<DRUM_LANES;i++)assert(lane_of_note(LANE_NOTE[i])==i);
-    /* Render the same hits through all five kits; each must be distinct,
-     * finite and silent after its one-shots have finished. */
+    /* Render the same hits through every FM kit; each must be distinct (USER without a loaded bank
+     * plays the factory voices), finite and silent after its one-shots have finished (3 s: BOOM's
+     * open hat rings past 2 s). */
     for(i=0;i<DRUM_KITS;i++) {
-        memset(&drums,0,sizeof drums);drums.set=-2;
+        memset(&drums,0,sizeof drums);
         TDRUM->p[P_E0]=(int16_t)i;
         drum_on(36,110);drum_on(38,100);drum_on(46,80);
-        for(j=0;j<FS*2u/CTL;j++) {
+        for(j=0;j<FS*3u/CTL;j++) {
             int32_t l[CTL]={0},r[CTL]={0},rev[CTL]={0};
             drums_render(l,r,rev,CTL);
             for(k=0;k<CTL;k++){assert(l[k]>-131072 && l[k]<131072);energy[i]+=l[k]<0?-l[k]:l[k];}
         }
         assert(energy[i]>10000);
         for(k=0;k<NDRUM;k++)assert(!drums.v[k].active);
-        for(k=0;k<i;k++)assert(energy[k]!=energy[i]);
+        for(k=0;k<i;k++)assert(energy[k]!=energy[i] || (i==DRUM_KIT_USER && !dx_user_ok));
     }
     /* LIVE metronome (seq.c click_tick): 120 BPM, 2 s = 4 beats; REC mode clicks only while a
      * track records, ON always while playing, OFF never; the first beat of the bar is louder */
     for(v=0;v<4;v++) {
         uint32_t hits=0,loud=0,age0;
-        host_tracks_init();memset(&drums,0,sizeof drums);drums.set=-2;
+        host_tracks_init();memset(&drums,0,sizeof drums);
         song.g[G_BPM]=120;song.g[G_CLOCK]=v==3?0:v==2?2:1;song.rec=v==0?1u:0u;rec_wait=0;   /* OFF / ON / REC */
         transport_req=1;age0=drums.age;
         for(j=0;j<(FS*2u-FS/4u)/CTL;j++) {               /* up to just before beat 4 */

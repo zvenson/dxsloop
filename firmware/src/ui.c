@@ -215,7 +215,7 @@ static void go_home(void)
  * writes the sequencer: every pattern is the one the player records or enters. */
 
 /* the parts' sounds at power-on (engine, preset): bass, pad, lead */
-static const uint8_t TRK_DEF[NPART][2] = {{0, 0}, {1, 0}, {4, 5}};   /* ANALOG 808 BOOM, DIGITAL RHODES, SAMPLE LOFI FLUTE */
+static const uint8_t TRK_DEF[NPART][2] = {{0, 2}, {0, 0}, {0, 6}};   /* DX7: FM BASS, EPIANO 1, STRINGS */
 static uint32_t trk_def_engine(uint32_t i) { return i < NPART ? TRK_DEF[i][0] : 0u; }
 
 static int seq_is_empty(const track_t *t) { return track_empty(t); }
@@ -312,32 +312,15 @@ static void select_engine(uint32_t e)
  * engine's preset table may change order; tests/ui_pages_test.c checks every preset is here once */
 enum { BK_BASS, BK_KEYS, BK_ORGAN, BK_PAD, BK_LEAD, BK_PLUCK, BK_STAB, BK_FX };
 static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "PLCK", "STAB", "FX"};
-static const struct { uint8_t kind, e; const char *name; } BANK[] = {
-    {BK_BASS, 0, "808 BOOM"}, {BK_BASS, 0, "808 DIRTY"}, {BK_BASS, 0, "808 SLIDE"}, {BK_BASS, 0, "SUB BASS"},
-    {BK_BASS, 0, "PLUGG BASS"}, {BK_BASS, 0, "REESE"}, {BK_BASS, 0, "WOBBLE"}, {BK_BASS, 0, "ACID 303"},
-    {BK_BASS, 1, "FM BASS"}, {BK_BASS, 2, "CZ BASS"}, {BK_BASS, 6, "FAT BASS"}, {BK_BASS, 0, "FUNK BASS"},
-    {BK_BASS, 5, "WOW BASS"}, {BK_BASS, 3, "GB BASS"}, {BK_BASS, 4, "UP BASS"}, {BK_BASS, 4, "DEEP BASS"},
-    {BK_KEYS, 1, "RHODES"}, {BK_KEYS, 1, "DX RHODES"}, {BK_KEYS, 1, "WURLI"}, {BK_KEYS, 1, "M1 PIANO"},
-    {BK_KEYS, 1, "AFRO KEYS"}, {BK_KEYS, 4, "GRAND PNO"}, {BK_KEYS, 4, "DUSTY PNO"}, {BK_KEYS, 4, "LOFI KEYS"}, {BK_KEYS, 2, "SOFT KEYS"},
-    {BK_KEYS, 1, "CLAV"},
-    {BK_ORGAN, 7, "SOUL ORGAN"}, {BK_ORGAN, 7, "GOSPEL"}, {BK_ORGAN, 7, "JAZZ ORGAN"}, {BK_ORGAN, 7, "DIRTY B3"},
-    {BK_ORGAN, 7, "HOUSE ORGN"},
-    {BK_PAD, 0, "WARM PAD"}, {BK_PAD, 6, "SAW PAD"}, {BK_PAD, 1, "GLASS PAD"}, {BK_PAD, 0, "DARK STR"},
-    {BK_PAD, 2, "CZ STRING"}, {BK_PAD, 0, "ATMOS PAD"}, {BK_PAD, 8, "LOFI CLOUD"}, {BK_PAD, 8, "VIBE HAZE"},
-    {BK_PAD, 5, "CHOIR AAH"}, {BK_PAD, 5, "SOUL OOH"},
-    {BK_LEAD, 0, "SUPERSAW"}, {BK_LEAD, 0, "G-FUNK LD"}, {BK_LEAD, 6, "SYNC LEAD"}, {BK_LEAD, 6, "HOOVER"},
-    {BK_LEAD, 5, "TALKBOX"}, {BK_LEAD, 3, "GAME LEAD"}, {BK_LEAD, 4, "LOFI FLUTE"}, {BK_LEAD, 8, "FLUTE DUST"},
-    {BK_PLUCK, 0, "TRAP PLUCK"}, {BK_PLUCK, 2, "RESO PLUCK"}, {BK_PLUCK, 1, "PLUGG BELL"}, {BK_PLUCK, 1, "TRAP BELL"},
-    {BK_PLUCK, 1, "MUSIC BOX"}, {BK_PLUCK, 1, "KALIMBA"}, {BK_PLUCK, 1, "MARIMBA"}, {BK_PLUCK, 4, "VIBES"},
-    {BK_PLUCK, 3, "8BIT ARP"},
-    {BK_STAB, 6, "MIN STAB"}, {BK_STAB, 6, "MIN7 STAB"}, {BK_STAB, 6, "RAVE STAB"}, {BK_STAB, 6, "DUB CHORD"},
-    {BK_STAB, 0, "SYN BRASS"}, {BK_STAB, 2, "CZ BRASS"}, {BK_STAB, 4, "HORN STAB"}, {BK_STAB, 4, "STRING STB"},
-    {BK_BASS, 9, "FM BASS"}, {BK_BASS, 9, "SLAP BASS"}, {BK_BASS, 9, "SUB BASS"},
-    {BK_KEYS, 9, "EPIANO 1"}, {BK_KEYS, 9, "EPIANO 2"}, {BK_KEYS, 9, "CLAV"},
-    {BK_ORGAN, 9, "ORGAN"}, {BK_PAD, 9, "STRINGS"}, {BK_PAD, 9, "GLASS PAD"},
-    {BK_LEAD, 9, "SAW LEAD"}, {BK_LEAD, 9, "FLUTE"}, {BK_PLUCK, 9, "BELLS"}, {BK_PLUCK, 9, "MARIMBA"},
-    {BK_PLUCK, 9, "PLUCK"}, {BK_PLUCK, 9, "KOTO"}, {BK_STAB, 9, "BRASS"}, {BK_FX, 9, "INIT VOICE"},
-    {BK_FX, 4, "SCRATCH"}, {BK_FX, 4, "GM KIT"},
+static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* zvenFM: the DX7 voices */
+    {BK_BASS, 0, "FM BASS"}, {BK_BASS, 0, "SLAP BASS"}, {BK_BASS, 0, "SUB BASS"},
+    {BK_KEYS, 0, "EPIANO 1"}, {BK_KEYS, 0, "EPIANO 2"}, {BK_KEYS, 0, "CLAV"},
+    {BK_ORGAN, 0, "ORGAN"},
+    {BK_PAD, 0, "STRINGS"}, {BK_PAD, 0, "GLASS PAD"},
+    {BK_LEAD, 0, "SAW LEAD"}, {BK_LEAD, 0, "FLUTE"},
+    {BK_PLUCK, 0, "BELLS"}, {BK_PLUCK, 0, "MARIMBA"}, {BK_PLUCK, 0, "PLUCK"}, {BK_PLUCK, 0, "KOTO"},
+    {BK_STAB, 0, "BRASS"},
+    {BK_FX, 0, "INIT VOICE"},
 };
 #define NBANK (sizeof BANK / sizeof BANK[0])
 static uint8_t bank_pi[NBANK];                       /* the preset index of each entry in its engine */

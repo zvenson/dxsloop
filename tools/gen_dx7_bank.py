@@ -159,8 +159,8 @@ SYNTH = [
 
 # ---------------------------------------------------------------- drum kit
 # from the FM-1 Drums prototype (fm1-drums/src/default_kit.cc); lanes in SLOOP's order
-DRUM_LANES = ["kick", "snare", "clap", "hat", "open-hat", "tom-lo", "tom-hi", "crash", "ride", "shaker",
-              "conga", "rim", "cowbell", "clave", "kick-2", "snare-2"]
+DRUM_LANES = ["KICK", "KICK 2", "SNARE", "CLAP", "HAT", "OPEN HAT", "PEDAL", "RIM", "SNARE 2", "LOW TOM", "HI TOM",
+              "CRASH", "RIDE", "SHAKER", "CONGA", "COWBELL"]   # SLOOP's lanes (drums.c); + CLAVE: the click
 
 
 def dec(r, out, **kw):
@@ -176,7 +176,7 @@ KICK808_R, KICKP_R, SN_BODY_R, SN_NOISE_R, CLAP_R, HATC_R, HATO_R = 48, 61, 67, 
 TOM_R, RIM_R, COWB_R, CLAVE_R, CRASH_R, SHAKER_R = 54, 90, 54, 88, 37, 69
 
 # (name, voice, internal note, level 0..127, sweep semitones, sweep ms, burst, burst ms, choke)
-DRUMS = [
+_BYNAME = [
     ("KICK 808", voice("KICK 808", 5, {1: dec(KICK808_R, 99, vel=2), 2: dec(80, 55), 3: dec(96, 55, hz=1600, vel=4),
                                        4: dec(97, 70, hz=3400)}), 31, 100, 20, 28, 1, 0, 0),
     ("SNARE", voice("SNARE", 5, {1: dec(SN_BODY_R, 92, vel=3), 2: dec(85, 50, ratio=1.5), 3: dec(SN_BODY_R, 70, ratio=1.9, vel=3),
@@ -204,7 +204,7 @@ DRUMS = [
     ("RIDE", voice("RIDE", 5, {1: dec2(60, 85, 45, 84, hz=3900, vel=2), 2: dec2(60, 85, 45, 80, hz=5600),
                                3: dec2(60, 85, 45, 70, hz=7900, vel=2), 4: dec2(60, 85, 45, 72, hz=11000),
                                5: dec2(75, 70, 50, 70, hz=6800, vel=2), 6: dec2(75, 70, 50, 85, hz=9300)}, fb=5),
-     60, 90, 0, 0, 1, 0, 0),
+     60, 127, 0, 0, 1, 0, 0),
     ("SHAKER", voice("SHAKER", 5, {5: Op(r=(80, SHAKER_R, 99, 99), l=(99, 0, 0, 0), out=90, hz=7500, vel=3),
                                    6: Op(r=(80, SHAKER_R, 99, 99), l=(99, 0, 0, 0), out=99, hz=9700)}, fb=7),
      60, 100, 0, 0, 1, 0, 0),
@@ -223,7 +223,14 @@ DRUMS = [
                                          5: dec(SN_NOISE_R + 5, 97, hz=6500, vel=3), 6: dec(SN_NOISE_R + 5, 99, hz=9500)}, fb=7),
      60, 100, 7, 8, 1, 0, 0),
 ]
-assert len(DRUMS) == 16
+_BYNAME.append(("PEDAL HAT", voice("PEDAL HAT", 5, {1: dec(HATC_R + 6, 70, hz=7300, vel=3), 2: dec(HATC_R + 6, 92, hz=5200),
+                                                 3: dec(HATC_R + 6, 60, hz=9100, vel=3), 4: dec(HATC_R + 6, 90, hz=6300),
+                                                 5: dec(HATC_R + 6, 80, hz=8800, vel=3), 6: dec(HATC_R + 6, 99, hz=9700)}, fb=7),
+                 60, 127, 0, 0, 1, 0, 1))
+_D = {d[0]: d for d in _BYNAME}
+DRUMS = [_D[n] for n in ("KICK 808", "KICK PUNCH", "SNARE", "CLAP", "HAT CLOSED", "HAT OPEN", "PEDAL HAT", "RIMSHOT",
+                         "SNR TIGHT", "TOM LOW", "TOM HIGH", "CRASH", "RIDE", "SHAKER", "CONGA", "COWBELL", "CLAVE")]
+assert len(DRUMS) == 17
 
 
 def c_bytes(b):
@@ -237,17 +244,21 @@ def main(path):
         L.append(f"    {c_bytes(b)},   /* {n} */")
     L.append("};")
     L.append("#define DX_SYNTH_NAME_LIST " + ", ".join(f'"{n}"' for n, _ in SYNTH))
-    L.append("typedef struct { const char *name; uint8_t note, level, sweep, sweep_ms, burst, burst_ms, choke; } dx_drum_t;")
-    L.append("static const uint8_t DX_DRUM_VOICE[16][156] = {")
+    L.append("/* a drum: its voice, the note it plays, level (0..127), the pitch sweep at the hit (semitones and its\n"
+             " * decay per CTL block, Q16), burst (hits) and the samples between them, choke group (0 = none) */")
+    L.append("typedef struct { const char *name; uint8_t note, level, sweep; uint16_t sweep_k; uint8_t burst; uint16_t burst_n; uint8_t choke; } dx_drum_t;")
+    L.append(f"#define DX_NDRUM {len(DRUMS)}   /* the 16 lanes, then the click (clave) */")
+    L.append("static const uint8_t DX_DRUM_VOICE[DX_NDRUM][156] = {")
     for d in DRUMS:
         L.append(f"    {c_bytes(d[1][1])},   /* {d[0]} */")
     L.append("};")
-    L.append("static const dx_drum_t DX_DRUM[16] = {   /* lanes: " + " ".join(DRUM_LANES) + " */")
+    L.append("static const dx_drum_t DX_DRUM[DX_NDRUM] = {")
     for d in DRUMS:
-        L.append(f'    {{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {d[5]}, {d[6]}, {d[7]}, {d[8]}}},')
+        k = int(round(65536 * math.exp(-32 / (d[5] * 44.1)))) if d[5] else 0
+        L.append(f'    {{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}}},')
     L.append("};")
     open(path, "w").write("\n".join(L) + "\n")
-    print(f"dx7 bank: {len(SYNTH)} synth voices, 16 drums -> {path}")
+    print(f"dx7 bank: {len(SYNTH)} synth voices, {len(DRUMS)} drums -> {path}")
 
 
 if __name__ == "__main__":

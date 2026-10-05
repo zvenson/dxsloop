@@ -89,14 +89,13 @@ def tc_all(*cmds):
 
 
 def generate():
-    """generated headers (fonts, icons, tables, samples)"""
+    """generated headers (fonts, icons, tables, logo); the DX7 tables and voices are committed
+    (firmware/src/dx7_tables.h: tools/gen_dx7_tables.c, dx7_bank.h: tools/gen_dx7_bank.py)"""
     GEN.mkdir(parents=True, exist_ok=True)
     tools = SRC / "tools"
     cmds = [[tools / "gen_font.py", GEN / "felucca_font.h"],
             [tools / "gen_icons.py", GEN / "felucca_icons.h"],
             [tools / "gen_tables.py", GEN / "felucca_tables.h"],
-            [tools / "gen_samples.py", GEN / "felucca_samples.h"],
-            [tools / "gen_drumkits.py", GEN / "felucca_drumkits.h"],
             [tools / "gen_logo.py", GEN / "sloop_logo.h"]]
     procs = [subprocess.Popen([sys.executable, *map(str, c)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True) for c in cmds]
@@ -334,9 +333,6 @@ def main():
         raise SystemExit("build: checks failed")
     pkg = fm1pkg_make.ufw(fm1pkg_make.flash_image(img, fm1pkg_make.KEY), ota, PRODUCT)
     (OUT / name).write_bytes(pkg)
-    att = SRC / "assets" / "samples-cc0" / "ATTRIBUTION.txt"
-    if att.exists():
-        shutil.copy(att, OUT / "ATTRIBUTION.txt")
     print(f"app      {OUT / 'felucca.bin'}  {len(img)} B")
     print(f"loader   {LDR / 'ota.bin'}  {len(ota)} B")
     print(f"package  {OUT / name}  {len(pkg)} B, identity {PRODUCT}")

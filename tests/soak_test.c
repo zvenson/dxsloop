@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     host_preset(&trk[0], 0, 4);
     host_preset(&trk[1], 1, 5);
     host_preset(&trk[2], 3, 0);
-    TDRUM->p[P_E0] = DRUM_SAMPLED;
+    TDRUM->p[P_E0] = 0;
     for (k = LY_FX; k < LY_COUNT; k++)                        /* the layer buttons (SLOOP 2.0): bits 8.. */
         ly_bit[k] = 1u << (7u + k);
     dyn_bit[0] = 1u << 14;

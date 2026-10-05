@@ -99,6 +99,7 @@ static void dx_sanitize(uint8_t *u)
             u[126 + i] = GMAX[i];
 }
 static uint8_t dx_note0[NPART][NVOICE], dx_rel[NPART][NVOICE];
+static int32_t dx_dc_x[NPART][NVOICE], dx_dc_y[NPART][NVOICE];   /* DC blocker state */
 
 static dxv_t *dx_of(const track_t *t, const voice_t *v, uint32_t *pi, uint32_t *vi)
 {
@@ -153,7 +154,9 @@ static void dx7_note_on(track_t *t, voice_t *v)
     int keep;
     if (!d)
         return;
-    keep = d->on && dx_playing(d);                /* retrigger / steal: the operators go on from where they are */
+    /* a retrigger of a sounding note: the operators go on from where they are (no click); a voice that was
+     * fading out for another part starts clean (its old levels under a rising gain would jump) */
+    keep = d->on && dx_playing(d) && v->env_out > 8192;
     for (k = 0; k < 6u; k++) {
         ph[k] = d->phase[k];
         g[k] = d->gain[k];
@@ -167,6 +170,8 @@ static void dx7_note_on(track_t *t, voice_t *v)
         }
     dx_note0[pi][vi] = v->note;
     dx_rel[pi][vi] = 0;
+    if (!keep)
+        dx_dc_x[pi][vi] = dx_dc_y[pi][vi] = 0;
 }
 
 /* the part's envelope as a gate: open while held, the release left to the voice's own envelopes */
@@ -211,7 +216,10 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
         int32_t x = (a1 - a0) * (int32_t)i;
         int32_t a = a0 + ((x + ((x >> 31) & (CTL - 1))) >> CTL_LOG2);
         int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 */
-        out[i] += mulq15(mulq15(s, a), VOICE_FS);
+        int32_t y = s - dx_dc_x[pi][vi] + mulq15(dx_dc_y[pi][vi], 32610);   /* DC blocker, ~10 Hz: FM with */
+        dx_dc_x[pi][vi] = s;                      /* feedback is not symmetric (a DX7 has the same offset) */
+        dx_dc_y[pi][vi] = y = clamp(y, -131071, 131071);
+        out[i] += mulq15(mulq15(clamp(y, -65535, 65535), a), VOICE_FS);
     }
 }
 

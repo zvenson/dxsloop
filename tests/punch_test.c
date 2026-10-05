@@ -17,7 +17,7 @@ static void beat_setup(void)
     uint32_t j, q;
     host_tracks_init();
     memset(&drums, 0, sizeof drums);
-    drums.set = -2;
+    
     TDRUM->p[P_E0] = 0;                               /* the sampled kit: no random noise */
     song.g[G_BPM] = 120;
     for (j = 0; j < NSTEP; j++) {
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
         static int32_t blk[CTL * 2u];
         wav_hdr(f, total * CTL);
         beat_setup();
-        TDRUM->p[P_E0] = DRUM_SAMPLED + 1u;           /* 909 */
+        TDRUM->p[P_E0] = 1u;                         /* TIGHT */
         for (b = 0; b < total; b++) {
             uint32_t q;
             int32_t e = b < beat ? -1 : (int32_t)((b - beat) / beat);

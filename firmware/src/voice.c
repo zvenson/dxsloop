@@ -13,11 +13,7 @@
  * voices only start when there is room. The drum track has its own voices (drums.c). */
 static uint32_t vage;                                   /* voice ages: one clock for every part */
 /* engines that play recorded material (a position, not a phase): no phases kept or spread */
-#if FELUCCA_SLICE
-static int eng_sampled(const engine_t *e) { return e == &ENG_SAMPLE || e == &ENG_SLICE; }
-#else
-static int eng_sampled(const engine_t *e) { return e == &ENG_SAMPLE; }
-#endif
+static int eng_sampled(const engine_t *e) { (void)e; return 0; }   /* zvenFM: no sampled engine */
 static int32_t lfo_wave(track_t *t, uint32_t ph)
 {
     switch (t->p[P_LWAVE]) {
@@ -240,29 +236,8 @@ static void voice_start(track_t *t, voice_t *v, uint32_t note, uint32_t vel, int
         v->env_out = 0;
     }                                                   /* sounding: the attack starts from the current level */
     e->note_on(t, v);
-    if (sounding && !eng_sampled(e)) {                 /* retrigger / steal: keep phases and filter states */
-        v->ph[0] = ph0;                                 /* (resetting them clicks) */
-        v->ph[1] = ph1;
-        v->ph[2] = ph2;
-        if (e == &ENG_ANALOG) {
-            v->s[0] = s0;
-            v->s[1] = s1;
-        } else if (e == &ENG_DIGITAL) {
-            v->s[5] = s5;
-            v->s[6] = s6;
-            v->s[7] = s7;                               /* op 4 phase; the modulator envelope restarts */
-        } else if (e == &ENG_LOFI) {
-            v->s[0] = s0;
-            v->s[4] = s4;
-        } else if (e == &ENG_TRIO) {
-            v->s[0] = s0;                               /* filter */
-            v->s[1] = s1;
-            v->s[4] = s4;                               /* the sample waiting for its step corrections */
-        } else if (e == &ENG_PHASE) {
-            v->s[0] = s0;                               /* the WAVE / WAVE2 toggles go with the phases kept */
-            v->s[1] = s1;
-        }
-    }
+    (void)ph0, (void)ph1, (void)ph2, (void)s0, (void)s1, (void)s4, (void)s5, (void)s6, (void)s7;
+    (void)sounding;                                     /* the DX7 keeps its own operators on a retrigger */
 }
 
 /* MONO / LEGATO / UNISON: one note on one voice (eight for UNISON, or the

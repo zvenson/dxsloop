@@ -59,9 +59,9 @@ int main(void)
     int16_t v[P_COUNT], def[P_COUNT];
     memset(nor, 0xFF, sizeof nor);
 
-    n = put_frame(a, 5, 2, "Bass One", -40);
+    n = put_frame(a, 5, 0, "Bass One", -40);
     bad += check("UP_PUT frame < 640 bytes", 5u + n + 1u < 640u);
-    bad += check("UP_PUT parses", up_parse(a, n, &r, &slot) == 0 && slot == 5u && r.engine == 2u &&
+    bad += check("UP_PUT parses", up_parse(a, n, &r, &slot) == 0 && slot == 5u && r.engine == 0u &&
                                       up_valid(&r) && !memcmp(r.name, "Bass One", 8) && !r.name[8]);
     ok = 1;
     for (i = 0; i < P_COUNT; i++)
@@ -90,7 +90,7 @@ int main(void)
     }
 
     /* bank round trip through storage.c */
-    n = put_frame(a, 17, 3, "Keys", 7);
+    n = put_frame(a, 17, 0, "Keys", 7);
     up_parse(a, n, &r, &slot);
     up_bank[1].magic = UP_BANK_MAGIC;
     up_bank[1].rsize = sizeof(up_rec_t);
