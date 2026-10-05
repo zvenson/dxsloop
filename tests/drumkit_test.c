@@ -161,7 +161,7 @@ int main(int argc, char **argv)
                     memset(l, 0, sizeof l), memset(r, 0, sizeof r), memset(rv, 0, sizeof rv);
                     drums_render(l, r, rv, CTL);
                     for (j = 0; j < CTL; j++)
-                        wav_put(w, l[j], r[j]);
+                        wav_put(w, l[j] / 2, r[j] / 2);   /* (the raw drum bus: no master stage here) */
                 }
             }
         }
