@@ -332,6 +332,11 @@ static const struct { uint8_t kind, e; const char *name; } BANK[] = {
     {BK_PLUCK, 3, "8BIT ARP"},
     {BK_STAB, 6, "MIN STAB"}, {BK_STAB, 6, "MIN7 STAB"}, {BK_STAB, 6, "RAVE STAB"}, {BK_STAB, 6, "DUB CHORD"},
     {BK_STAB, 0, "SYN BRASS"}, {BK_STAB, 2, "CZ BRASS"}, {BK_STAB, 4, "HORN STAB"}, {BK_STAB, 4, "STRING STB"},
+    {BK_BASS, 9, "FM BASS"}, {BK_BASS, 9, "SLAP BASS"}, {BK_BASS, 9, "SUB BASS"},
+    {BK_KEYS, 9, "EPIANO 1"}, {BK_KEYS, 9, "EPIANO 2"}, {BK_KEYS, 9, "CLAV"},
+    {BK_ORGAN, 9, "ORGAN"}, {BK_PAD, 9, "STRINGS"}, {BK_PAD, 9, "GLASS PAD"},
+    {BK_LEAD, 9, "SAW LEAD"}, {BK_LEAD, 9, "FLUTE"}, {BK_PLUCK, 9, "BELLS"}, {BK_PLUCK, 9, "MARIMBA"},
+    {BK_PLUCK, 9, "PLUCK"}, {BK_PLUCK, 9, "KOTO"}, {BK_STAB, 9, "BRASS"}, {BK_FX, 9, "INIT VOICE"},
     {BK_FX, 4, "SCRATCH"}, {BK_FX, 4, "GM KIT"},
 };
 #define NBANK (sizeof BANK / sizeof BANK[0])
