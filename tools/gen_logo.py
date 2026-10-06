@@ -206,16 +206,109 @@ def rgb565(c):
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
 
+# the boot splash in the style of the DX7's panel: the dark panel, the wordmark (DX in mint), and the 32
+# algorithms as the DX7 prints them above its keys, drawn here from the firmware's own table (dx7_core.c
+# DX_ALG): carriers mint on the bottom row, modulators light blue above the operator they feed, feedback orange
+DX_PANEL, DX_LABEL, DX_MINT, DX_BLUE, DX_ORANGE = (46, 42, 43), (206, 200, 194), (72, 206, 186), (152, 190, 232), (246, 170, 110)
+
+
+def dx_algs():
+    import re
+    src = (Path(__file__).resolve().parent.parent / "firmware/src/dx7_core.c").read_text()
+    body = src[src.index("DX_ALG[32][6] = {"):]
+    body = body[:body.index("};")]
+    rows = [[int(x, 16) for x in r.split(",")] for r in re.findall(r"\{(0x[0-9a-fA-F, x]+)\}", body)]
+    assert len(rows) == 32
+    return rows
+
+
+def alg_layout(fl):
+    """op 0 = OP6 .. 5 = OP1: (x in half columns, depth, columns, carriers, mods, fb in / out), as ui_voice.c"""
+    bus, mods, carriers, fbin, fbout = [0, 0, 0], [0] * 6, 0, -1, -1
+    for i, f in enumerate(fl):
+        inb, outb = (f >> 4) & 3, f & 3
+        if inb:
+            mods[i] = bus[inb]
+        if not outb:
+            carriers |= 1 << i
+        elif f & 4:
+            bus[outb] |= 1 << i
+        else:
+            bus[outb] = 1 << i
+        if f & 0x40:
+            fbin = i
+        if f & 0x80:
+            fbout = i
+    tgt = [next((j for j in range(i + 1, 6) if (mods[j] >> i) & 1), -1) for i in range(6)]
+    depth = [0] * 6
+    for i in range(5, -1, -1):
+        depth[i] = 0 if tgt[i] < 0 else depth[tgt[i]] + 1
+    x2, ncol = [0] * 6, [0]
+
+    def place(c):
+        kids = [j for j in range(5, -1, -1) if tgt[j] == c]
+        if kids:
+            x2[c] = sum(place(j) for j in kids) / len(kids)
+        else:
+            x2[c] = 2 * ncol[0] + 1
+            ncol[0] += 1
+        return x2[c]
+    for i in range(5, -1, -1):
+        if (carriers >> i) & 1:
+            place(i)
+    return x2, depth, ncol[0], carriers, mods, fbin, fbout
+
+
+def draw_alg(d, fl, ox, oy, w, h, s):
+    """one algorithm in the box (ox, oy, w, h); s: the supersampling"""
+    x2, depth, ncol, carriers, mods, fbin, fbout = alg_layout(fl)
+    bw, bh = 4.0 * s, 3.4 * s
+    colw = min(w / max(ncol, 1), 5.2 * s)
+    rowh = min((h - 3 * s) / (max(depth) + 1), 6.4 * s)
+    X = lambda i: ox + w / 2 - ncol * colw / 2 + x2[i] * colw / 2
+    Y = lambda i: oy + h - 3 * s - bh / 2 - depth[i] * rowh
+    lw = max(1, round(0.7 * s))
+    for i in range(6):
+        for j in range(6):
+            if (mods[j] >> i) & 1:
+                d.line([(X(i), Y(i)), (X(j), Y(j))], fill=DX_LABEL, width=lw)
+        if (carriers >> i) & 1:
+            d.line([(X(i), Y(i)), (X(i), oy + h - 1.2 * s)], fill=DX_LABEL, width=lw)
+    d.line([(ox + 1 * s, oy + h - 1.2 * s), (ox + w - 1 * s, oy + h - 1.2 * s)], fill=DX_LABEL, width=lw)
+    if fbin >= 0 and fbout >= 0:
+        xr = max(X(fbin), X(fbout)) + bw * 0.9
+        pts = [(X(fbout) + bw / 2, Y(fbout)), (xr, Y(fbout)), (xr, Y(fbin) - bh * 0.9), (X(fbin), Y(fbin) - bh * 0.9),
+               (X(fbin), Y(fbin) - bh / 2)]
+        d.line(pts, fill=DX_ORANGE, width=lw)
+    for i in range(6):
+        c = DX_MINT if (carriers >> i) & 1 else DX_BLUE
+        d.rectangle([X(i) - bw / 2, Y(i) - bh / 2, X(i) + bw / 2, Y(i) + bh / 2], fill=c)
+
+
 def splash_image():
-    return render("v", SPLASH_W, SPLASH_H, SPLASH_K, kw=SPLASH_KW)
+    global WORD_COLS
+    ss = 4
+    im = Image.new("RGB", (SPLASH_W * ss, SPLASH_H * ss), DX_PANEL)
+    d = ImageDraw.Draw(im)
+    keep = WORD_COLS
+    WORD_COLS = [WHITE] * (len(keep) - 2) + [DX_MINT, DX_MINT]   # sloop in white, DX in mint
+    kw = 0.40 * ss
+    draw_word(d, (SPLASH_W * ss - word_width(kw)) / 2, 8 * ss + (CAP - XH) * kw, kw)
+    WORD_COLS = keep
+    algs = dx_algs()
+    cw, ch, x0, y0 = 28, 28, 8, 70                   # 4 rows of 8, as the DX7's print runs in two rows of 16
+    for n, fl in enumerate(algs):
+        r, c = divmod(n, 8)
+        draw_alg(d, fl, (x0 + c * cw) * ss, (y0 + r * ch) * ss, (cw - 3) * ss, (ch - 3) * ss, ss)
+    return im.resize((SPLASH_W, SPLASH_H), Image.LANCZOS)
 
 
 def splash_header(path):
     im = splash_image()
     # a fixed palette: black, and each logo colour at 1/3, 2/3 and full (the anti-aliased edges)
-    cols = [BLACK]
-    for c in (WHITE, BLUE, GREEN, YELLOW, ORANGE):
-        cols += [tuple(round(v * f) for v in c) for f in (1 / 3, 2 / 3, 1.0)]
+    cols = [DX_PANEL]                                 # index 0: the panel (splash.c fills it)
+    for c in (WHITE, DX_MINT, DX_BLUE, DX_ORANGE, DX_LABEL):
+        cols += [tuple(round(p + (v - p) * f) for v, p in zip(c, DX_PANEL)) for f in (1 / 3, 2 / 3, 1.0)]
     src = im.tobytes()
     px = []
     cache = {}
