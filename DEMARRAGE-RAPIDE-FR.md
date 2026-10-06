@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="360"></p>
 
-# sloopDX 1.0 — démarrage rapide
+# sloopDX 1.1 — démarrage rapide
 
 **sloopDX** transforme le M-VAVE FM-1 en vrai synthé FM : trois synthés et une batterie de 16 sons sur les touches blanches, un seul moteur — une voix DX7 à six opérateurs (le cœur msfa de Dexed, porté en entier et identique au bit près), 17 sons d'usine et tes propres banques DX7 (.syx, 32 sons), cinq kits de batterie FM faits avec le même moteur, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues. Le reste — pistes, calques, séquenceur, mode chanson, effets — est celui de SLOOP.
 

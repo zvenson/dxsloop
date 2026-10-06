@@ -16,7 +16,7 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
 
-> **Status:** 1.0, based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status:** 1.1 (1.0 plus DX7 voice editing on the FM-1 and in the editor), based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Contents
 
@@ -105,7 +105,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.0.fwsc`) with `python tools/fm1_install.py sloopdx-1.0.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.1.fwsc`) with `python tools/fm1_install.py sloopdx-1.1.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -166,7 +166,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 1.0*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 1.1*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 
