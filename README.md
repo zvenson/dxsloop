@@ -4,10 +4,10 @@
 Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/sloop-fm1">SLOOP</a>, which is based on <a href="https://github.com/hugelton/Felucca">Felucca</a>. Not affiliated with either.</p>
 
 <p align="center">
-<a href="https://zvenson.github.io/dxsloop/"><b>Install from the browser</b></a> ·
+<a href="https://dx7.designburgapps.com/"><b>Install from the browser</b></a> ·
 <a href="SLOOP.md">Manual</a> ·
 <a href="DEMARRAGE-RAPIDE-FR.md">Guide en français</a> ·
-<a href="https://zvenson.github.io/dxsloop/webapp/editor/">Web editor</a> ·
+<a href="https://dx7.designburgapps.com/webapp/editor/">Web editor</a> ·
 <a href="../../releases">Releases</a> ·
 <a href="../../issues">Report a bug</a>
 </p>
@@ -96,7 +96,7 @@ The full list of open items is in [TODO.md](TODO.md).
 
 ### From the browser
 
-1. Open **[the sloopDX installer](https://zvenson.github.io/dxsloop/)** (the `docs/` page of this repository) in **Chrome or Edge** on a computer.
+1. Open **[the sloopDX installer](https://dx7.designburgapps.com/)** (the `docs/` page of this repository) in **Chrome or Edge** on a computer.
 2. Connect the FM-1 by USB — a **data** cable, directly (no hub).
 3. Press **INSTALL**, allow MIDI access, and wait for *Done*. The FM-1 restarts on the sloopDX logo.
 
@@ -200,7 +200,7 @@ On USB the FM-1 is also an **audio input named "Felucca"**: 44.1 kHz, 16-bit ste
 
 ## The web editor
 
-Open it from the [installer page](https://zvenson.github.io/dxsloop/) (or the [editor link](https://zvenson.github.io/dxsloop/webapp/editor/)) in Chrome or Edge, with the FM-1 on USB, and press **Connect**. It follows the device live: turn a knob on the FM-1 and the editor moves.
+Open it from the [installer page](https://dx7.designburgapps.com/) (or the [editor link](https://dx7.designburgapps.com/webapp/editor/)) in Chrome or Edge, with the FM-1 on USB, and press **Connect**. It follows the device live: turn a knob on the FM-1 and the editor moves.
 
 - **Sound** — every parameter of the selected track: the voice and its macro knobs BRITE / ATK / DEC / REL / FDBK, envelope, LFO, arp, sends.
 - **Sequencer** — the steps; on the drum track a grid of 16 sounds × the steps, with levels and ratchets, and the kit.
