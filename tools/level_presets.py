@@ -20,7 +20,7 @@ from scipy.signal import lfilter
 FS, CTL = 44100, 32
 SEG = (FS * 9 // 2) // CTL * CTL + (FS // 4) // CTL * CTL
 OUT = Path(__file__).resolve().parent.parent / "firmware/src/preset_trim.h"
-TARGET = -21.0                                 # LUFS (integrated), at the default LEVEL (sloopDX: a DX7 chord of
+TARGET = -23.0                                 # LUFS (integrated), at the default LEVEL (sloopDX: a DX7 chord of
                                                # 8 voices has peaks; -15 drove the limiter)
 ROLE = {0: 0.0, 1: -1.0, 2: 0.0, 3: 0.0, 4: 0.0}   # bass, chords held (pads, organs), comping, melody, one-key chords
 SKIP = {"GM KIT"}                              # (the drum map on a synth track: as it is)

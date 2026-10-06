@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "sloopDX 1.7"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 1.8"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -391,6 +391,7 @@ static void preset_go(uint32_t n)                    /* load list index n into t
         TSEL->p[P_E0] = (int16_t)(DX_NSYNTH + k);
         TSEL->p[P_ATK] = TSEL->p[P_DEC] = TSEL->p[P_REL] = 0;
         TSEL->p[P_SUS] = 127;
+        TSEL->p[P_ED_FX] = DX_BANK_TRIM;             /* (not a factory preset's trim: a bank's own, -6 dB) */
         sync_reload = 1;
         ui.force = 1;
         return;

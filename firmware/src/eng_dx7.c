@@ -20,6 +20,8 @@ static uint8_t dx_user[DX_NUSER][128];
 static uint8_t dx_user_ok;
 #define DX_NBANKS 8u                         /* user banks in flash (project.c); dx_user is the one in use */
 static uint8_t dx_bank_cur;
+/* the level trim of a bank voice, 1/2 dB (P_ED_FX): DX7 banks are programmed hot (up to six carriers at 99) */
+#define DX_BANK_TRIM (-12)
 static uint32_t dx_edit_gen;                 /* bumped on every change of the bank: sounding notes follow */
 static char dx_user_name[DX_NUSER][11] = {"U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08", "U09", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25", "U26", "U27", "U28", "U29", "U30", "U31", "U32"};
 static const char *dx_names[DX_NVOICES] = {DX_SYNTH_NAME_LIST, dx_user_name[0], dx_user_name[1], dx_user_name[2], dx_user_name[3], dx_user_name[4], dx_user_name[5], dx_user_name[6], dx_user_name[7], dx_user_name[8], dx_user_name[9], dx_user_name[10], dx_user_name[11], dx_user_name[12], dx_user_name[13], dx_user_name[14], dx_user_name[15], dx_user_name[16], dx_user_name[17], dx_user_name[18], dx_user_name[19], dx_user_name[20], dx_user_name[21], dx_user_name[22], dx_user_name[23], dx_user_name[24], dx_user_name[25], dx_user_name[26], dx_user_name[27], dx_user_name[28], dx_user_name[29], dx_user_name[30], dx_user_name[31]};
@@ -428,8 +430,9 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
     for (i = 0; i < DX_N; i++) {
         int32_t x = (a1 - a0) * (int32_t)i;
         int32_t a = a0 + ((x + ((x >> 31) & (CTL - 1))) >> CTL_LOG2);
-        int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 (one voice near
-                                                       * -6 dBFS, as SLOOP's; the presets' trims level them) */
+        int32_t s = clamp(buf[i] >> 12, -65535, 65535);   /* one carrier at full level: 8192. DX7 banks have
+                                                       * up to six carriers at 99: a chord of them must not hit the limiter;
+                                                       * the factory presets' trims bring those back up */
         int32_t y = s - dx_dc_x[pi][vi] + mulq15(dx_dc_y[pi][vi], 32610);   /* DC blocker, ~10 Hz: FM with */
         dx_dc_x[pi][vi] = s;                      /* feedback is not symmetric (a DX7 has the same offset) */
         dx_dc_y[pi][vi] = y = clamp(y, -131071, 131071);

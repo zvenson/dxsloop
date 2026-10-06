@@ -75,16 +75,26 @@ def main(pkg, version, out):
     (inst / "index.html").write_text(html, encoding="utf-8")
     shutil.copy(pkg, fw / name)
     shutil.copy(HERE / "editor.html", ed / "index.html")
-    for f in ("cheatsheet.html", "sloopdx-spickzettel.pdf", "midi.html"):   # the A4 cheat sheet (and its PDF), the MIDI check
+    for f in ("cheatsheet.html", "sloopdx-cheat-sheet.pdf", "sloopdx-cheat-sheet.png", "midi.html"):   # the A4 cheat sheet, the MIDI check
         if (HERE / f).exists():
             shutil.copy(HERE / f, out / f)
     for f in ("fukiai.ttf", "FUKIAI-LICENSE.txt"):
         if (HERE / f).exists():
             shutil.copy(HERE / f, ed / f)
-    (out / "index.html").write_text(
-        '<!doctype html><meta charset="utf-8"><title>sloopDX</title>'
-        '<meta http-equiv="refresh" content="0; url=webapp/installer/">'
-        '<a href="webapp/installer/">sloopDX installer</a>\n', encoding="utf-8")
+    # the start page: the wordmark and the algorithm table (the boot animation) filled in, the screens beside it
+    core = (HERE.parent / "firmware/src/dx7_core.c").read_text(encoding="utf-8")
+    body = core[core.index("DX_ALG[32][6] = {"):]
+    rows = re.findall(r"\{(0x[0-9a-fA-F, x]+)\}", body[:body.index("};")])
+    algs = "[" + ",".join("[" + ",".join(x.strip() for x in r.split(",")) + "]" for r in rows) + "]"
+    land = (HERE / "landing.html").read_text(encoding="utf-8").replace("/*ALGS*/", algs)
+    land = land.replace("<!--LOGO-->", logo.read_text(encoding="utf-8") if logo.exists() else "<b>sloopDX</b>")
+    (out / "index.html").write_text(land, encoding="utf-8")
+    shots = HERE.parent / "assets/screens/sloopdx-screens.png"
+    if shots.exists():
+        shutil.copy(shots, out / "screens.png")
+    for old in ("sloopdx-spickzettel.pdf",):          # (renamed)
+        if (out / old).exists():
+            (out / old).unlink()
     print(f"site: {out}: webapp/installer ({len(html)} B), webapp/editor, firmware/{name} ({len(raw)} B, {product})")
 
 

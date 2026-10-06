@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.7
+# sloopDX 1.8
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.7 (8 DX7 banks, 256 voices; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.8 (8 DX7 banks, 256 voices; quieter, with headroom; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
 ### From SLOOP 2.3
 

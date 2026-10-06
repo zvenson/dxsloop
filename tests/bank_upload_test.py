@@ -29,7 +29,7 @@ class FakeDevice:                                   # firmware/src/editor.c, the
         cmd, a = p[4], p[5:-1]
         r = bytes([cmd])
         if cmd == B.INFO:
-            return r + b"FELUCCA sloopDX 1.7\0" + bytes([1, 58, 32, 64, 50]) + b"DX7\0" + bytes([4, self.proto])
+            return r + b"FELUCCA sloopDX 1.8\0" + bytes([1, 58, 32, 64, 50]) + b"DX7\0" + bytes([4, self.proto])
         if self.proto < 7 and cmd >= 37:
             return None
         if cmd == B.BANK_BEGIN:

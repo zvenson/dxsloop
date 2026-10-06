@@ -87,7 +87,7 @@
   
   <h1>Firmware for the M-VAVE FM-1</h1>
   <p class="lead">SLOOP as a pure DX7 FM synth: four tracks — three synths and a drum machine — one engine, a six-operator DX7 voice (Dexed's msfa core, within 1 LSB of Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, 16 punch-in effects. No factory patterns, nothing to load: everything you hear, you play.</p>
-  <p class="small"><a href="../../cheatsheet.html">Cheat sheet (German, A4)</a> · <a href="../../sloopdx-spickzettel.pdf">PDF</a> · <a href="../editor/">Web editor</a></p>
+  <p class="small"><a href="../../#cheatsheet">Cheat Sheet (A4, German)</a> · <a href="../../sloopdx-cheat-sheet.pdf">PDF</a> · <a href="../editor/">Web editor</a></p>
   <div class="tiles">
     <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, Dexed's sound</span></div>
     <div class="tile" style="--c: var(--green)"><b>17+32</b><span>factory voices + your .syx bank</span></div>
@@ -543,7 +543,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.7", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.7.fwsc", "sha256": "007c3099d4c87535e3aa8673f9d7663513f68f46bf1d46c24d5536b775dd7548"};
+const meta = {"version": "1.8", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.8.fwsc", "sha256": "e875c5c95aeca06127fbae059c16ecea76cfe07fb8533953ec41299d8061de4d"};
 
 let writing = false, stock = null;
 const lockAll = (on) => {

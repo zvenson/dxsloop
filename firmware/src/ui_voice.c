@@ -419,6 +419,9 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
             ve_mute_toggle(ve.op);
         } else if (r->kind == VK_VOICE) {
             TSEL->p[P_E0] = (int16_t)clamp(TSEL->p[P_E0] + s, 0, DX_NVOICES - 1);
+            /* the level trim follows the voice: a factory voice its preset's (preset k plays voice k), a bank voice
+             * the bank's */
+            TSEL->p[P_ED_FX] = TSEL->p[P_E0] < (int16_t)DX_NSYNTH ? preset_trim(0, (uint32_t)TSEL->p[P_E0]) : DX_BANK_TRIM;
         } else if (r->kind == VK_COPY) {
             ve.copy = (uint8_t)clamp((int32_t)ve.copy + s, 0, DX_NUSER - 1);
             ve.arm = 0;
