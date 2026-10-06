@@ -94,6 +94,21 @@ static void dx_env_advance(dx_env_t *e, int newix)
     }
 }
 
+/* new rates / levels for an envelope that is running (Dexed Env::update): a held note goes on from its
+ * sustain stage, a released one keeps fading */
+static void dx_env_update(dx_env_t *e, const uint8_t *r, const uint8_t *l, int ol, int rate_scaling)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        e->rates[i] = r[i];
+        e->levels[i] = l[i];
+    }
+    e->outlevel = (int16_t)ol;
+    e->rate_scaling = (int16_t)rate_scaling;
+    if (e->down)
+        dx_env_advance(e, 2);
+}
+
 static void dx_env_init(dx_env_t *e, const uint8_t *r, const uint8_t *l, int ol, int rate_scaling)
 {
     int i;
@@ -298,6 +313,7 @@ typedef struct {
     uint8_t fixed[6];
     uint8_t alg, fb_shift, on;
     int32_t pmdepth, pmsens, amdepth;
+    int32_t bright;              /* sloopDX: the modulators' level offset, Q24 log2 (0 = as Dexed) */
 } dxv_t;
 
 static const uint8_t DX_ALG[32][6] = {      /* FmCore::algorithms (Dexed) */
@@ -354,20 +370,52 @@ static int32_t dx_osc_freq(int note, int fixed, int coarse, int fine, int detune
     return lf;
 }
 
+/* an operator's output level (key scaling and velocity in) and its rate scaling, as Dx7Note::init */
+static int dx_op_level(const uint8_t *o, int note, int vel, int *rs)
+{
+    int ol = dx_scaleoutlevel(o[16]) + dx_scale_level(note, o[8], o[9], o[10], o[11], o[12]);
+    int vv = DX_VELDATA[(vel < 0 ? 0 : vel > 127 ? 127 : vel) >> 1] - 239;
+    int x = note / 3 - 7;
+    ol = ol > 127 ? 127 : ol;
+    ol = ol * 32 + ((o[15] * vv + 7) >> 3) * 16;
+    x = x < 0 ? 0 : x > 31 ? 31 : x;
+    *rs = (o[13] * x) >> 3;
+    return ol < 0 ? 0 : ol;
+}
+
+/* the voice changed while the note sounds (a knob, the voice list, the editor): everything but the
+ * oscillator phases and the envelopes' positions, as Dexed's Dx7Note::update */
+static void dx_update(dxv_t *v, const uint8_t *p, int note, int vel)
+{
+    int op, i;
+    for (op = 0; op < 6; op++) {
+        const uint8_t *o = p + op * 21;
+        int rs, ol = dx_op_level(o, note, vel, &rs);
+        dx_env_update(&v->env[op], o, o + 4, ol, rs);
+        v->fixed[op] = o[17];
+        v->base[op] = dx_osc_freq(note, o[17], o[18], o[19], o[20]);
+        v->ams[op] = DX_AMSENS[o[14] & 3];
+    }
+    for (i = 0; i < 4; i++) {
+        v->penv.rates[i] = p[126 + i];
+        v->penv.levels[i] = p[130 + i];
+    }
+    v->alg = p[134] & 31;
+    v->fb_shift = p[135] ? (uint8_t)(8 - p[135]) : 16;
+    v->pmdepth = (p[139] * 165) >> 6;
+    v->pmsens = DX_PMSENS[p[143] & 7];
+    v->amdepth = (p[140] * 165) >> 6;
+    dx_lfo_reset(&v->lfo, p + 137);
+}
+
 /* a new note from an unpacked voice (156 bytes); keeps nothing of the last one */
 static void dx_init(dxv_t *v, const uint8_t *p, int note, int vel)
 {
     int op;
     for (op = 0; op < 6; op++) {
         const uint8_t *o = p + op * 21;
-        int ol = dx_scaleoutlevel(o[16]) + dx_scale_level(note, o[8], o[9], o[10], o[11], o[12]);
-        int vv = DX_VELDATA[(vel < 0 ? 0 : vel > 127 ? 127 : vel) >> 1] - 239;
-        int x = note / 3 - 7;
-        ol = ol > 127 ? 127 : ol;
-        ol = ol * 32 + ((o[15] * vv + 7) >> 3) * 16;
-        ol = ol < 0 ? 0 : ol;
-        x = x < 0 ? 0 : x > 31 ? 31 : x;
-        dx_env_init(&v->env[op], o, o + 4, ol, (o[13] * x) >> 3);
+        int rs, ol = dx_op_level(o, note, vel, &rs);
+        dx_env_init(&v->env[op], o, o + 4, ol, rs);
         v->fixed[op] = o[17];
         v->base[op] = dx_osc_freq(note, o[17], o[18], o[19], o[20]);
         v->ams[op] = DX_AMSENS[o[14] & 3];
@@ -383,6 +431,7 @@ static void dx_init(dxv_t *v, const uint8_t *p, int note, int vel)
     v->fb[0] = v->fb[1] = 0;
     dx_lfo_reset(&v->lfo, p + 137);
     dx_lfo_keydown(&v->lfo);
+    v->bright = 0;
     v->on = 1;
 }
 
@@ -468,6 +517,10 @@ static void dx_compute_ext(dxv_t *v, int32_t *out, int32_t lfo_val, int32_t lfo_
             pt = i >= 1024u ? DX_AMS_PT[1024]
                             : DX_AMS_PT[i] + (uint32_t)(((uint64_t)(DX_AMS_PT[i + 1] - DX_AMS_PT[i]) * (sensamp & 16383u)) >> 14);
             level -= (int32_t)(uint32_t)(((uint64_t)(uint32_t)level * ((uint64_t)pt << 4)) >> 28);
+        }
+        if (v->bright && (DX_ALG[v->alg][op] & 3)) {   /* sloopDX: brightness on the modulators (ENV / LFO -> FLT, SHP) */
+            level += v->bright;
+            level = level < 0 ? 0 : level > (16 << 24) ? (16 << 24) : level;
         }
         v->level_in[op] = level;
     }

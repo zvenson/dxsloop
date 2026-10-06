@@ -54,9 +54,9 @@ On Linux x86-64 the toolchain runs natively and Docker is not needed.
 (`~/.jieli/toolchain`, `~/fw-AC79_AIoT_SDK`). The link step checks the RAM budget
 (.data + .bss ≤ 96 KB; the DX7 state is about 18 KB of it).
 
-`./build.sh --release 1.1` makes a release build: the package identity becomes
-`FM-1_911` and the version string `1.1 BETA` (`tools/build.py` adds BETA unless the release
-name has it); the package is `build/felucca-1.1.fwsc`. A plain build has the identity `FM-1_900`.
+`./build.sh --release 1.2` makes a release build: the package identity becomes
+`FM-1_912` and the version string `1.2 BETA` (`tools/build.py` adds BETA unless the release
+name has it); the package is `build/felucca-1.2.fwsc`. A plain build has the identity `FM-1_900`.
 
 Build options (environment, `0` or `1`; defaults in `firmware/src/felucca.c`):
 

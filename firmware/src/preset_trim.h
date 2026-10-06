@@ -3,5 +3,5 @@
 #define PT_ENGINES 1u
 #define PT_MAX 17u
 static const int8_t PRESET_TRIM[PT_ENGINES][PT_MAX] = {
-    {/* 0.0 EPIANO 1 */ 2, /* 0.1 EPIANO 2 */ 4, /* 0.2 FM BASS */ 11, /* 0.3 SLAP BASS */ 19, /* 0.4 SUB BASS */ 15, /* 0.5 BRASS */ 3, /* 0.6 STRINGS */ -6, /* 0.7 GLASS PAD */ -5, /* 0.8 BELLS */ -6, /* 0.9 MARIMBA */ 22, /* 0.10 ORGAN */ -15, /* 0.11 CLAV */ 23, /* 0.12 PLUCK */ 4, /* 0.13 FLUTE */ 0, /* 0.14 SAW LEAD */ 1, /* 0.15 KOTO */ 13, /* 0.16 INIT VOICE */ -8},
+    {/* 0.0 EPIANO 1 */ -15, /* 0.1 EPIANO 2 */ -17, /* 0.2 FM BASS */ 7, /* 0.3 SLAP BASS */ 14, /* 0.4 SUB BASS */ 13, /* 0.5 BRASS */ -13, /* 0.6 STRINGS */ -16, /* 0.7 GLASS PAD */ -14, /* 0.8 BELLS */ -6, /* 0.9 MARIMBA */ 13, /* 0.10 ORGAN */ -20, /* 0.11 CLAV */ 19, /* 0.12 PLUCK */ 2, /* 0.13 FLUTE */ 0, /* 0.14 SAW LEAD */ 1, /* 0.15 KOTO */ 8, /* 0.16 INIT VOICE */ -8},
 };

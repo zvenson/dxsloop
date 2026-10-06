@@ -18,6 +18,7 @@ static dxv_t DXV[NPART][NVOICE];
 #define DX_NVOICES (DX_NSYNTH + DX_NUSER)
 static uint8_t dx_user[DX_NUSER][128];
 static uint8_t dx_user_ok;
+static uint32_t dx_edit_gen;                 /* bumped on every change of the bank: sounding notes follow */
 static char dx_user_name[DX_NUSER][11] = {"U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08", "U09", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25", "U26", "U27", "U28", "U29", "U30", "U31", "U32"};
 static const char *dx_names[DX_NVOICES] = {DX_SYNTH_NAME_LIST, dx_user_name[0], dx_user_name[1], dx_user_name[2], dx_user_name[3], dx_user_name[4], dx_user_name[5], dx_user_name[6], dx_user_name[7], dx_user_name[8], dx_user_name[9], dx_user_name[10], dx_user_name[11], dx_user_name[12], dx_user_name[13], dx_user_name[14], dx_user_name[15], dx_user_name[16], dx_user_name[17], dx_user_name[18], dx_user_name[19], dx_user_name[20], dx_user_name[21], dx_user_name[22], dx_user_name[23], dx_user_name[24], dx_user_name[25], dx_user_name[26], dx_user_name[27], dx_user_name[28], dx_user_name[29], dx_user_name[30], dx_user_name[31]};
 
@@ -27,6 +28,7 @@ static uint8_t dx_bank_busy;                  /* an upload is on (BANK_BEGIN .. 
 static void dx_bank_names(void)
 {
     uint32_t k, i, j;
+    dx_edit_gen++;
     for (k = 0; k < DX_NUSER; k++) {
         if (!dx_user_ok) {
             dx_user_name[k][0] = 'U';
@@ -179,6 +181,7 @@ static void dx_user_param_set(uint32_t k, uint32_t idx, uint32_t v)
     dx_sanitize(u);
     u[idx] = (uint8_t)(v > dx_param_max(idx) ? dx_param_max(idx) : v);
     dx_pack(u, dx_user[k]);
+    dx_edit_gen++;
     if (idx >= 145u)
         dx_bank_names();
 }
@@ -262,12 +265,16 @@ static dxv_t *dx_of(const track_t *t, const voice_t *v, uint32_t *pi, uint32_t *
 
 static inline int dx_clampi(int x, int lo, int hi) { return x < lo ? lo : x > hi ? hi : x; }
 
-/* the factory voice with the part's EDIT values applied */
-static void dx_voice_for(const track_t *t, uint8_t *p)
+/* voice vi with the part's knobs applied: the quick knobs (EDIT: BRITE ATK DEC REL FDBK, -40..40, 0 = the
+ * voice as programmed), the ENV page (ATK DEC REL 0 = as programmed, more = slower / longer; SUS 127 = as
+ * programmed, less = a lower sustain on the carriers), the operators switched off in the voice list */
+static void dx_voice_build(const track_t *t, uint32_t vi, uint8_t *p)
 {
-    uint32_t vi = (uint32_t)t->p[P_E0] % DX_NVOICES;
     int bright = t->p[P_E1], atk = t->p[P_E2], dec = t->p[P_E3], rel = t->p[P_E4], fb = t->p[P_E5];
-    uint32_t i, op, alg;
+    int eatk = t->p[P_ATK] * 60 / 127, edec = t->p[P_DEC] * 50 / 127, erel = t->p[P_REL] * 60 / 127;
+    int sus = dx_clampi(t->p[P_SUS], 0, 127);
+    uint32_t i, op, alg, pi = (uint32_t)(t - trk);
+    vi %= DX_NVOICES;
     if (vi < DX_NSYNTH) {
         for (i = 0; i < 156u; i++)
             p[i] = DX_SYNTH[vi][i];
@@ -281,24 +288,39 @@ static void dx_voice_for(const track_t *t, uint8_t *p)
     alg = p[134] & 31u;
     for (op = 0; op < 6u; op++) {
         uint8_t *o = p + op * 21u;
-        int carrier = (DX_ALG[alg][op] & 4) != 0;
+        int carrier = (DX_ALG[alg][op] & 3) == 0;  /* (writes the output, not a bus) */
         if (!carrier && o[16])
             o[16] = (uint8_t)dx_clampi(o[16] + bright, 0, 99);
         if (carrier) {
-            o[0] = (uint8_t)dx_clampi(o[0] - atk, 1, 99);
-            o[3] = (uint8_t)dx_clampi(o[3] - rel, 1, 99);
+            o[0] = (uint8_t)dx_clampi(o[0] - atk - eatk, 1, 99);
+            o[3] = (uint8_t)dx_clampi(o[3] - rel - erel, 1, 99);
+            o[6] = (uint8_t)(o[6] * sus / 127);
         }
-        o[1] = (uint8_t)dx_clampi(o[1] - dec, 1, 99);
-        o[2] = (uint8_t)dx_clampi(o[2] - dec, 1, 99);
+        o[1] = (uint8_t)dx_clampi(o[1] - dec - edec, 1, 99);
+        o[2] = (uint8_t)dx_clampi(o[2] - dec - edec, 1, 99);
     }
     p[135] = (uint8_t)dx_clampi(p[135] + fb, 0, 7);
-    if ((uint32_t)(t - trk) < NPART && dx_opmute[t - trk] && dx_opmute_v[t - trk] != vi)
-        dx_opmute[t - trk] = 0;                   /* another voice: every operator on again */
-    if ((uint32_t)(t - trk) < NPART && dx_opmute[t - trk])
+    if (pi < NPART && dx_opmute[pi] && dx_opmute_v[pi] != vi)
+        dx_opmute[pi] = 0;                        /* another voice: every operator on again */
+    if (pi < NPART && dx_opmute[pi])
         for (op = 0; op < 6u; op++)               /* op block 0 = OP6 */
-            if ((dx_opmute[t - trk] >> (5u - op)) & 1u)
+            if ((dx_opmute[pi] >> (5u - op)) & 1u)
                 p[op * 21u + 16u] = 0;
 }
+static void dx_voice_for(const track_t *t, uint8_t *p) { dx_voice_build(t, (uint32_t)t->p[P_E0], p); }
+
+/* what a sounding note follows: the knobs, the operator switches and the bank (not VOICE: a new voice is
+ * for the next note, as on a DX7) */
+static uint32_t dx_part_sig(const track_t *t)
+{
+    uint32_t pi = (uint32_t)(t - trk), h = dx_edit_gen * 2654435761u, i;
+    static const uint8_t IDS[9] = {P_E1, P_E2, P_E3, P_E4, P_E5, P_ATK, P_DEC, P_SUS, P_REL};
+    for (i = 0; i < 9u; i++)
+        h = (h ^ (uint16_t)t->p[IDS[i]]) * 16777619u;
+    return pi < NPART ? (h ^ dx_opmute[pi]) * 16777619u : h;
+}
+static uint8_t dx_vi[NPART][NVOICE];             /* the voice each note was started with */
+static uint32_t dx_sig[NPART][NVOICE];
 
 static void dx7_note_on(track_t *t, voice_t *v)
 {
@@ -316,8 +338,10 @@ static void dx7_note_on(track_t *t, voice_t *v)
         ph[k] = d->phase[k];
         g[k] = d->gain[k];
     }
-    dx_voice_for(t, patch);
+    dx_vi[pi][vi] = (uint8_t)((uint32_t)t->p[P_E0] % DX_NVOICES);
+    dx_voice_build(t, dx_vi[pi][vi], patch);
     dx_init(d, patch, v->note, v->vel ? v->vel : 1);
+    dx_sig[pi][vi] = dx_part_sig(t);
     if (keep)
         for (k = 0; k < 6u; k++) {
             d->phase[k] = ph[k];
@@ -352,6 +376,18 @@ static int32_t dx7_amp(track_t *t, voice_t *v, int32_t adsr)
     return 32767;
 }
 
+/* a sounding note follows the part's knobs and the bank (rare: kept out of the render loop) */
+__attribute__((noinline)) static void dx_follow(const track_t *t, dxv_t *d, uint32_t pi, uint32_t vi, int32_t vel)
+{
+    uint32_t sig = dx_part_sig(t);
+    uint8_t patch[156];
+    if (sig == dx_sig[pi][vi])
+        return;
+    dx_sig[pi][vi] = sig;
+    dx_voice_build(t, dx_vi[pi][vi], patch);
+    dx_update(d, patch, dx_note0[pi][vi], vel);
+}
+
 static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const vmod_t *m)
 {
     uint32_t pi, vi, i;
@@ -364,14 +400,20 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
         return;
     for (i = 0; i < DX_N; i++)
         buf[i] = 0;
+    if (d->on)                                    /* a knob, the voice list or the editor changed the voice */
+        dx_follow(t, d, pi, vi, vel);
+    /* ENV / LFO -> FLT and SHP (no filter, no shape here): the modulators' level, +-2 octaves of gain. The
+     * cutoff only when a FLT destination is set: voice.c also opens it on accents, which a DX7 voice does with
+     * its own velocity sensitivity */
+    d->bright = ((m->shape - (64 << 8)) + (t->p[P_LD_FLT] || t->p[P_ED_FLT] ? m->cutoff : 0)) * 2048;
     dx_compute(d, buf, pitch);
     a0 = clamp(m->amp0 * 127 / vel, 0, 32767);    /* the voice's own velocity curve, not the part's */
     a1 = clamp(m->amp1 * 127 / vel, 0, 32767);
     for (i = 0; i < DX_N; i++) {
         int32_t x = (a1 - a0) * (int32_t)i;
         int32_t a = a0 + ((x + ((x >> 31) & (CTL - 1))) >> CTL_LOG2);
-        int32_t s = clamp(buf[i] >> 10, -65535, 65535);   /* one carrier at full level: 32768 (the DX7's
-                                                       * voices are quiet next to SLOOP's; measured: tools/level_presets.py) */
+        int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 (one voice near
+                                                       * -6 dBFS, as SLOOP's; the presets' trims level them) */
         int32_t y = s - dx_dc_x[pi][vi] + mulq15(dx_dc_y[pi][vi], 32610);   /* DC blocker, ~10 Hz: FM with */
         dx_dc_x[pi][vi] = s;                      /* feedback is not symmetric (a DX7 has the same offset) */
         dx_dc_y[pi][vi] = y = clamp(y, -131071, 131071);
@@ -381,22 +423,22 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
 
 static const preset_t DX7_PRESETS[] = {
     /* VOICE BRIGHT ATTACK DECAY RELEASE FDBK - - ; ADSR: a gate (the voice has its own envelopes) */
-    {"EPIANO 1", {0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 30, 12, 26)},
-    {"EPIANO 2", {1, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 40, 15, 30)},
-    {"FM BASS", {2, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 8, 10)},
-    {"SLAP BASS", {3, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 8, 10)},
-    {"SUB BASS", {4, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 6)},
-    {"BRASS", {5, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 15, 35)},
-    {"STRINGS", {6, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 20, 55)},
-    {"GLASS PAD", {7, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 25, 60)},
-    {"BELLS", {8, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 30, 55)},
-    {"MARIMBA", {9, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 20, 30)},
-    {"ORGAN", {10, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 30)},
-    {"CLAV", {11, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 15, 20)},
-    {"PLUCK", {12, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 30, 35)},
-    {"FLUTE", {13, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 20, 45)},
-    {"SAW LEAD", {14, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 30, 30)},
-    {"KOTO", {15, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 10, 25, 40)},
+    {"EPIANO 1", {0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 30, 7, 15)},
+    {"EPIANO 2", {1, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 40, 9, 18)},
+    {"FM BASS", {2, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
+    {"SLAP BASS", {3, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
+    {"SUB BASS", {4, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 3)},
+    {"BRASS", {5, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 21)},
+    {"STRINGS", {6, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 12, 33)},
+    {"GLASS PAD", {7, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 15, 36)},
+    {"BELLS", {8, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 33)},
+    {"MARIMBA", {9, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 12, 18)},
+    {"ORGAN", {10, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 18)},
+    {"CLAV", {11, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 12)},
+    {"PLUCK", {12, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 21)},
+    {"FLUTE", {13, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 12, 27)},
+    {"SAW LEAD", {14, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 18, 18)},
+    {"KOTO", {15, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 10, 15, 24)},
     {"INIT VOICE", {16, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 0, 0)},
 };
 

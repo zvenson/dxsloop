@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.1
+# sloopDX 1.2
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and bit-exact against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.1 (1.0 plus DX7 voice editing on the FM-1 and in the editor), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.2 (DX7 voice editing on the FM-1 and in the editor; the ENV page and the knobs act on sounding notes; quieter, shorter tails), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
 ### From SLOOP 2.3
 
@@ -308,7 +308,9 @@ The macro knobs are the panel a DX7 never had. They move the patch's own values,
 - **REL** — the fourth (release) rate of the carriers: right shorter, left a longer tail.
 - **FDBK** — the feedback of the algorithm's feedback operator, added to the patch's own (0–7): more is harsher, from a sine to a saw.
 
-They change the voice for the notes that follow, as the panel of a DX7 does. The voice brings its own envelopes: the track's **ENV** page only keeps the note open (its release is the voice's), so use REL and DEC to shape the tail. **PRESETS** on a synth track goes through the 17 factory voices with their sends (chorus, delay, reverb) set to suit them; your own settings save as user presets (32), as in SLOOP. At power-on, on a new project: **90 BPM**, *FM BASS* on track 1, *EPIANO 1* on track 2, *STRINGS* on track 3 and the DX KIT on track 4.
+They act at once, also on notes that are already sounding (as Dexed does): turn BRITE on a held chord and you hear it open up.
+
+**ENV** on a synth track shapes the carriers' envelopes on top of the voice: **ATK** slower attack, **DEC** longer decay, **REL** longer release (0 = as the voice is programmed, up = slower / longer), **SUS** lowers the sustain (127 = as programmed). On **ENV DEST** and **LFO DEST**, **FLT** and **SHP** move the modulators' level (brightness), since a DX7 voice has no filter; **PIT** bends the pitch, **AMP** (LFO) the volume. **PRESETS** on a synth track goes through the 17 factory voices with their sends (chorus, delay, reverb) set to suit them; your own settings save as user presets (32), as in SLOOP. At power-on, on a new project: **90 BPM**, *FM BASS* on track 1, *EPIANO 1* on track 2, *STRINGS* on track 3 and the DX KIT on track 4.
 
 ## The factory voices
 

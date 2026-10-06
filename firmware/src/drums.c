@@ -233,7 +233,7 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
         if (drums.sweep[k])
             drums.sweep[k] = mulq16(drums.sweep[k], DX_DRUM[drums.drum[k]].sweep_k);
         for (i = 0; i < DX_N; i++) {
-            int32_t s = clamp(buf[i] >> 10, -65535, 65535);   /* one carrier at full level: 32768 */
+            int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 (as the synth parts) */
             rp = s > rp ? s : -s > rp ? -s : rp;
             s = mulq15(mulq15(s, drums.gain[k]),
                        mulq15(lvl, 32767 - drums.a0 - (((drums.a1 - drums.a0) * (int32_t)i) >> CTL_LOG2)));
