@@ -37,6 +37,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF_TYPE}" = tag ]; then
             ./build.sh --release "${GITHUB_REF_NAME#v}"
+            cp "build/felucca-${GITHUB_REF_NAME#v}.fwsc" build/felucca.fwsc   # the tests read this name
           else
             ./build.sh
           fi
@@ -54,5 +55,5 @@ jobs:
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: build/felucca*.fwsc
+          files: build/felucca-*.fwsc
           generate_release_notes: true

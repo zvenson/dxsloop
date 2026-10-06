@@ -21,7 +21,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 ## Why sloopDX
 
-I bought the FM-1 for one reason: a DX7 sound, a real FM synth, in a little box. Out of the box it is not quite that. Two projects showed what the hardware can do. **[Baud Girl's FM-1+VA](https://baudgirl.com/work/FM-1+VA)** made the FM-1 a serious FM instrument you can program on the device, with a list for every parameter. **[SLOOP](https://github.com/isod89/sloop-fm1)** made it a groovebox you play live, with a sequencer, layers, song mode and effects that are a joy to use.
+I bought the FM-1 for one reason: a DX7 sound, a real FM synth, in a little box. Out of the box it is exactly that. Then two projects took it further. **[Baud Girl's FM-1+VA](https://baudgirl.com/work/FM-1+VA)** turned the sequencer into something much better and lets you program the FM sound on the device, with a list for every parameter. **[SLOOP](https://github.com/isod89/sloop-fm1)** turned it into a groovebox you play live, with a sequencer, layers, song mode and effects that are a joy to use, but without the FM sound. I wanted the FM back.
 
 sloopDX is my approach to combine both: **SLOOP's live workflow, with a DX7 inside.** The engine is Dexed's DX7 core, ported to the FM-1's chip and checked against Dexed sample by sample, so a DX7 patch sounds as it should. The voice editing follows the idea of Baud Girl's list (its concept, rebuilt here; Baud Girl's firmware is closed source) in the DX7's own names. Your banks load as they are, 256 voices of them, and the drums are FM too.
 
