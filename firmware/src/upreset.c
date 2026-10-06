@@ -6,7 +6,7 @@
  * engine, name, the instrument parameters, a 16-step pattern.
  *
  * A bank whose magic, record size or slot count differ reads as empty; so
- * does a record with another UP_VER. A record keeps np = the P_COUNT it was
+ * does a record with another UP_VER (1 still reads: its DX7 voice number is mapped, core.h DX_VOICE_FROM_V1). A record keeps np = the P_COUNT it was
  * stored with; when that differs it is mapped by count: its last 8 values
  * are P_E0..P_E7, the first np - 8 are P_LEVEL.. in order, missing ones take
  * their defaults. So common parameters may only be added just before P_E0
@@ -17,7 +17,7 @@
 #define UP_PER_BANK 16u
 #define UP_PMAX 72u                              /* room for P_COUNT to grow */
 #define UP_USED 0xA5u
-#define UP_VER 1u
+#define UP_VER 2u                                /* 2: sloopDX 2.0 DX7 voice numbers (1: before, mapped) */
 #define UP_BANK_MAGIC 0x31425055u                /* "UPB1" */
 typedef struct {
     uint8_t used, ver, engine, np;               /* UP_USED, UP_VER, engine, P_COUNT when stored */
@@ -38,7 +38,7 @@ static up_rec_t *up_rec(uint32_t k) { return &up_bank[k / UP_PER_BANK].r[k % UP_
 
 static int up_valid(const up_rec_t *r)
 {
-    return r->used == UP_USED && r->ver == UP_VER && r->engine < NENGINES && r->np >= 8u && r->np <= UP_PMAX &&
+    return r->used == UP_USED && (r->ver == UP_VER || r->ver == 1u) && r->engine < NENGINES && r->np >= 8u && r->np <= UP_PMAX &&
            r->name[0];
 }
 
@@ -60,6 +60,10 @@ static void up_params(const up_rec_t *r, int16_t *out, const int16_t *def)
         out[i] = i < nc ? r->p[i] : def[i];
     for (i = 0; i < 8u; i++)
         out[P_E0 + i] = r->p[nc + i];
+    if (r->ver < 2u) {                           /* stored before sloopDX 2.0 (one engine: the DX7) */
+        out[P_E0] = (int16_t)DX_VOICE_FROM_V1(out[P_E0]);
+        out[P_E6] = DX_CUT_OPEN;
+    }
 }
 
 static int up_name_ok(const uint8_t *s, uint32_t n)   /* 1..12 printable ASCII */

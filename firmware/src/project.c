@@ -24,6 +24,7 @@
 #define PROJ_NG_V3 27u                         /* G_COUNT of formats 1..3 */
 #define PROJ_NP_V2 53u                         /* P_COUNT of formats 1 and 2 (P_E0 was 45) */
 #define PROJ_NG_V2 27u                         /* G_COUNT of formats 1 and 2 */
+#define PROJ_DXV 1u                            /* the DX7 voice numbers of sloopDX 2.0 (core.h DX_VOICE_FROM_V1) */
 typedef struct {                               /* one track; the drum track ignores engine / preset */
     int16_t p[P_COUNT];
     uint8_t engine, preset;
@@ -35,7 +36,7 @@ typedef struct {                               /* one track; the drum track igno
 typedef struct {
     uint32_t magic, size;
     int16_t g[G_COUNT];
-    uint8_t sel, rsv[3];                       /* the selected track */
+    uint8_t sel, dxv, rsv[2];                  /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0) */
     proj_trk_t t[NTRK];
     uint32_t sum;
 } project_t;
@@ -236,6 +237,7 @@ static void proj_capture(project_t *p)        /* what is playing now, as a proje
     memset(p, 0, sizeof *p);
     p->magic = PROJ_MAGIC;
     p->size = sizeof *p;
+    p->dxv = PROJ_DXV;
     for (i = 0; i < G_COUNT; i++)
         p->g[i] = song.g[i];
     p->sel = song.sel;
@@ -266,9 +268,19 @@ static void proj_apply(const project_t *p, int all)
         for (i = 0; i < P_COUNT; i++) {                 /* every value back inside its range */
             const param_desc_t *d = k == TRK_DRUM && i == P_E0 ? &DRUM_KIT_DESC :   /* the drum kit */
                                     i >= P_E0 && i <= P_E7 ? &ENGINES[e]->edit[i - P_E0] : &TP[i];
-            t->p[i] = (int16_t)clamp(s->p[i], d->min, d->max);
+            int32_t v = s->p[i];
+            if (p->dxv < PROJ_DXV && k < NPART && i == P_E0)
+                v = DX_VOICE_FROM_V1(v);                /* (sloopDX has one engine: the DX7) */
+            if (p->dxv < PROJ_DXV && k < NPART && i == P_E6)
+                v = DX_CUT_OPEN;
+            t->p[i] = (int16_t)clamp(v, d->min, d->max);
         }
-        t->preset = (uint8_t)(ENGINES[e]->npresets ? (s->preset == 0xFFu ? 0u : s->preset) % ENGINES[e]->npresets : 0u);
+        {
+            uint32_t pr = s->preset == 0xFFu ? 0u : s->preset;
+            if (p->dxv < PROJ_DXV)
+                pr = DX_VOICE_FROM_V1(pr);              /* INIT VOICE's preset moved like its voice */
+            t->preset = (uint8_t)(ENGINES[e]->npresets ? pr % ENGINES[e]->npresets : 0u);
+        }
         memcpy(t->step, s->step, sizeof t->step);
         if (k != TRK_DRUM)
             for (i = 0; i < NSTEP; i++) {

@@ -256,6 +256,7 @@ static uint8_t dx_note0[NPART][NVOICE], dx_rel[NPART][NVOICE];
  * stored: as on Baud Girl's FM-1+VA they come back with another voice */
 static uint8_t dx_opmute[NPART], dx_opmute_v[NPART];   /* the switches, and the VOICE they were set on */
 static int32_t dx_dc_x[NPART][NVOICE], dx_dc_y[NPART][NVOICE];   /* DC blocker state */
+static int32_t dx_f1[NPART][NVOICE], dx_f2[NPART][NVOICE];      /* the filter's state (tsvf, dsp.c) */
 
 static dxv_t *dx_of(const track_t *t, const voice_t *v, uint32_t *pi, uint32_t *vi)
 {
@@ -362,7 +363,7 @@ static void dx7_note_on(track_t *t, voice_t *v)
     dx_note0[pi][vi] = v->note;
     dx_rel[pi][vi] = 0;
     if (!keep)
-        dx_dc_x[pi][vi] = dx_dc_y[pi][vi] = 0;
+        dx_dc_x[pi][vi] = dx_dc_y[pi][vi] = dx_f1[pi][vi] = dx_f2[pi][vi] = 0;
 }
 
 /* the part's envelope as a gate: open while held, the release left to the voice's own envelopes */
@@ -404,7 +405,8 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
 {
     uint32_t pi, vi, i;
     dxv_t *d = dx_of(t, v, &pi, &vi);
-    int32_t buf[DX_N], a0, a1, vel = v->vel ? v->vel : 1;
+    int32_t buf[DX_N], a0, a1, vel = v->vel ? v->vel : 1, cut, filt;
+    tsvf_t fc;
     /* the part's pitch (glide, LFO, tuning, pitch envelope) against the note the voice was started on;
      * 1/16 semitone -> Q24 log2 */
     int32_t pitch = ((m->pitch16 - (int32_t)dx_note0[pi][vi] * 16) * 349525) >> 2;
@@ -420,11 +422,16 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
         buf[i] = 0;
     if (d->on)                                    /* a knob, the voice list or the editor changed the voice */
         dx_follow(t, d, pi, vi, vel);
-    /* ENV / LFO -> FLT and SHP (no filter, no shape here): the modulators' level, +-2 octaves of gain. The
-     * cutoff only when a FLT destination is set: voice.c also opens it on accents, which a DX7 voice does with
-     * its own velocity sensitivity */
-    d->bright = ((m->shape - (64 << 8)) + (t->p[P_LD_FLT] || t->p[P_ED_FLT] ? m->cutoff : 0)) * 2048;
+    /* ENV / LFO -> SHP: the modulators' level, +-2 octaves of gain (BRITE). ENV / LFO -> FLT move the filter */
+    d->bright = (m->shape - (64 << 8)) * 2048;
     dx_compute(d, buf, pitch);
+    /* the low-pass behind the voice (CUT, RESO; ENV / LFO -> FLT): open at CUT 127 with nothing closing it, and
+     * then out of the way (the sound bit for bit as without it). The accent's opening (voice.c) only counts with
+     * a FLT destination set: a DX7 voice has its own velocity sensitivity */
+    cut = (t->p[P_E6] << 8) + (t->p[P_LD_FLT] || t->p[P_ED_FLT] ? m->cutoff : 0);
+    filt = cut < (127 << 8);
+    if (filt)
+        tsvf_coef(&fc, cut, t->p[P_E7]);
     a0 = clamp(m->amp0 * 127 / vel, 0, 32767);    /* the voice's own velocity curve, not the part's */
     a1 = clamp(m->amp1 * 127 / vel, 0, 32767);
     for (i = 0; i < DX_N; i++) {
@@ -436,29 +443,37 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
         int32_t y = s - dx_dc_x[pi][vi] + mulq15(dx_dc_y[pi][vi], 32610);   /* DC blocker, ~10 Hz: FM with */
         dx_dc_x[pi][vi] = s;                      /* feedback is not symmetric (a DX7 has the same offset) */
         dx_dc_y[pi][vi] = y = clamp(y, -131071, 131071);
-        out[i] += mulq15(mulq15(clamp(y, -65535, 65535), a), VOICE_FS);
+        y = clamp(y, -65535, 65535);
+        if (filt)
+            y = clamp(tsvf_lp(&fc, y, &dx_f1[pi][vi], &dx_f2[pi][vi]), -65535, 65535);
+        else
+            dx_f1[pi][vi] = 0, dx_f2[pi][vi] = y;   /* (open: the state follows, closing it does not click) */
+        out[i] += mulq15(mulq15(y, a), VOICE_FS);
     }
 }
 
 static const preset_t DX7_PRESETS[] = {
-    /* VOICE BRIGHT ATTACK DECAY RELEASE FDBK - - ; ADSR: a gate (the voice has its own envelopes) */
-    {"EPIANO 1", {0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 30, 7, 15)},
-    {"EPIANO 2", {1, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 40, 9, 18)},
-    {"FM BASS", {2, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
-    {"SLAP BASS", {3, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
-    {"SUB BASS", {4, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 3)},
-    {"BRASS", {5, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 21)},
-    {"STRINGS", {6, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 12, 33)},
-    {"GLASS PAD", {7, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 15, 36)},
-    {"BELLS", {8, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 33)},
-    {"MARIMBA", {9, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 12, 18)},
-    {"ORGAN", {10, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 18)},
-    {"CLAV", {11, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 12)},
-    {"PLUCK", {12, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 21)},
-    {"FLUTE", {13, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 12, 27)},
-    {"SAW LEAD", {14, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 18, 18)},
-    {"KOTO", {15, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 10, 15, 24)},
-    {"INIT VOICE", {16, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 0, 0)},
+    /* VOICE BRIGHT ATTACK DECAY RELEASE FDBK CUT RESO ; ADSR: a gate (the voice has its own envelopes) */
+    {"EPIANO 1", {0, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 30, 7, 15)},
+    {"EPIANO 2", {1, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 40, 9, 18)},
+    {"FM BASS", {2, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
+    {"SLAP BASS", {3, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 4, 6)},
+    {"SUB BASS", {4, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 3)},
+    {"BRASS", {5, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 21)},
+    {"STRINGS", {6, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 12, 33)},
+    {"GLASS PAD", {7, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 50, 15, 36)},
+    {"BELLS", {8, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 33)},
+    {"MARIMBA", {9, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 12, 18)},
+    {"ORGAN", {10, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 18)},
+    {"CLAV", {11, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 9, 12)},
+    {"PLUCK", {12, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 18, 21)},
+    {"FLUTE", {13, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 12, 27)},
+    {"SAW LEAD", {14, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 18, 18)},
+    {"KOTO", {15, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 10, 15, 24)},
+    {"DEEP SUB", {16, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 0)},
+    {"808 SUB", {17, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 0, 0, 3)},
+    {"REESE", {18, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 1, FX(0, 20, 0, 6)},
+    {"INIT VOICE", {19, 0, 0, 0, 0, 0, 127, 0}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 0, 0)},
 };
 
 static const engine_t ENG_DX7 = {
@@ -470,8 +485,8 @@ static const engine_t ENG_DX7 = {
         {"DEC", F_INT, -40, 40, 0, 0, 0},
         {"REL", F_INT, -40, 40, 0, 0, 0},
         {"FDBK", F_INT, -7, 7, 0, 0, 0},
-        {"-", F_INT, 0, 0, 0, 0, 0},
-        {"-", F_INT, 0, 0, 0, 0, 0},
+        {"CUT", F_CUTOFF, 0, 127, 127, 0, 0},
+        {"RESO", F_PCT, 0, 127, 0, 0, 0},
     },
     DX7_PRESETS, sizeof(DX7_PRESETS) / sizeof(DX7_PRESETS[0]), -1, dx7_note_on, dx7_render,
     0x05DF, {P_E1, P_E2, P_E4, P_E5}, 0, dx7_amp,

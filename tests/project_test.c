@@ -239,6 +239,23 @@ int main(void)
          dstep_has(&TDRUM->dstep[9], 4) && dstep_lvl(&TDRUM->dstep[9], 4) == LV_SOFT && dstep_rat(&TDRUM->dstep[9], 4) == 1u;
     bad += check("the working project: capture -> apply round trip (levels, lanes, DUST)", ok);
 
+    /* sloopDX 2.0 added three factory voices before INIT VOICE: a project saved before (dxv 0) has its DX7
+     * voices from 16 on (INIT VOICE, the bank) moved up by three; one saved now keeps them */
+    host_tracks_init();
+    trk[0].p[P_E0] = 5, trk[1].p[P_E0] = 16, trk[2].p[P_E0] = 20;
+    trk[0].preset = 5, trk[1].preset = 16;
+    proj_capture(&q);
+    ok = q.dxv == PROJ_DXV;
+    proj_apply(&q, 1);
+    ok &= trk[0].p[P_E0] == 5 && trk[1].p[P_E0] == 16 && trk[2].p[P_E0] == 20 && trk[1].preset == 16u;
+    q.dxv = 0;
+    q.t[0].p[P_E6] = q.t[2].p[P_E6] = 0;                /* (CUT did not exist: saved as 0) */
+    q.t[3].p[P_E0] = 2;                                 /* the drum track: its kit, never moved */
+    proj_apply(&q, 1);
+    ok &= trk[0].p[P_E0] == 5 && trk[1].p[P_E0] == 19 && trk[2].p[P_E0] == 23 && trk[0].preset == 5u &&
+          trk[1].preset == 19u && trk[3].p[P_E0] == 2 && trk[0].p[P_E6] == DX_CUT_OPEN && trk[2].p[P_E6] == DX_CUT_OPEN;
+    bad += check("a project from before 2.0: DX7 voices 16.. up by three, CUT open", ok);
+
     printf("%s\n", bad ? "PROJECT FORMAT TEST FAILED" : "project format test passed");
     return bad != 0;
 }

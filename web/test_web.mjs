@@ -45,19 +45,22 @@ async function editorMock() {
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
   ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
     && info.ntrk === 4 && info.proto === 9 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 9)");
-  /* the DX7 engine as eng_dx7.c describes it: VOICE (17 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, two unused */
+  /* the DX7 engine as eng_dx7.c describes it: VOICE (20 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, CUT RESO */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
   const bankH = readFileSync(join(HERE, "../firmware/src/dx7_bank.h"), "utf8"), engC = readFileSync(join(HERE, "../firmware/src/eng_dx7.c"), "utf8");
   const fwVoices = ((/#define DX_SYNTH_NAME_LIST (.*)/.exec(bankH) || [])[1] || "").split(",").map((x) => x.trim().replace(/"/g, ""));
-  const fwPresets = [...engC.matchAll(/^\s*\{"([^"]+)", \{\d+, 0, 0, 0, 0, 0, 0, 0\}/gm)].map((x) => x[1]);
+  const fwPresets = [...engC.matchAll(/^\s*\{"([^"]+)", \{\d+, 0, 0, 0, 0, 0, 127, 0\}/gm)].map((x) => x[1]);
+  const nf = fwVoices.length;
   const nm = E.parse[E.CMD.NAMES](await rq(E.req.names(0)));
-  ok(ed.map((d) => d.label).join() === "VOICE,BRITE,ATK,DEC,REL,FDBK,-,-" && ed[0].fmt === E.F.ENUM && ed[0].names.length === 49
-    && ed[0].names.slice(0, 17).join() === fwVoices.join() && ed[0].names[17] === "U01" && ed[0].names[48] === "U32"
-    && ed[1].min === -40 && ed[1].max === 40 && ed[4].max === 40 && ed[5].min === -7 && ed[5].max === 7 && ed[6].min === 0 && ed[6].max === 0
-    && /"DX7", \{"VOICE", "SHAPE"\}/.test(engC) && /\{"BRITE", F_INT, -40, 40, 0/.test(engC) && /\{"FDBK", F_INT, -7, 7, 0/.test(engC),
+  ok(nf === 20 && ed.map((d) => d.label).join() === "VOICE,BRITE,ATK,DEC,REL,FDBK,CUT,RESO" && ed[0].fmt === E.F.ENUM && ed[0].names.length === nf + 32
+    && ed[0].names.slice(0, nf).join() === fwVoices.join() && ed[0].names[nf] === "U01" && ed[0].names[nf + 31] === "U32"
+    && ed[1].min === -40 && ed[1].max === 40 && ed[4].max === 40 && ed[5].min === -7 && ed[5].max === 7
+    && ed[6].fmt === E.F.CUTOFF && ed[6].min === 0 && ed[6].max === 127 && ed[6].def === 127 && ed[7].min === 0 && ed[7].max === 127 && ed[7].def === 0
+    && /"DX7", \{"VOICE", "SHAPE"\}/.test(engC) && /\{"BRITE", F_INT, -40, 40, 0/.test(engC) && /\{"FDBK", F_INT, -7, 7, 0/.test(engC)
+    && /\{"CUT", F_CUTOFF, 0, 127, 127/.test(engC) && /\{"RESO", F_PCT, 0, 127, 0/.test(engC),
     "editor: DX7 engine parameters (mock == eng_dx7.c / dx7_bank.h)");
-  ok(nm.names.length === 17 && nm.names.join() === fwPresets.join() && nm.titles.join() === "VOICE,SHAPE",
+  ok(nm.names.length === nf && nm.names.join() === fwPresets.join() && nm.titles.join() === "VOICE,SHAPE",
     `editor: NAMES: the ${nm.names.length} DX7 presets and the page titles (== eng_dx7.c)`);
   const ge = E.parse[E.CMD.DESC](await rq(E.req.desc(1, 20)));
   ok(ge.label === "ENG" && ge.names.join() === "DX7", "editor: G_ENGSEL lists the one engine");
@@ -216,6 +219,16 @@ async function editorLibrarian() {
   const p0 = fut.patches[0].p;
   ok(fut.patches.length === 2 && p0.length === 59 && p0[5] === null && p0[6] === cap.p[5] && p0[58] === cap.p[57]
     && fut.patches[0].engine === 1 && fut.patches[1].engine === 1, "library file: other ids / engine order mapped by label and name");
+  /* a library of sloopDX 1.9 (17 factory voices, no CUT / RESO: E6 / E7 saved as 0) read with a 2.0 device:
+     VOICE 16 on moves up by three (2.0 put DEEP SUB, 808 SUB and REESE before INIT VOICE), CUT open, RESO 0;
+     a 2.0 file as it is */
+  const pe0 = info.pe0, mk = (v) => ({ ...file.patches[0], dxv: undefined, params: file.patches[0].params.map((x, i) => (i === pe0 ? v : i >= pe0 + 6 ? 0 : x)) });
+  const old19 = E.readLibraryFile({ ...file, firmware: "FELUCCA sloopDX 1.9", patches: [mk(15), mk(16), mk(20)] }, ctx);
+  const new10 = E.readLibraryFile({ ...file, patches: [{ ...mk(20), dxv: 2 }] }, ctx);
+  ok(/sloopDX 2\.0/.test(info.version) && file.patches.every((x) => x.dxv === 2)
+    && old19.patches.map((x) => x.p[pe0]).join() === "15,19,23" && old19.patches.every((x) => x.p[pe0 + 6] === 127 && x.p[pe0 + 7] === 0 && x.dxv === 2)
+    && new10.patches[0].p[pe0] === 20 && new10.patches[0].p[pe0 + 6] === 0,
+    "library file: from 1.9: VOICE 16.. + 3, CUT open; a 2.0 file kept");
   /* a SLOOP 2.x library: its ANALOG / DIGITAL patches have no engine here and are skipped, DX7 ones would load */
   const sloop = E.readLibraryFile({ ...file, engines: ["ANALOG", "DIGITAL"], patches: [{ ...file.patches[0], engine: 0, engineName: "ANALOG" }, { ...file.patches[1], engine: 1, engineName: "DIGITAL" }] }, ctx);
   ok(sloop.patches.length === 0 && sloop.skipped === 2, "library file: SLOOP engines are skipped (no such engine)");
@@ -416,12 +429,12 @@ async function editorTrackParam() {
   const g = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(1, PAN)));
   const p2 = await E.mixer.setPan(rq, 2, 0, PAN, -40, true);
   const p1 = await E.mixer.setPan(rq, 1, 0, PAN, 99, true);
-  const alg = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(1, info.pe0, 99)));   /* VOICE: 0..48 (17 factory + 32 user) */
+  const alg = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(1, info.pe0, 99)));   /* VOICE: 0..51 (20 factory + 32 user) */
   const lv = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(3, 0, -5)));
   const sel = E.parse[C.TRACK](await rq(E.req.track()));
   const td2 = E.parse[C.TRACK_DUMP](await rq(E.req.trackDump(2)), info);
   await sleep(10);
-  ok(g.track === 1 && g.id === PAN && g.value === -24 && p2 === -40 && p1 === 63 && alg.value === 48 && lv.value === 0 && td2.p[PAN] === -40
+  ok(g.track === 1 && g.id === PAN && g.value === -24 && p2 === -40 && p1 === 63 && alg.value === 51 && lv.value === 0 && td2.p[PAN] === -40
     && sel.sel === 0 && (sent[C.TRACK] || 0) === tracks0 + 1 && ev.pushes.length === pushes,
     "v4: TRACK_PARAM get / set on other tracks (clamped as SET, selection kept, no push)");
   const bad = await rq(E.req.trackParam(4, PAN), { timeout: 60, retries: 0, quiet: true }).then(() => "reply", () => "none");
@@ -599,7 +612,7 @@ async function editorVoice() {
   const bank = readFileSync(join(HERE, "../firmware/src/dx7_bank.h"), "utf8");
   const body = bank.slice(bank.indexOf("DX_SYNTH[DX_NSYNTH][156] = {") + 28);
   const voices = [...body.slice(0, body.indexOf("};")).matchAll(/\{([0-9,\s]+)\}/g)].map((m) => Uint8Array.from(m[1].split(",").map((x) => +x)));
-  let rt = voices.length === 17;
+  let rt = voices.length === 20;
   for (const u of voices) {
     const back = E.dx7Unpack(E.dx7Pack(u));
     for (let i = 0; i < 155; i++) if (back[i] !== u[i]) rt = false;
@@ -632,15 +645,15 @@ async function editorVoice() {
   const rc = await E.dxvoice.put(rq, 5, slap);
   const alg = await E.dxvoice.param(rq, 5, 134, 9);
   const fbClamped = await E.dxvoice.param(rq, 5, 135, 99);
-  const u6 = await E.dxvoice.get(rq, 17 + 5);
+  const u6 = await E.dxvoice.get(rq, 20 + 5);
   const nameBytes = "MY SLAP   ";
   for (let i = 0; i < 10; i++) await E.dxvoice.param(rq, 5, 145 + i, nameBytes.charCodeAt(i));
   const desc = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const saved = await E.dxvoice.save(rq);
-  const u1 = await E.dxvoice.get(rq, 17);
+  const u1 = await E.dxvoice.get(rq, 20);
   ok(info.proto === 9 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
     "voice: VOICE_GET / PUT / PARAM on the mock (ALG 10 set, feedback clamped to 7, OP1 kept)");
-  ok(desc.names[17 + 5] === "MY SLAP" && desc.names[17] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
+  ok(desc.names[20 + 5] === "MY SLAP" && desc.names[20] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
     "voice: the name in DESC of VOICE, the other slots INIT VOICE, BANK_SAVE ok");
   /* v9: 8 banks; the bank in use is what U01..U32 and the bank commands see */
   const sel1 = await E.dxvoice.select(rq, 1);
@@ -693,7 +706,7 @@ async function editorDxBank() {
   const info = E.parse[C.INFO](await rq(E.req.info()));
   const before = await E.dxbank.info(rq);
   const v0 = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
-  ok(before.ok === 0 && before.names.length === 32 && before.names.every((n) => n === "") && v0.names.length === 49 && v0.names[17] === "U01" && v0.names[48] === "U32",
+  ok(before.ok === 0 && before.names.length === 32 && before.names.every((n) => n === "") && v0.names.length === 52 && v0.names[20] === "U01" && v0.names[51] === "U32",
     "dx7: no bank at first (BANK_INFO ok 0, empty names; VOICE U01..U32)");
   const prog = [];
   const rc = await E.dxbank.upload(rq, chk, (k, n) => prog.push(`${k}/${n}`));
@@ -702,13 +715,13 @@ async function editorDxBank() {
   ok(rc === 0 && sent[C.BANK_BEGIN] === 1 && sent[C.BANK_WRITE] === 8 && sent[C.BANK_END] === 1 && prog.join() === "1/8,2/8,3/8,4/8,5/8,6/8,7/8,8/8"
     && after.ok === 1 && after.names.join("|") === chk.names.join("|") && eq(m.state.dx.data, chk.data),
     "dx7: upload = BANK_BEGIN + 8 x BANK_WRITE + BANK_END, rc 0; BANK_INFO gives the 32 names");
-  ok(v1.names.length === 49 && v1.names.slice(0, 17).join() === v0.names.slice(0, 17).join() && v1.names[17] === "VOICE 01" && v1.names[20] === "A B"
-    && v1.names[47] === "VOICE 31" && v1.names[48] === "U32", "dx7: DESC of P_E0 lists the bank's names as U01..U32 (an empty name stays Unn)");
-  const set = E.parse[C.SET](await rq(E.req.set(0, info.pe0, 20)));
+  ok(v1.names.length === 52 && v1.names.slice(0, 20).join() === v0.names.slice(0, 20).join() && v1.names[20] === "VOICE 01" && v1.names[23] === "A B"
+    && v1.names[50] === "VOICE 31" && v1.names[51] === "U32", "dx7: DESC of P_E0 lists the bank's names as U01..U32 (an empty name stays Unn)");
+  const set = E.parse[C.SET](await rq(E.req.set(0, info.pe0, 23)));
   ok(E.fmtValue({ label: "VOICE", fmt: E.F.ENUM, min: 0, max: 48, names: Array(49).fill("X") }, 2)[0] === "03 X"
     && E.fmtValue({ label: "KIT", fmt: E.F.ENUM, min: 0, max: 4, names: ["DX KIT", "808 FM"] }, 1)[0] === "2 808 FM",
     "numbers: factory voices 01..17, kits 1..4");
-  ok(set.value === 20 && E.fmtValue(v1, 20)[0] === "21 A B", "dx7: a user voice can be selected and is shown by number and name (21 A B)");
+  ok(set.value === 23 && E.fmtValue(v1, 23)[0] === "24 A B", "dx7: a user voice can be selected and is shown by number and name (24 A B)");
   /* a bad checksum: the device refuses it (rc 1) and the bank stays empty; a write without BEGIN is refused */
   const bad = { data: chk.data, checksum: (chk.checksum + 1) & 0x7F };
   const rcBad = await E.dxbank.upload(rq, bad);
@@ -716,7 +729,7 @@ async function editorDxBank() {
   const v2 = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const wNoBegin = E.parse[C.BANK_WRITE](await rq(E.req.bankWrite(0, chk.data.subarray(0, 512))));
   const wPast = (async () => { await rq(E.req.bankBegin()); return E.parse[C.BANK_WRITE](await rq(E.req.bankWrite(4000, chk.data.subarray(0, 512)))); })();
-  ok(rcBad === 1 && afterBad.ok === 0 && afterBad.names.every((n) => n === "") && v2.names[17] === "U01" && wNoBegin.rc === 1 && (await wPast).rc === 1,
+  ok(rcBad === 1 && afterBad.ok === 0 && afterBad.names.every((n) => n === "") && v2.names[20] === "U01" && wNoBegin.rc === 1 && (await wPast).rc === 1,
     "dx7: a bad checksum is refused (rc 1, the bank is empty again); BANK_WRITE without BEGIN or past the end: rc 1");
   /* BANK_BEGIN alone empties the bank; a good upload after it, then ERASE */
   ok((await E.dxbank.upload(rq, chk)) === 0 && (await E.dxbank.info(rq)).ok === 1, "dx7: uploaded again");
@@ -727,7 +740,7 @@ async function editorDxBank() {
   const rcE = await E.dxbank.erase(rq);
   const gone = await E.dxbank.info(rq);
   const v3 = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
-  ok(rcE === 0 && gone.ok === 0 && gone.names.every((n) => n === "") && v3.names[17] === "U01" && v3.names[48] === "U32" && m.state.dx.data === null,
+  ok(rcE === 0 && gone.ok === 0 && gone.names.every((n) => n === "") && v3.names[20] === "U01" && v3.names[51] === "U32" && m.state.dx.data === null,
     "dx7: BANK_ERASE empties it (BANK_INFO ok 0, VOICE U01..U32 again)");
   ok(!ev.unknown.length && ev.timeouts === 0, "dx7: no unmatched replies, no timeouts");
   done();

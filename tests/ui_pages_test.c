@@ -208,6 +208,16 @@ int main(int argc, char **argv)
         encs[panel.enc[EN_ALGO]] = 2; frame();
         check(dx_selects == 1u && dx_bank_cur == 1u, "voice edit: the Bank row switches to the next of the 8 banks");
         ui.force = 1; frame(); ppm("voice-bank");
+        {   /* KNOB 1 / 2 in the voice list: the filter behind the voice, its value in the top bar */
+            int16_t c0 = TSEL->p[P_E6];
+            encs[panel.enc[EN_K1]] = -12; frame();
+            check(c0 == 127 && TSEL->p[P_E6] < 127 && ui.msg[0] == 'C' && ui.msg[1] == 'U' && ui.msg[2] == 'T',
+                  "voice edit: KNOB 1 closes CUT, the top bar says so");
+            encs[panel.enc[EN_K1 + 1]] = 30; frame();
+            check(TSEL->p[P_E7] > 0 && ui.msg[0] == 'R', "voice edit: KNOB 2 is RESO");
+            ui.force = 1; frame(); ppm("voice-cut");
+            TSEL->p[P_E6] = 127, TSEL->p[P_E7] = 0;
+        }
         encs[panel.enc[EN_ALGO]] = -5; frame();
         check(dx_bank_cur == 0u, "voice edit: back to bank 1");
         tap(B_HOME);
@@ -215,18 +225,18 @@ int main(int argc, char **argv)
         TSEL->p[P_E0] = (int16_t)e0;
         dx_bank_clear();
     }
-    {   /* PRESETS on HOME: after 17 INIT VOICE comes the user bank, 18 = U01 .. 49 = U32, then the user presets */
-        uint32_t total;
+    {   /* PRESETS on HOME: after 20 INIT VOICE comes the user bank, 21 = U01 .. 52 = U32, then the user presets */
+        uint32_t total, init = DX_NSYNTH - 1u;
         dx_bank_init_all();
         go_home(); frame();
-        apply_preset(16);
+        apply_preset(init);
         encs[panel.enc[EN_PRESET]] = 1; frame();
-        check(TSEL->p[P_E0] == (int16_t)DX_NSYNTH && preset_pos(&total) == 17u && total >= 49u,
-              "PRESETS: after 17 the bank voices (18 = U01)");
+        check(TSEL->p[P_E0] == (int16_t)DX_NSYNTH && preset_pos(&total) == (uint32_t)DX_NSYNTH && total >= DX_NSYNTH + 32u,
+              "PRESETS: after 20 the bank voices (21 = U01)");
         encs[panel.enc[EN_PRESET]] = 5; frame();
-        check(TSEL->p[P_E0] == (int16_t)(DX_NSYNTH + 5u), "PRESETS: on through the bank (23 = U06)");
+        check(TSEL->p[P_E0] == (int16_t)(DX_NSYNTH + 5u), "PRESETS: on through the bank (26 = U06)");
         encs[panel.enc[EN_PRESET]] = -6; frame();
-        check(TSEL->p[P_E0] == 16 && TSEL->preset == 16u, "PRESETS: back to 17 INIT VOICE");
+        check(TSEL->p[P_E0] == (int16_t)init && TSEL->preset == init, "PRESETS: back to 20 INIT VOICE");
         dx_bank_clear();
         apply_preset(0);
     }

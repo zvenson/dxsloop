@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "sloopDX 1.9"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 2.0"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -313,12 +313,12 @@ static void select_engine(uint32_t e)
 enum { BK_BASS, BK_KEYS, BK_ORGAN, BK_PAD, BK_LEAD, BK_PLUCK, BK_STAB, BK_FX };
 static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "PLCK", "STAB", "FX"};
 static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* sloopDX: the DX7 voices in their
-                                                                         * numbered order 01..17 (no jumps) */
+                                                                         * numbered order 01..20 (no jumps) */
     {BK_KEYS, 0, "EPIANO 1"}, {BK_KEYS, 0, "EPIANO 2"}, {BK_BASS, 0, "FM BASS"}, {BK_BASS, 0, "SLAP BASS"},
     {BK_BASS, 0, "SUB BASS"}, {BK_STAB, 0, "BRASS"}, {BK_PAD, 0, "STRINGS"}, {BK_PAD, 0, "GLASS PAD"},
     {BK_PLUCK, 0, "BELLS"}, {BK_PLUCK, 0, "MARIMBA"}, {BK_ORGAN, 0, "ORGAN"}, {BK_KEYS, 0, "CLAV"},
     {BK_PLUCK, 0, "PLUCK"}, {BK_LEAD, 0, "FLUTE"}, {BK_LEAD, 0, "SAW LEAD"}, {BK_PLUCK, 0, "KOTO"},
-    {BK_FX, 0, "INIT VOICE"},
+    {BK_BASS, 0, "DEEP SUB"}, {BK_BASS, 0, "808 SUB"}, {BK_BASS, 0, "REESE"}, {BK_FX, 0, "INIT VOICE"},
 };
 #define NBANK (sizeof BANK / sizeof BANK[0])
 static uint8_t bank_pi[NBANK];                       /* the preset index of each entry in its engine */
@@ -335,8 +335,8 @@ static void bank_resolve(void)
     }
     bank_ready = 1;
 }
-/* sloopDX: after the 17 factory presets the list goes on through the 32 voices of the DX7 user bank in use
- * (18..49, as their VOICE numbers), then the user presets */
+/* sloopDX: after the 20 factory presets the list goes on through the 32 voices of the DX7 user bank in use
+ * (21..52, as their VOICE numbers), then the user presets */
 #define NBANKV (dx_user_ok ? DX_NUSER : 0u)
 #define PRESET_BANKV (NENGINES + 1u)                 /* preset_at: a voice of the user bank, *k its slot */
 static uint32_t preset_pos(uint32_t *total)          /* list index of the selected track's preset */

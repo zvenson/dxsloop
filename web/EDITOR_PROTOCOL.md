@@ -7,7 +7,9 @@ the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 
 protocol v7 (sloopDX); commands 42-45 (voice editing) form protocol v8 (sloopDX); command 46 (8 banks) forms protocol v9.
 
 **v7 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
-(VOICE) is an enum of 49 names: the 17 factory voices, then U01..U32, the user bank. A DX7 32-voice bulk
+(VOICE) is an enum of 52 names: the 20 factory voices, then U01..U32, the user bank (sloopDX 1.9: 49 names, 17 factory
+voices; the editor takes the count from this enum: its length - 32). `P_E6` is CUT (F_CUTOFF 0..127, default 127 = open)
+and `P_E7` RESO (0..127), the low-pass behind the voice (unused before 2.0). A DX7 32-voice bulk
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
@@ -113,7 +115,7 @@ An absent status byte retains the original reply format.
 
 | cmd (v8, sloopDX voice editing) | Request args | Reply args |
 | --- | --- | --- |
-| 42 VOICE_GET | index 0..48 (the VOICE enum: 0..16 factory, 17..48 = U01..U32) | index, 128 bytes: the voice in the DX7's packed bulk format (7-bit, as in a .syx). Without a bank a user slot reads as INIT VOICE |
+| 42 VOICE_GET | index 0..51 (the VOICE enum: 0..19 factory, 20..51 = U01..U32; on 1.9 0..48) | index, 128 bytes: the voice in the DX7's packed bulk format (7-bit, as in a .syx). Without a bank a user slot reads as INIT VOICE |
 | 43 VOICE_PUT | slot 0..31, 128 packed bytes | slot, rc (0 ok, 1 arguments). Replaces U(slot+1) in RAM: the next note on a part whose VOICE is that slot plays it; the name comes from bytes 118..127. Without a bank this makes one (every other slot INIT VOICE). Not in flash until BANK_SAVE |
 | 44 VOICE_PARAM | slot 0..31, idx 0..154 as 2 × 7 bit LSB first (get), or slot, idx (2), value (set) | slot, idx (2), value (clamped to the DX7 range of idx). idx is the position in the unpacked 155-byte voice (VCED order): op block k = idx 21k..21k+20 for OP6 (k 0) .. OP1 (k 5): R1 R2 R3 R4 L1 L2 L3 L4 BP LD RD LC RC RS AMS VEL LVL MODE COARSE FINE DET; 126..133 pitch EG R1-4 L1-4; 134 ALG 0..31; 135 FB; 136 OSC SYNC; 137 LFO SPEED; 138 DELAY; 139 PMD; 140 AMD; 141 LFO SYNC; 142 LFO WAVE; 143 PMS; 144 TRANSPOSE; 145..154 the name. Without a bank the first set makes one |
 | 45 BANK_SAVE | — | rc (0 ok, 1 no bank, 2 flash): STORE, the whole user bank to flash (~1 s) |

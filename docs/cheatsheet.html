@@ -78,7 +78,7 @@
 <div class="page">
 <header>
   <h1>sloop<b>DX</b> &nbsp;Cheat Sheet</h1>
-  <div class="sub">DX7 FM synth + FM drums for the M-VAVE FM-1<br>Version 1.9 · dx7.designburgapps.com · github.com/zvenson/dxsloop</div>
+  <div class="sub">DX7 FM synth + FM drums for the M-VAVE FM-1<br>Version 2.0 · dx7.designburgapps.com · github.com/zvenson/dxsloop</div>
 </header>
 <div class="strip"><i></i><i></i><i></i><i></i></div>
 
@@ -93,7 +93,7 @@
   <h2>Basics</h2>
   <table>
     <tr><td><kbd>ALGORITHM</kbd></td><td>select the track (on every page)</td></tr>
-    <tr><td><kbd>PRESETS</kbd></td><td>sound: 01–17 factory, 18–49 your bank, then user presets · drums: the kit</td></tr>
+    <tr><td><kbd>PRESETS</kbd></td><td>sound: 01–20 factory, 21–52 your bank, then user presets · drums: the kit</td></tr>
     <tr><td><kbd>SELECT</kbd></td><td>tempo</td></tr>
     <tr><td><kbd>KNOB 1–4</kbd></td><td>HOME: BRITE · ATK · REL · FDBK of the voice (act at once)</td></tr>
     <tr><td><kbd>PLAY</kbd></td><td>start / stop all tracks</td></tr>
@@ -128,6 +128,7 @@
     <tr><td><kbd>EDIT</kbd></td><td>open a group / run an action (tap twice)</td></tr>
     <tr><td><kbd>HOME</kbd></td><td>one level back</td></tr>
     <tr><td><kbd>PRESETS</kbd></td><td>straight to the next / previous operator</td></tr>
+    <tr><td><kbd>KNOB 1 · 2</kbd></td><td>CUTOFF · RESONANCE of the low-pass (the value shows at the bottom) · KNOB 3 · 4 as on HOME</td></tr>
     <tr><td><kbd>SAVE</kbd></td><td>store the bank (a dot at the bottom = not stored)</td></tr>
   </table>
   <p><b>List:</b> Voice · Bank 1–8 · Algorithm 1–32 · Feedback · Osc Sync · Transpose · <b>OP1–OP6 ›</b> · Pitch Env › · LFO › · Name › · Copy To · Init Voice · Store · More Pages ›</p>
@@ -141,8 +142,9 @@
     <tr><td>BRITE</td><td>the modulators’ level: dull ↔ bright</td></tr>
     <tr><td>ATK · DEC · REL</td><td>slower / longer (0 = as programmed)</td></tr>
     <tr><td>FDBK</td><td>feedback: sine → saw</td></tr>
+    <tr><td>CUT · RESO</td><td>a low-pass behind the voice (CUT 127 = open, out of the way)</td></tr>
     <tr><td><kbd>ENV</kbd> page</td><td>ATK · DEC · REL of the carriers, SUS lowers the sustain (127 = as programmed)</td></tr>
-    <tr><td>ENV/LFO DEST</td><td>FLT / SHP = brightness, PIT = pitch, AMP = volume</td></tr>
+    <tr><td>ENV/LFO DEST</td><td>FLT = the cutoff, SHP = brightness, PIT = pitch, AMP = volume</td></tr>
   </table>
 </section>
 
@@ -152,7 +154,7 @@
     <tr><td><b>F3</b>Kick</td><td><b>G3</b>Kick 2</td><td><b>A3</b>Snare</td><td><b>B3</b>Clap</td><td><b>C4</b>Hat</td><td><b>D4</b>Open</td><td><b>E4</b>Pedal</td><td><b>F4</b>Rim</td></tr>
     <tr><td><b>G4</b>Snare 2</td><td><b>A4</b>Tom L</td><td><b>B4</b>Tom H</td><td><b>C5</b>Crash</td><td><b>D5</b>Ride</td><td><b>E5</b>Shaker</td><td><b>F5</b>Conga</td><td><b>G5</b>Cowbell</td></tr>
   </table>
-  <p><b>Kits</b> (PRESETS): 1 DX KIT · 2 808 FM · 3 ELECTRO · 4 METAL. A black key plays the sound left of it. Closed / pedal hat cut the open hat. Tap <kbd>EDIT</kbd>: grid / kit.</p>
+  <p><b>Kits</b> (PRESETS): 1 DX KIT · 2 808 FM · 3 ELECTRO · 4 METAL. A black key plays the sound left of it. Closed / pedal hat cut the open hat. Tap <kbd>EDIT</kbd>: grid / kit. <b>Kit page</b> KNOB 1–4: kit · level · <b>drive</b> · <b>comp</b> (the drum bus); reverb and pan: HOME.</p>
 </section>
 
 <section>
@@ -160,7 +162,7 @@
   <ol>
     <li>Chrome / Edge: <b>dx7.designburgapps.com</b> → Editor → <b>Connect</b>.</li>
     <li>Tab <b>Library</b>: pick “Bank in use” 1–8, drop the .syx (32 voices, 4104 bytes).</li>
-    <li>On the FM-1: PRESETS 18–49, or EDIT → Voice. Switch banks: EDIT → Bank.</li>
+    <li>On the FM-1: PRESETS 21–52, or EDIT → Voice. Switch banks: EDIT → Bank.</li>
   </ol>
   <p class="k">8 banks × 32 = 256 voices in memory. Original DX7 ROMs: yamahablackboxes.com · collections: bobbyblues.recup.ch</p>
 </section>
@@ -189,7 +191,7 @@
 
 <section>
   <h2>Operators</h2>
-  <p class="big">A DX7 voice is made of <b>six operators</b>. Each is a sine oscillator with its own <b>envelope</b> and <b>level</b>. An operator is either a <b>carrier</b> (you hear it) or a <b>modulator</b> (it bends the wave of the operator below it: the more level, the more harmonics). That is FM: no filter, the brightness comes from the modulators.</p>
+  <p class="big">A DX7 voice is made of <b>six operators</b>. Each is a sine oscillator with its own <b>envelope</b> and <b>level</b>. An operator is either a <b>carrier</b> (you hear it) or a <b>modulator</b> (it bends the wave of the operator below it: the more level, the more harmonics). That is FM: the brightness comes from the modulators. sloopDX adds a low-pass behind each voice (CUT, RESO) for the classic synth sweep.</p>
   <div class="fig">
     <svg width="120" height="84" viewBox="0 0 120 84"><line x1="40" y1="24" x2="40" y2="44" stroke="#888"/><line x1="40" y1="64" x2="40" y2="74" stroke="#888"/><line x1="8" y1="74.5" x2="112" y2="74.5" stroke="#888"/><polyline points="54,16 64,16 64,4 40,4 40,8" fill="none" stroke="#d9748a" stroke-width="1.6"/><rect x="26" y="8" width="28" height="18" rx="2" fill="#afd9f4"/><text x="40" y="21" font-size="10" text-anchor="middle">2</text><rect x="26" y="46" width="28" height="18" rx="2" fill="#42f5f5"/><text x="40" y="59" font-size="10" text-anchor="middle">1</text><text x="70" y="21" font-size="8" fill="#555">modulator</text><text x="60" y="59" font-size="8" fill="#555">carrier</text><text x="70" y="10" font-size="7.5" fill="#d9748a">feedback</text></svg>
     <p>Operator 2 modulates operator 1. Light blue = modulator, cyan = carrier, the pink loop = <b>feedback</b> (an operator modulating itself: from sine to saw to noise).</p>
@@ -247,9 +249,10 @@
 </section>
 
 <section>
-  <h2 class="r">Recipes: start from 17 INIT VOICE</h2>
+  <h2 class="r">Recipes: start from 20 INIT VOICE</h2>
   <table class="rec">
     <tr><td>Bass</td><td>Alg 1 or 5 · OP2 Coarse 1, Level 70–85, fast decay (R2 ~70, L2 0) · OP1 carrier · Feedback 4–6 for growl</td></tr>
+    <tr><td>Sub / 808</td><td>OP1 alone at Coarse 0.50: a pure sine an octave down · 808: Pitch Env L4 66, R1 72 (it drops into the note), L3 0 (it dies away)</td></tr>
     <tr><td>E-piano</td><td>Alg 5 · carriers Coarse 1 with Detune ±2 · one modulator Coarse 14 with a short decay (the tine), Key Velocity 5–7</td></tr>
     <tr><td>Bell</td><td>Alg 5 · modulator Coarse 3.5 (Fine) Level 70 · carrier long R3/R4 · L3 0 (it rings out)</td></tr>
     <tr><td>Brass</td><td>Alg 22 · modulator envelope with a slower R1 than the carriers (the tone opens), Feedback 7, a little Pitch Env attack</td></tr>

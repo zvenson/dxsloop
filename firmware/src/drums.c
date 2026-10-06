@@ -45,6 +45,8 @@ static struct {
     volatile uint16_t hits;      /* bit per lane hit since the UI last looked (pads, key LEDs) */
     volatile uint8_t kick;       /* a kick was hit (fx.c DUCK) */
     int32_t a0, a1;              /* the drum track's mute / solo attenuation over this block (fx.c), Q15, 0 = heard */
+    int32_t drv_lp, cmp_env, cmp_g;   /* the bus: DRIVE's tone filter, COMP's peak follower and gain (Q15) */
+    uint8_t bus_tail;            /* blocks the bus still runs after the last voice (DRIVE / COMP states settle) */
 } drums;
 
 /* ------------------------------------------------------------ lanes --- */
@@ -208,14 +210,56 @@ static void drum_on(uint32_t note, uint32_t vel)
     drum_start(i);
 }
 
+/* the drum bus (sloopDX): DRIVE (the drum track's P_DIST): a soft clip, 1x .. 9x into it, a tone low-pass that
+ * closes with it; COMP (its P_CHOR): a peak follower (~0.2 ms up, ~45 ms down), 4:1 above a threshold that
+ * falls with COMP (0 .. -23 dB), and make-up gain (up to +5.4 dB). Both off at 0: the bus as it was */
+static void drums_bus(int32_t *b, uint32_t n)
+{
+    int32_t d = TDRUM->p[P_DIST], c = TDRUM->p[P_CHOR], i;
+    if (d) {                                        /* (32-bit products throughout: the target has no fast 64-bit) */
+        int32_t g = 4096 + d * d * 2, k = 32767 - d * 120, mk = 32767 - d * 90;
+        for (i = 0; i < (int32_t)n; i++) {
+            int32_t x = clamp(b[i], -262143, 262143);
+            int32_t y = softclip(((x >> 4) * g) >> 10);   /* small signals: x * g / 8192, +-32767 */
+            drums.drv_lp += mulq15(y - drums.drv_lp, k);  /* (|y - lp| <= 65534: fits) */
+            b[i] = mulq15(drums.drv_lp, mk) * 2;          /* back to x * g / 4096 */
+        }
+    } else {
+        drums.drv_lp = 0;
+    }
+    if (c) {
+        int32_t t = 30000 - c * 220, env = drums.cmp_env, g0 = drums.cmp_g ? drums.cmp_g : 32767, g1, mk = 4096 + c * 28;
+        for (i = 0; i < (int32_t)n; i++) {
+            int32_t a = b[i] < 0 ? -b[i] : b[i];
+            env += a > env ? (a - env) >> 3 : -(env >> 11);
+        }
+        env = clamp(env, 0, 262143);
+        g1 = env > t ? (((t + (env - t) / 4) >> 3) << 15) / (env >> 3) : 32767;
+        if (g1 > 32767)
+            g1 = 32767;
+        for (i = 0; i < (int32_t)n; i++) {
+            int32_t g = g0 + (((g1 - g0) * i) >> CTL_LOG2);
+            int32_t x = mulq15(clamp(b[i], -262143, 262143) >> 3, g);   /* (2^15 x 2^15) */
+            b[i] = (x * mk) >> 9;                                       /* x 8, make-up Q12 */
+        }
+        drums.cmp_env = env;
+        drums.cmp_g = g1;
+    } else {
+        drums.cmp_env = 0;
+        drums.cmp_g = 32767;
+    }
+}
+
 /* adds the drums into the dry mix and the reverb send; mono != 0: into mono instead, before the
- * pan and the send (the SLICER, slicer.c slicer_drums, does those after it) */
+ * pan and the send (the SLICER, slicer.c slicer_drums, does those after it). The voices go into one bus
+ * first (DRIVE, COMP: drums_bus) */
 static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mono, uint32_t n)
 {
-    uint32_t k, i;
-    int32_t lvl = song.g[G_DRLVL] * 142, send = song.g[G_DRREV] * 258, pk = drums.peak;   /* (142: -3 dB, beside the DX7 parts) */
+    uint32_t k, i, any = 0;
+    int32_t lvl = song.g[G_DRLVL] * 200, send = song.g[G_DRREV] * 258, pk = drums.peak;   /* (200: -0 dB at LVL 100;
+                                                                                           * 1.9 had 142, -3 dB) */
     int32_t pan = trk[TRK_DRUM].p[P_PAN], gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
-    int32_t buf[DX_N];
+    int32_t buf[DX_N], bus[DX_N];
     for (i = 0; i < n && drums.tail; i++) {         /* declick tail, ~0.4 ms */
         if (mono) {
             mono[i] += drums.tail;
@@ -227,11 +271,14 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
     }
     if (n != DX_N)                                  /* (the mix runs in blocks of CTL) */
         return;
+    for (i = 0; i < DX_N; i++)
+        bus[i] = 0;
     for (k = 0; k < NDRUM; k++) {
         voice_t *v = &drums.v[k];
         int32_t rp = 0;
         if (!v->active)
             continue;
+        any = 1;
         if (drums.burst[k] && drums.t[k] >= drums.next[k]) {   /* the next hit of a burst */
             drums.burst[k]--;
             drums.next[k] += drum_dd(drums.kit[k], drums.drum[k])->burst_n;
@@ -248,16 +295,7 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
             s = mulq15(mulq15(s, drums.gain[k]),
                        mulq15(lvl, 32767 - drums.a0 - (((drums.a1 - drums.a0) * (int32_t)i) >> CTL_LOG2)));
             v->s[7] = s;
-            if (s > pk || -s > pk)
-                pk = s < 0 ? -s : s;
-            if (mono) {
-                mono[i] += s;
-                continue;
-            }
-            ml[i] += (s * gl) >> 12;
-            mr[i] += (s * gr) >> 12;
-            if (send)
-                rev[i] += mulq15(s, send);
+            bus[i] += s;
         }
         drums.t[k] += DX_N;
         /* the end: died away (the voice itself below -66 dB of a full carrier for 8 blocks, whatever its
@@ -269,6 +307,24 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
             drums.tail += v->s[7];                  /* no step at the end */
             v->s[7] = 0;
         }
+    }
+    if (any)
+        drums.bus_tail = 64;                        /* ~45 ms: the tone filter and the compressor settle */
+    else if (!drums.bus_tail || !--drums.bus_tail)
+        return;
+    drums_bus(bus, DX_N);
+    for (i = 0; i < DX_N; i++) {
+        int32_t s = clamp(bus[i], -262143, 262143);   /* (s * gl fits 32 bits) */
+        if (s > pk || -s > pk)
+            pk = s < 0 ? -s : s;
+        if (mono) {
+            mono[i] += s;
+            continue;
+        }
+        ml[i] += (s * gl) >> 12;
+        mr[i] += (s * gr) >> 12;
+        if (send)
+            rev[i] += mulq15(s, send);
     }
     drums.peak = pk;
 }

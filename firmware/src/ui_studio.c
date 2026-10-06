@@ -380,7 +380,7 @@ static void drum_screen_draw(void)
     {
         static char v[4][12];
         const char *val[4] = {v[0], v[1], v[2], v[3]};
-        static const char *const LG[4] = {"sound", "step", "hit", "level"}, *const LK[4] = {"kit", "level", "reverb", "pan"};
+        static const char *const LG[4] = {"sound", "step", "hit", "level"}, *const LK[4] = {"kit", "level", "drive", "comp"};
         int32_t ratio[4];
         if (!drum_page) {
             const dstep_t *s = &TDRUM->dstep[drum_cursor];
@@ -396,12 +396,12 @@ static void drum_screen_draw(void)
         } else {
             fmt_int(v[0], (int32_t)kit + 1);
             fmt_int(v[1], song.g[G_DRLVL] * 100 / 127);
-            fmt_int(v[2], song.g[G_DRREV] * 100 / 127);
-            fmt_int(v[3], TDRUM->p[P_PAN]);
+            fmt_int(v[2], TDRUM->p[P_DIST] * 100 / 127);   /* the drum bus (drums.c drums_bus); reverb and pan: HOME */
+            fmt_int(v[3], TDRUM->p[P_CHOR] * 100 / 127);
             ratio[0] = (int32_t)kit * 1000 / (int32_t)(DRUM_KITS - 1u);
             ratio[1] = song.g[G_DRLVL] * 1000 / 127;
-            ratio[2] = song.g[G_DRREV] * 1000 / 127;
-            ratio[3] = (TDRUM->p[P_PAN] + 64) * 1000 / 127;
+            ratio[2] = TDRUM->p[P_DIST] * 1000 / 127;
+            ratio[3] = TDRUM->p[P_CHOR] * 1000 / 127;
             te_dials(184, LK, val, ratio, 2u, &footer);
         }
     }
@@ -470,8 +470,8 @@ static void drum_screen_input(uint32_t pressed, uint32_t home)
         } else {
             if (k == 0) TDRUM->p[P_E0] = (int16_t)clamp(TDRUM->p[P_E0] + s, 0, DRUM_KITS - 1);
             if (k == 1) song.g[G_DRLVL] = (int16_t)clamp(song.g[G_DRLVL] + s, 0, 127);
-            if (k == 2) song.g[G_DRREV] = (int16_t)clamp(song.g[G_DRREV] + s, 0, 127);
-            if (k == 3) TDRUM->p[P_PAN] = (int16_t)clamp(TDRUM->p[P_PAN] + s, -64, 63);
+            if (k == 2) TDRUM->p[P_DIST] = (int16_t)clamp(TDRUM->p[P_DIST] + accel(EN_K1 + k, s, 127), 0, 127);   /* DRIVE */
+            if (k == 3) TDRUM->p[P_CHOR] = (int16_t)clamp(TDRUM->p[P_CHOR] + accel(EN_K1 + k, s, 127), 0, 127);   /* COMP */
         }
     }
 }

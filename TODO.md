@@ -17,6 +17,21 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
       gedrückt: zurück auf `>> 11`, `preset_trim.h` auf 0 und `tools/level_presets.py` zweimal laufen lassen.
 - [ ] .syx-Bank am Gerät laden (Editor oder `tools/fm1_bank_upload.py`), Neustart, Bank noch da?
 
+## 1a. Notizen vom Gerätetest (2026-10-06), erledigt in 2.0
+
+- [x] Cutoff / Resonanz auf den Knobs im EDIT-Modus, mit Anzeige beim Drehen: Tiefpass (tsvf, dsp.c) pro Stimme hinter
+      dem DX7-Ausgang (`eng_dx7.c dx7_render`), CUT = `P_E6` (127 = offen: bitgleich wie ohne), RESO = `P_E7`; ENV/LFO-DEST
+      FLT bewegen den Cutoff (SHP weiter die Helligkeit). In der Voice-Liste KNOB 1 CUT, KNOB 2 RESO, Wert unten im Bild
+      (`ui_say`). Cheat Sheets korrigiert. Alte Projekte / User-Presets / Editor-Library laden CUT offen
+      (`core.h DX_CUT_OPEN`, `project.c dxv`, `UP_VER 2`, editor `dxvOf` / `dxMigrate`).
+- [x] Drums zu leise: Drum-Bus von −3 dB auf 0 dB (`drums.c`, `lvl * 200` statt 142); im 4-Spur-Mix −20.5 LUFS
+      (Bass −16.8), Peaks −2.9 dBFS. Am Gerät nachhören.
+- [x] Drum-Effekte: DRIVE (Soft-Clip, `P_DIST` der Drum-Spur) und COMP (Peak-Follower, 4:1, Make-up bis +5.4 dB,
+      `P_CHOR` der Drum-Spur) auf dem Drum-Bus vor Pan und Hall-Send (`drums.c drums_bus`). Bedienung: Kit-Seite KNOB 3 / 4
+      (Hall und Pan bleiben auf HOME). Test: `tests/drumkit_test.c`.
+- [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
+      beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
+
 ## 1b. Gefunden beim Bank-Upload über den ALSA-Sequencer (2026-10-06)
 
 - [x] (1.9, Release) `usb.c ota_wire_send`: eine lange Antwort (BANK_INFO ~330 Bytes, DESC mit 49 Namen) wird nach 200 ms

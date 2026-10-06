@@ -3,7 +3,8 @@
 /* DX7 voice edit: the first EDIT page of a synth part. A list, the way the Baud Girl FM-1+VA firmware edits
  * FM (its UI concept, from its public manual; no code): one row per setting, name left, value right, a bar
  * for the range. SELECT moves the highlight, ALGORITHM changes the value, EDIT (tapped) opens a group or runs
- * an action, HOME goes back, SAVE stores the bank. KNOB 1..4 stay the voice's quick knobs, as on HOME.
+ * an action, HOME goes back, SAVE stores the bank. KNOB 1 CUT and 2 RESO (the low-pass behind the voice), 3 and 4
+ * as on HOME; turning one shows its value in the top bar.
  * The parameters and their names are the DX7's. The edit buffer is a user slot U01..U32 (eng_dx7.c): the
  * first change to a factory voice copies it into the first INIT VOICE slot. Values go through
  * dx_user_param_set, so the next note plays them. */
@@ -238,7 +239,7 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
     b[0] = 0;
     switch (r->kind) {
     case VK_VOICE:
-        b[0] = (char)('0' + (ve_voice() + 1u) / 10u);    /* its number in the list: 01..17 factory, 18..49 U01..U32 */
+        b[0] = (char)('0' + (ve_voice() + 1u) / 10u);    /* its number in the list: 01..20 factory, 21..52 U01..U32 */
         b[1] = (char)('0' + (ve_voice() + 1u) % 10u);
         b[2] = ' ';
         b[3] = 0;
@@ -448,13 +449,26 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
         ve.row0 = (uint8_t)(6u + (uint32_t)d);            /* HOME comes back to that OP row (VR_TOP: OP1 is row 6) */
         ui.force = 1;
     }
-    for (k = 0; k < 4u; k++) {                            /* KNOB 1..4: the voice's quick knobs, as on HOME */
+    for (k = 0; k < 4u; k++) {                            /* KNOB 1 CUT, 2 RESO (the filter behind the voice),
+                                                           * 3 / 4 as on HOME; the value in the top bar */
         int16_t *vp;
         const param_desc_t *d;
+        char val[8], msg[16];
+        const char *unit;
         if ((s = panel_enc(EN_K1 + k)) == 0)
             continue;
-        d = home_param(k, &vp);
+        if (k < 2u) {
+            vp = &TSEL->p[P_E6 + k];
+            d = track_desc(TSEL, P_E6 + k);
+        } else {
+            d = home_param(k, &vp);
+        }
         *vp = (int16_t)clamp(*vp + accel(EN_K1 + k, s, d->max - d->min), d->min, d->max);
+        param_format(d, *vp, val, &unit);
+        str_cpy(msg, d->label, 8);
+        str_cpy(msg + str_len(msg), " ", 2);
+        ui_say(msg, val);
+        str_cpy(ui.msg + str_len(ui.msg), unit, sizeof ui.msg - str_len(ui.msg));
         ui.hot_col = (uint8_t)k;
         ui.hot_t = 40;
     }

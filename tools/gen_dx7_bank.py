@@ -154,6 +154,24 @@ SYNTH = [
         2: Op(**env(*D(99, 75, 50, 65, 99, 40, 0, 0)), out=78, ratio=3, vel=7, rs=3),
         3: Op(**env(*D(99, 55, 35, 60, 99, 60, 0, 0)), out=80, ratio=1, det=9, vel=3, rs=3),
         4: Op(**env(*D(99, 80, 55, 65, 99, 35, 0, 0)), out=70, ratio=9, vel=7, rs=3)}, fb=3),
+    # modern basses: a pure sine an octave down (on small speakers OP2 adds a touch of the 2nd and 3rd
+    # harmonic, more with velocity), an 808 that drops into its note and dies away, a Reese of two detuned
+    # saw stacks beating against each other over a sine sub
+    voice("DEEP SUB", 1, {
+        1: Op(**env(*D(99, 60, 40, 74, 99, 97, 96, 0)), out=99, ratio=0.5),
+        2: Op(**env(*D(99, 45, 30, 74, 99, 80, 70, 0)), out=48, ratio=0.5, vel=4)}),
+    voice("808 SUB", 1, {
+        1: Op(**env(*D(99, 34, 24, 68, 99, 86, 0, 0)), out=99, ratio=0.5),
+        2: Op(**env(*D(99, 62, 40, 68, 99, 40, 0, 0)), out=62, ratio=0.5, vel=5),
+        3: Op(**env(*D(99, 90, 50, 70, 99, 0, 0, 0)), out=0)},
+        fb=0, pr=(72, 99, 99, 0), pl=(50, 50, 50, 66)),
+    voice("REESE", 5, {
+        1: Op(**env(*D(90, 40, 30, 66, 99, 94, 92, 0)), out=90, ratio=0.5),
+        2: Op(**env(*D(90, 40, 30, 66, 99, 90, 88, 0)), out=80, ratio=0.5),
+        3: Op(**env(*D(90, 40, 30, 66, 99, 94, 92, 0)), out=90, ratio=0.505),
+        4: Op(**env(*D(90, 40, 30, 66, 99, 90, 88, 0)), out=80, ratio=0.505),
+        5: Op(**env(*D(90, 40, 30, 66, 99, 96, 94, 0)), out=86, ratio=0.5)},
+        fb=0, lfo=(20, 0, 0, 0, 1, 0, 0)),
     voice("INIT VOICE", 1, {1: Op(out=99)}),
 ]
 

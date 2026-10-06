@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.9
+# sloopDX 2.0
 
-**SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
+**SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine (with drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.9, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.0, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -23,7 +23,7 @@ sloopDX carries what SLOOP 2.3 added to the FM-1 itself (none of it tried on a d
 ### What changed from SLOOP
 
 - **One engine: DX7.** Six operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch. See [The DX7 engine](#the-dx7-engine).
-- **17 factory voices** in the DX7 tradition — designed here, not copied — and **your own banks**: a standard 32-voice bulk dump (.syx) loads as U01–U32. See [Your own DX7 bank](#your-own-dx7-bank-syx).
+- **20 factory voices** in the DX7 tradition — designed here, not copied, among them three modern basses (DEEP SUB, 808 SUB, REESE) — and **your own banks**: a standard 32-voice bulk dump (.syx) loads as U01–U32. See [Your own DX7 bank](#your-own-dx7-bank-syx).
 - **Macro knobs on every voice:** BRITE, ATK, DEC, REL, FDBK — the knobs a DX7 never had.
 - **FM drums.** The drum track plays 16 FM drums built with the same engine, in four kits: DX KIT, 808 FM, ELECTRO and METAL. See [Drum kits](#drum-kits).
 - **Gone:** the sample engines, the sample sets, the user sample slots, the other eight engines and the 37 sample and drum-synth kits. Everything else of SLOOP — layers, free takes, swing, song mode, DUST, DUCK, undo, projects, user presets — is as it was.
@@ -243,7 +243,7 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 
 - **TRACKS** (HOME) — the performance view: tempo, swing, transport, bar.beat; each track with its voice, its steps, the playhead, mute / solo / rec badges and its level. Dials: *swing · level · steps · pan* (KNOB 2 on a muted track unmutes it).
 - **Layers** — while a layer button is held: 16 tiles (the white keys) and the knobs' dials, in the layer's colour.
-- **DRUMS** (EDIT or SEQ tapped on TRACKS with the drum track) — **grid**: the 16 sounds × 16 steps, levels as shades, ratchets as notches; dials *sound · step · hit · level*. **kit**: 16 pads that flash on every hit; dials *kit · level · reverb · pan*. EDIT / SEQ tapped switches grid ↔ kit.
+- **DRUMS** (EDIT or SEQ tapped on TRACKS with the drum track) — **grid**: the 16 sounds × 16 steps, levels as shades, ratchets as notches; dials *sound · step · hit · level*. **kit**: 16 pads that flash on every hit; dials *kit · level · drive · comp* (DRIVE and COMP on the whole drum bus; reverb and pan are on HOME). EDIT / SEQ tapped switches grid ↔ kit.
 - **EDIT** (tapped on a synth track) — the DX7 pages **VOICE** and **SHAPE**: the voice and its macro knobs. See [The DX7 engine](#the-dx7-engine).
 - **REC READY / FREE TAKE** — while REC is armed: the tracks, then **mode**, **length** and **start** on KNOB 1–3 (4-3-2-1 during a count-in); during a free take: the seconds and the loop it makes.
 - **Holds** — the ring of REC (clear) while held.
@@ -273,7 +273,7 @@ The top of the list:
 
 | Row | What it is |
 | --- | --- |
-| **Voice** | the voice the track plays: 01–17 the factory voices, 18–49 U01–U32 of the bank in use |
+| **Voice** | the voice the track plays: 01–20 the factory voices, 21–52 U01–U32 of the bank in use |
 | **Bank** | which of the 8 banks U01–U32 come from (1–8); the edits of the bank you leave are stored first |
 | **Algorithm** | 1–32. The first turn only draws the algorithm: six boxes, the carriers in your track colour along the bottom, each modulator above the operator it feeds, feedback as a loop. Turn again to change it |
 | **Feedback** | 0–7 |
@@ -298,11 +298,12 @@ The top of the list:
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |
-| **VOICE** | **VOICE** — the patch: the 17 factory voices, then U01–U32 of your bank | **BRITE** −40…+40 | **ATK** −40…+40 | **DEC** −40…+40 |
-| **SHAPE** | **REL** −40…+40 | **FDBK** −7…+7 | — | — |
+| **VOICE** | **VOICE** — the patch: the 20 factory voices, then U01–U32 of your bank | **BRITE** −40…+40 | **ATK** −40…+40 | **DEC** −40…+40 |
+| **SHAPE** | **REL** −40…+40 | **FDBK** −7…+7 | **CUT** 30 Hz…16 kHz (127 = open) | **RESO** 0…100 % |
 
 The macro knobs are the panel a DX7 never had. They move the patch's own values, so 0 is always *the voice as programmed*, and they work the same on every voice, factory or yours:
 
+- **CUT** and **RESO** — a low-pass after the voice (also on KNOB 1 and 2 in the voice list, with the value shown at the bottom while you turn). At CUT 127 it is out of the way and the voice is bit for bit the DX7 patch; ENV / LFO → FLT move it.
 - **BRITE** — the output levels of the modulators (the operators that are not carriers): left dull, right bright. On an electric piano it is the tine; on a bass, the growl.
 - **ATK** — the first rate of the carrier envelopes: right faster, left a slower swell.
 - **DEC** — the second and third rates of every operator: right shorter and more percussive, left longer.
@@ -311,7 +312,7 @@ The macro knobs are the panel a DX7 never had. They move the patch's own values,
 
 They act at once, also on notes that are already sounding (as Dexed does): turn BRITE on a held chord and you hear it open up.
 
-**ENV** on a synth track shapes the carriers' envelopes on top of the voice: **ATK** slower attack, **DEC** longer decay, **REL** longer release (0 = as the voice is programmed, up = slower / longer), **SUS** lowers the sustain (127 = as programmed). On **ENV DEST** and **LFO DEST**, **FLT** and **SHP** move the modulators' level (brightness), since a DX7 voice has no filter; **PIT** bends the pitch, **AMP** (LFO) the volume. **PRESETS** on a synth track goes through the 17 factory voices with their sends (chorus, delay, reverb) set to suit them; your own settings save as user presets (32), as in SLOOP. At power-on, on a new project: **90 BPM**, *FM BASS* on track 1, *EPIANO 1* on track 2, *STRINGS* on track 3 and the DX KIT on track 4.
+**ENV** on a synth track shapes the carriers' envelopes on top of the voice: **ATK** slower attack, **DEC** longer decay, **REL** longer release (0 = as the voice is programmed, up = slower / longer), **SUS** lowers the sustain (127 = as programmed). On **ENV DEST** and **LFO DEST**, **FLT** moves the cutoff of the low-pass behind the voice (**CUT** and **RESO**, KNOB 1 and 2 in the voice list; CUT 127 = open, the voice as programmed) and **SHP** the modulators' level (brightness); **PIT** bends the pitch, **AMP** (LFO) the volume. **PRESETS** on a synth track goes through the 20 factory voices with their sends (chorus, delay, reverb) set to suit them; your own settings save as user presets (32), as in SLOOP. At power-on, on a new project: **90 BPM**, *FM BASS* on track 1, *EPIANO 1* on track 2, *STRINGS* on track 3 and the DX KIT on track 4.
 
 ## The factory voices
 
@@ -332,7 +333,7 @@ They act at once, also on notes that are already sounding (as Dexed does): turn 
 
 ## Your own DX7 banks (.syx)
 
-sloopDX loads standard **DX7 32-voice bulk dumps** — `.syx` files of 4104 bytes, the format every DX7 editor, librarian and the DX7 itself write. It keeps **8 banks** in flash, 256 voices; one of them is *in use*, like the cartridge in a DX7. Its 32 voices are **U01–U32**, numbered **18–49** after the 17 factory voices and named as in the bank. The header, length and checksum are checked and every parameter is clamped to its DX7 range, so a strange file cannot crash the engine. The banks and the one in use stay after power-off.
+sloopDX loads standard **DX7 32-voice bulk dumps** — `.syx` files of 4104 bytes, the format every DX7 editor, librarian and the DX7 itself write. It keeps **8 banks** in flash, 256 voices; one of them is *in use*, like the cartridge in a DX7. Its 32 voices are **U01–U32**, numbered **21–52** after the 20 factory voices and named as in the bank. The header, length and checksum are checked and every parameter is clamped to its DX7 range, so a strange file cannot crash the engine. The banks and the one in use stay after power-off.
 
 - **Play them:** turn **PRESETS** on HOME past 17: 18 = U01 … 49 = U32, then your user presets. Or EDIT → **Voice**.
 - **Switch banks:** EDIT → **Bank** (1–8) with ALGORITHM. Unstored edits of the bank you leave are stored first.
@@ -429,7 +430,7 @@ The glow is a short pulse on every scan of the panel (about 900 times a second):
 | --- | --- |
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
-| Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
+| Sounds | 20 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; a low-pass CUT / RESO; 32 user presets |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |
 | Drum kits | 4 FM kits (DX KIT, 808 FM, ELECTRO, METAL), 16 sounds each |

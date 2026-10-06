@@ -138,6 +138,48 @@ int main(int argc, char **argv)
         fprintf(rep, "cost: 6 FM drum voices, 1 s audio: %.1f ms host\n", ns / 1e6);
     }
 
+    {   /* the drum bus (drums_bus): DRIVE and COMP off: as before (golden renders); COMP: denser, the body comes up
+         * more than the peaks (crest factor) with its make-up; DRIVE: louder and bounded; never a stuck state */
+        static const uint8_t BEAT[8] = {1, 0, 4, 0, 1, 1, 4, 0};   /* 1 kick, 4 snare */
+        uint32_t step = FS * 60u / 120u / 4u / CTL, s, b, mode;
+        double peak[3], rms[3];
+        for (mode = 0; mode < 3u; mode++) {
+            double sq = 0, pk = 0;
+            uint32_t ns = 0;
+            int32_t l[CTL], r[CTL], rv[CTL];
+            memset(&drums, 0, sizeof drums);
+            TDRUM->p[P_E0] = 0;
+            TDRUM->p[P_DIST] = mode == 2u ? 90 : 0;
+            TDRUM->p[P_CHOR] = mode == 1u ? 110 : 0;
+            for (s = 0; s < 32u; s++) {
+                if (BEAT[s % 8u] & 1u) drum_on(LANE_NOTE[0], 120);
+                if (BEAT[s % 8u] & 4u) drum_on(LANE_NOTE[2], 110);
+                drum_on(LANE_NOTE[4], 80);
+                for (b = 0; b < step; b++) {
+                    memset(l, 0, sizeof l), memset(r, 0, sizeof r), memset(rv, 0, sizeof rv);
+                    drums_render(l, r, rv, CTL);
+                    for (j = 0; j < CTL; j++) {
+                        double x = l[j];
+                        sq += x * x, ns++;
+                        pk = fabs(x) > pk ? fabs(x) : pk;
+                    }
+                }
+            }
+            peak[mode] = pk, rms[mode] = sqrt(sq / ns);
+        }
+        TDRUM->p[P_DIST] = TDRUM->p[P_CHOR] = 0;
+        printf("drum bus: off peak %.0f rms %.0f, COMP peak %.0f rms %.0f, DRIVE peak %.0f rms %.0f\n",
+               peak[0], rms[0], peak[1], rms[1], peak[2], rms[2]);
+        if (!(peak[1] / rms[1] < 0.95 * peak[0] / rms[0] && rms[1] > rms[0])) {   /* denser: the body up more than the peaks */
+            printf("drum bus: COMP does not tame the peaks (crest %.2f -> %.2f)\n", peak[0] / rms[0], peak[1] / rms[1]);
+            bad = 1;
+        }
+        if (!(rms[2] > rms[0] && peak[2] < 140000.0)) {
+            printf("drum bus: DRIVE not louder or not bounded\n");
+            bad = 1;
+        }
+    }
+
     /* demo: each kit plays two bars of a beat at 120 BPM */
     if (argc > 1) {
         static const uint8_t BEAT[16] = {0x31, 0x10, 0x10, 0x10, 0x1C, 0x10, 0x31, 0x20,

@@ -392,7 +392,7 @@ static void graph_browse(void)
         if (e == NENGINES) {                             /* user preset: "U07" and its name */
             up_slot_label(tag, k);
             up_name(k, nm);
-        } else if (e == PRESET_BANKV) {                  /* a voice of the user bank: its VOICE number, 18..49 */
+        } else if (e == PRESET_BANKV) {                  /* a voice of the user bank: its VOICE number, 21..52 */
             str_cpy(tag, "BANK", sizeof tag);
             nm[0] = (char)('0' + (DX_NSYNTH + k + 1u) / 10u);
             nm[1] = (char)('0' + (DX_NSYNTH + k + 1u) % 10u);
@@ -400,7 +400,7 @@ static void graph_browse(void)
             str_cpy(nm + 3, dx_user_name[k], sizeof nm - 3u);
         } else {                                         /* its kind: BASS, KEYS, PAD... */
             str_cpy(tag, preset_kind(n), sizeof tag);
-            nm[0] = (char)('0' + (k + 1u) / 10u);        /* its number: the voice it plays (01..17) */
+            nm[0] = (char)('0' + (k + 1u) / 10u);        /* its number: the voice it plays (01..20) */
             nm[1] = (char)('0' + (k + 1u) % 10u);
             nm[2] = ' ';
             str_cpy(nm + 3, ENGINES[e]->presets[k].name, sizeof nm - 3u);
@@ -481,7 +481,7 @@ static uint32_t trk_level(uint32_t c)                /* LEVEL 0..127 (the drum t
     return (uint32_t)(c == TRK_DRUM ? song.g[G_DRLVL] : trk[c].p[P_LEVEL]) & 127u;
 }
 
-/* the voice a DX7 part plays, numbered as in its VOICE list: 01..17 factory, 18..49 the user bank ("37 BRASS 1");
+/* the voice a DX7 part plays, numbered as in its VOICE list: 01..20 factory, 21..52 the user bank ("37 BRASS 1");
  * it follows VOICE (the list, the editor), not only the preset that was loaded */
 static void dx_voice_label(const track_t *t, char *b, uint32_t n)
 {

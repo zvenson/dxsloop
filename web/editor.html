@@ -712,7 +712,7 @@ const req = {
   bankEnd: (checksum) => [CMD.BANK_END, [checksum & 0x7F]],
   bankInfo: () => [CMD.BANK_INFO, []],
   bankErase: () => [CMD.BANK_ERASE, []],
-  /* v8: voice editing. index 0..48 (17 factory, then U01..U32); slot 0..31; idx 0..154 (VCED order) */
+  /* v8: voice editing. index 0..51 (20 factory, then U01..U32; 0..48 on sloopDX 1.9); slot 0..31; idx 0..154 (VCED order) */
   voiceGet: (index) => [CMD.VOICE_GET, [index & 0x7F]],
   voicePut: (slot, packed) => [CMD.VOICE_PUT, [slot & 0x7F, ...Array.from(packed, (x) => x & 0x7F)]],
   voiceParam: (slot, idx, v) => [CMD.VOICE_PARAM, [slot & 0x7F, idx & 0x7F, (idx >> 7) & 0x7F, ...(v == null ? [] : [v & 0x7F])]],
@@ -865,14 +865,16 @@ const dxvoice = {
 };
 
 /* numbers in front of the voices and kits, so a long list says where you are: one running number for the
-   voices as on the FM-1 (01..17 factory, 18..49 the user bank U01..U32), kits 1..5 */
-const DX_NFACTORY = 17;
+   voices as on the FM-1 (sloopDX 2.0: 01..20 factory, 21..52 the user bank U01..U32; 1.9 had 17 factory
+   voices: the count comes from the device's VOICE list, its last 32 are the bank), kits 1..4 */
+const DX_NFACTORY_NOW = 20;
+const dxNFactOf = (d) => (d && d.names && d.names.length > 32 ? d.names.length - 32 : DX_NFACTORY_NOW);
 const pad2 = (n) => String(n).padStart(2, "0");
 function numbered(d, v, name) {
   const i = v - d.min;
-  if (d.label === "VOICE") {                       /* one running number, as on the FM-1: 01..17, 18..49 */
-    const u = "U" + pad2(i - DX_NFACTORY + 1);
-    return i < DX_NFACTORY || name !== u ? `${pad2(i + 1)} ${name}` : `${pad2(i + 1)} ${u}`;
+  if (d.label === "VOICE") {                       /* one running number, as on the FM-1: 01..20, 21..52 */
+    const nf = dxNFactOf(d), u = "U" + pad2(i - nf + 1);
+    return i < nf || name !== u ? `${pad2(i + 1)} ${name}` : `${pad2(i + 1)} ${u}`;
   }
   if (d.label === "KIT") return `${i + 1} ${name}`;
   return name;
@@ -1103,6 +1105,22 @@ function remapParams(p, fromKeys, toKeys) {
   const at = new Map(fromKeys.map((k, i) => [k, i]));
   return toKeys.map((k) => (at.has(k) ? p[at.get(k)] ?? null : null));
 }
+/* the DX7 numbering a sound was saved with: 2 = sloopDX 2.0 (20 factory voices, CUT / RESO), 1 = before.
+   From the firmware's version string ("FELUCCA sloopDX 2.0"); not sloopDX: 1 */
+function dxvOf(version) {
+  const m = /sloopDX (\d+)\.(\d+)/.exec(String(version || ""));
+  return m && +m[1] >= 2 ? 2 : 1;
+}
+/* a DX7 sound of sloopDX 1.9 for 2.0: VOICE 16 on (INIT VOICE, the bank) moves up by three (three factory
+   voices came before INIT VOICE; firmware core.h DX_VOICE_FROM_V1), CUT open (it was an unused 0), RESO 0 */
+function dxMigrate(pt, pe0) {
+  if ((pt.dxv | 0) >= 2 || pe0 == null || (pt.engineName && pt.engineName !== "DX7")) return pt;
+  const p = pt.p.slice();
+  if (p[pe0] != null && p[pe0] >= 16) p[pe0] += 3;
+  p[pe0 + 6] = 127;
+  p[pe0 + 7] = 0;
+  return { ...pt, p, dxv: 2 };
+}
 
 /* one pattern step as the firmware keeps it (up_pat_norm): a tie has no note, a rest no flags */
 const patNorm = (n, f) => (f & 4 ? [0, 4] : [n & 0x7F, n ? f & 3 : 0]);
@@ -1138,6 +1156,7 @@ function cleanPatch(pt) {
     created: pt.created || now, modified: pt.modified || pt.created || now,
   };
   if (Number.isInteger(pt.slot)) o.slot = pt.slot;
+  if (pt.dxv) o.dxv = pt.dxv | 0;
   return o;
 }
 
@@ -1150,7 +1169,7 @@ function libraryFile(kind, patches, ctx) {
     patches: patches.map((x) => {
       const c = cleanPatch(x);
       const o = { name: c.name, engine: c.engine, engineName: c.engineName || (ctx.engines || [])[c.engine] || "",
-        params: c.p, pattern: c.pattern, tags: c.tags, created: c.created, modified: c.modified };
+        params: c.p, pattern: c.pattern, tags: c.tags, created: c.created, modified: c.modified, dxv: c.dxv || dxvOf(ctx.firmware) };
       if (Number.isInteger(x.slot)) o.slot = x.slot;
       return o;
     }),
@@ -1171,9 +1190,11 @@ function readLibraryFile(obj, ctx) {
     if (!Array.isArray(obj.p) || !Number.isInteger(obj.engine)) throw new Error("felucca-patch without engine / p");
     const e = engIndex(obj.engineName, obj.engine);
     if (e < 0) return { patches: [], skipped: 1, keys: null };
-    return { patches: [cleanPatch({ name: obj.presetName || obj.engineName || "PATCH", engine: e, engineName: obj.engineName,
-      p: obj.p.slice(0, ctx.keys ? ctx.keys.length : obj.p.length), pattern: Array.isArray(obj.steps) ? patternFromSteps(obj.steps) : null, tags: ["file"] })],
-      skipped: 0, keys: null };
+    let pt = cleanPatch({ name: obj.presetName || obj.engineName || "PATCH", engine: e, engineName: obj.engineName,
+      p: obj.p.slice(0, ctx.keys ? ctx.keys.length : obj.p.length), pattern: Array.isArray(obj.steps) ? patternFromSteps(obj.steps) : null, tags: ["file"],
+      dxv: dxvOf(obj.firmware) });
+    if (dxvOf(ctx.firmware) >= 2) pt = dxMigrate(pt, ctx.pe0);
+    return { patches: [pt], skipped: 0, keys: null };
   }
   if (obj.format !== LIB.FORMAT) throw new Error("unknown format");
   if (!(obj.version >= 1)) throw new Error("version");
@@ -1186,7 +1207,10 @@ function readLibraryFile(obj, ctx) {
     const e = engIndex(x.engineName, x.engine | 0, obj.engines);
     if (e < 0) { skipped++; continue; }
     const p = remapParams(x.params, fileKeys, ctx.keys);
-    out.push(cleanPatch({ ...x, engine: e, engineName: (ctx.engines || [])[e] || x.engineName || (obj.engines || [])[x.engine], p }));
+    let pt = cleanPatch({ ...x, engine: e, engineName: (ctx.engines || [])[e] || x.engineName || (obj.engines || [])[x.engine], p,
+      dxv: x.dxv || dxvOf(obj.firmware) });
+    if (dxvOf(ctx.firmware) >= 2) pt = dxMigrate(pt, ctx.pe0 ?? obj.pE0);
+    out.push(pt);
   }
   return { patches: out, skipped, keys: fileKeys };
 }
@@ -1323,7 +1347,8 @@ async function capturePatch(rq, info, name) {
   const dump = parse[CMD.DUMP](await rq(req.dump()), info);
   const steps = [];
   for (let i = 0; i < UP.PAT && i < info.nstep; i++) steps.push(parse[CMD.STEP_GET](await rq(req.stepGet(i))));
-  return { patch: cleanPatch({ name, engine: dump.engine, engineName: info.engines[dump.engine], p: dump.p, pattern: patternFromSteps(steps) }), dump, steps };
+  return { patch: cleanPatch({ name, engine: dump.engine, engineName: info.engines[dump.engine], p: dump.p, pattern: patternFromSteps(steps),
+    dxv: dxvOf(info.version) }), dump, steps };
 }
 
 /* what loading a sound leaves alone (firmware ui.c param_kept): the mix (LEVEL, PAN, MUTE), the pattern
@@ -1382,7 +1407,7 @@ const mixer = {
 
 /* ------------------------------------------------------------ mock device --- */
 /* Implements the protocol like firmware/src/editor.c, with tables copied from params.c, eng_dx7.c
-   (the DX7 engine, its 17 presets, dx7_bank.h DX_SYNTH_NAME_LIST) and drums.c (the 5 FM kits).
+   (the DX7 engine, its 20 presets, dx7_bank.h DX_SYNTH_NAME_LIST) and drums.c (the 5 FM kits).
    Used with ?mock=1 (add &legacy=1 for a firmware without cmds 16..26).
    opt: {legacy: no user bank / WATCH, v3: no TRACK_PARAM / TRACK_CHANGED (firmware 0.8),
          auto: false = no simulated knobs (tests drive sim.*),
@@ -1453,23 +1478,25 @@ function makeMockDevice(opt = {}) {
     x.rat = a.length >= 11 ? (a[10] & 0x7F) | (((a[9] >> 1) & 1) << 7) : 0;
   };
   const NONE = D("-", F.INT, 0, 0, 0);
-  /* the DX7's VOICE enum: the 17 factory voices (dx7_bank.h DX_SYNTH_NAME_LIST), then U01..U32, renamed after
+  /* the DX7's VOICE enum: the 20 factory voices (dx7_bank.h DX_SYNTH_NAME_LIST), then U01..U32, renamed after
      the user bank's voices once one is uploaded (BANK_END) */
   const DX_SYNTH = ["EPIANO 1", "EPIANO 2", "FM BASS", "SLAP BASS", "SUB BASS", "BRASS", "STRINGS", "GLASS PAD", "BELLS", "MARIMBA",
-    "ORGAN", "CLAV", "PLUCK", "FLUTE", "SAW LEAD", "KOTO", "INIT VOICE"];
+    "ORGAN", "CLAV", "PLUCK", "FLUTE", "SAW LEAD", "KOTO", "DEEP SUB", "808 SUB", "REESE", "INIT VOICE"];
   const uName = (i) => "U" + String(i + 1).padStart(2, "0");
   const VOICE_NAMES = DX_SYNTH.concat(Array.from({ length: DX7.VOICES }, (_, i) => uName(i)));
   /* a preset: its voice, the FX sends (DST CHO DLY REV, eng_dx7.c FX(...)), mono, and a demo pattern (mock only) */
-  const P = (name, voice, fx, mono = 0, pat = 0) => ({ name, e: [voice, 0, 0, 0, 0, 0, 0, 0], env: [0, 0, 127, 0], fx, mono, pat });
+  const P = (name, voice, fx, mono = 0, pat = 0) => ({ name, e: [voice, 0, 0, 0, 0, 0, 127, 0], env: [0, 0, 127, 0], fx, mono, pat });
   const ENG = [
     { name: "DX7", titles: ["VOICE", "SHAPE"], edit: [E("VOICE", VOICE_NAMES, 0), D("BRITE", F.INT, -40, 40, 0), D("ATK", F.INT, -40, 40, 0),
-        D("DEC", F.INT, -40, 40, 0), D("REL", F.INT, -40, 40, 0), D("FDBK", F.INT, -7, 7, 0), NONE, NONE],
+        D("DEC", F.INT, -40, 40, 0), D("REL", F.INT, -40, 40, 0), D("FDBK", F.INT, -7, 7, 0), D("CUT", F.CUTOFF, 0, 127, 127),
+        D("RESO", F.PCT, 0, 127, 0)],
       presets: [P("EPIANO 1", 0, [0, 30, 12, 26], 0, 3), P("EPIANO 2", 1, [0, 40, 15, 30]), P("FM BASS", 2, [0, 0, 8, 10], 1, 2),
         P("SLAP BASS", 3, [0, 0, 8, 10], 1), P("SUB BASS", 4, [0, 0, 0, 6], 1, 1), P("BRASS", 5, [0, 20, 15, 35]),
         P("STRINGS", 6, [0, 50, 20, 55], 0, 5), P("GLASS PAD", 7, [0, 50, 25, 60]), P("BELLS", 8, [0, 20, 30, 55], 0, 7),
         P("MARIMBA", 9, [0, 0, 20, 30]), P("ORGAN", 10, [10, 40, 0, 30]), P("CLAV", 11, [0, 20, 15, 20], 0, 6),
         P("PLUCK", 12, [0, 20, 30, 35], 0, 4), P("FLUTE", 13, [0, 20, 20, 45], 1), P("SAW LEAD", 14, [0, 20, 30, 30], 1, 9),
-        P("KOTO", 15, [0, 10, 25, 40]), P("INIT VOICE", 16, [0, 0, 0, 0])] },
+        P("KOTO", 15, [0, 10, 25, 40]), P("DEEP SUB", 16, [0, 0, 0, 0], 1, 1), P("808 SUB", 17, [0, 0, 0, 6], 1, 2),
+        P("REESE", 18, [0, 20, 0, 10], 1, 1), P("INIT VOICE", 19, [0, 0, 0, 0])] },
   ];
   /* demo patterns of the mock only (the LIVE firmware has no factory patterns: a preset never writes the
      sequencer); used to seed the mock's user presets and track 1 as if they had been recorded */
@@ -1656,7 +1683,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.9 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : 9);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks */
@@ -2171,7 +2198,7 @@ const TEXT = {
     confirmClear: "Clear the whole sequence?", confirmInit: "Reset the sound to the engine defaults?",
     erase: "Erase",
     dxBank: "DX7 user banks on the device", dxBankSel: "Bank in use", dxBankN: "Bank", dxSelected: "Bank in use: ",
-    dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE (18–49).",
+    dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE (21–52).",
     dxDrop: "Drop a .syx here, or click", dxChoose: "Choose .syx", dxNoBank: "no bank", voices: "voices",
     dxConnect: "Connect the FM-1 to upload a DX7 bank.", dxNone: "This firmware has no DX7 user bank.",
     dxUploading: "Uploading the bank ", dxDone: "Bank uploaded: ", dxFail: "Cannot upload the bank: ", dxErased: "Bank erased",
@@ -2580,7 +2607,7 @@ function updateBrowser() {
   if (document.activeElement !== sel) sel.value = drum ? "" : String(e);
   const ps = $("preset");
   const names = dev.names[e] || [];
-  /* the 17 factory presets, then the voices of the bank in use (18..49), as PRESETS on the FM-1 */
+  /* the factory presets (20; 17 on sloopDX 1.9), then the voices of the bank in use, as PRESETS on the FM-1 */
   const bank = dev.dxbank && dev.dxbank.ok ? dev.dxbank.names : [];
   const sig = `${e}|${bank.join(",")}`;
   if (ps.dataset.sig !== sig) {
@@ -2732,10 +2759,10 @@ async function choosePreset(e, p) {
   try {
     selfLoad();
     const nf = (dev.names[e] || []).length;
-    if (p >= nf) {                                   /* a voice of the bank in use (18..49), as PRESETS on the FM-1 (ui.c
+    if (p >= nf) {                                   /* a voice of the bank in use (21..52), as PRESETS on the FM-1 (ui.c
                                                         preset_go): the voice, its knobs as programmed, the bank's trim */
       const pe0 = dev.info.pe0;
-      const sets = [[pe0, p], [pe0 + 1, 0], [pe0 + 2, 0], [pe0 + 3, 0], [pe0 + 4, 0], [pe0 + 5, 0],
+      const sets = [[pe0, p], [pe0 + 1, 0], [pe0 + 2, 0], [pe0 + 3, 0], [pe0 + 4, 0], [pe0 + 5, 0], [pe0 + 6, 127], [pe0 + 7, 0],
                     [P_ID.ATK, 0], [P_ID.DEC, 0], [P_ID.SUS, 127], [P_ID.REL, 0], [P_ID.TRIM, -12]];
       for (const [id, v] of sets) await rq(req.set(0, id, v));
     } else {
@@ -3464,7 +3491,9 @@ async function libWrite(ps) {
   try { await store.putMany(ps); } catch (e) { console.warn(e); sayK("error", "IndexedDB: " + e.message); }
 }
 async function libAdd(patches) {
-  const add = patches.map((p) => ({ ...cleanPatch(p), id: newId() }));
+  /* a sound from the connected device (or made beside it) has its DX7 numbering (dxvOf); a duplicate keeps its own */
+  const dxv = dev ? dxvOf(dev.info.version) : 0;
+  const add = patches.map((p) => ({ ...cleanPatch(p.dxv || !dxv ? p : { ...p, dxv }), id: newId() }));
   lib.push(...add);
   if (add.length) libSel = add[add.length - 1].id;
   await libWrite(add);
@@ -3488,6 +3517,11 @@ async function libAdopt(d) {
       changed.push(p);
     }
   }
+  if (dxvOf(d.info.version) >= 2)                     /* sounds kept from sloopDX 1.9: the 2.0 numbering */
+    for (let i = 0; i < lib.length; i++) {
+      const m = dxMigrate(lib[i], d.info.pe0);
+      if (m !== lib[i]) { Object.assign(lib[i], m); if (!changed.includes(lib[i])) changed.push(lib[i]); }
+    }
   libMeta = { keys, engines, pe0: d.info.pe0 };
   if (changed.length) await libWrite(changed);
   try { await store.setMeta("layout", libMeta); } catch (e) { console.warn(e); }
@@ -3975,11 +4009,12 @@ async function vEnsureSlot() {
   await vPlayOnTrack();
 }
 async function vPlayOnTrack() {
-  const pe0 = dev.info.pe0, v = DX_NFACT + VX.slot;
+  const pe0 = dev.info.pe0, v = dxNFact() + VX.slot;
   dev.dump.p[pe0] = parse[CMD.SET](await rq(req.set(0, pe0, v))).value;
   await rereadEngineDesc();
 }
-const DX_NFACT = 17;
+/* the factory voices of the connected device (17 on sloopDX 1.9, 20 from 2.0) */
+const dxNFact = () => dxNFactOf(dev && dev.pdesc && dev.pdesc[dev.info.pe0]);
 let vSendChain = Promise.resolve();
 function vSet(idx, v) {
   VX.u[idx] = v;
@@ -4080,7 +4115,7 @@ function renderVoice() {
   const fact = $("vfact");
   if (!fact.options.length) {
     fact.append(el("option", { value: "", text: "—" }));
-    (dev.pdesc && dev.pdesc[dev.info.pe0] && dev.pdesc[dev.info.pe0].names || []).slice(0, DX_NFACT)
+    (dev.pdesc && dev.pdesc[dev.info.pe0] && dev.pdesc[dev.info.pe0].names || []).slice(0, dxNFact())
       .forEach((n, i) => fact.append(el("option", { value: i, text: `${pad2(i + 1)} ${n}` })));
   }
   $("vname").value = vName();
@@ -4117,7 +4152,7 @@ function renderVoice() {
 async function voiceEnter() {
   if (!vOk()) { renderVoice(); return; }
   const v = dev.dump.p[dev.info.pe0] | 0;
-  if (v >= DX_NFACT) { VX.slot = v - DX_NFACT; VX.inSlot = true; VX.src = ""; }
+  if (v >= dxNFact()) { VX.slot = v - dxNFact(); VX.inSlot = true; VX.src = ""; }
   else { VX.inSlot = false; VX.src = (dev.pdesc[dev.info.pe0].names || [])[v] || ""; }
   VX.u = await dxvoice.get(vRq, v);
   renderVoice();
@@ -4125,7 +4160,7 @@ async function voiceEnter() {
 }
 $("vslot").addEventListener("change", () => op(async () => {
   VX.slot = +$("vslot").value;
-  VX.u = await dxvoice.get(vRq, DX_NFACT + VX.slot);
+  VX.u = await dxvoice.get(vRq, dxNFact() + VX.slot);
   VX.inSlot = true; VX.src = "";
   await vPlayOnTrack();
   renderVoice();

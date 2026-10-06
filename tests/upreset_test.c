@@ -120,6 +120,24 @@ int main(void)
     up_rec(17)->ver = UP_VER + 1u;
     bad += check("record with another version -> empty", !up_used(17));
 
+    up_rec(17)->ver = 1u;                                   /* stored before sloopDX 2.0: still read */
+    bad += check("record of version 1 -> still used", up_used(17));
+    {   /* ... its DX7 voice from 16 on moved up by three (2.0 added three factory voices) */
+        up_rec_t o = r;
+        int16_t w[P_COUNT];
+        o.np = P_COUNT;
+        o.ver = 1u, o.p[P_E0] = 20, o.p[P_E6] = 0;
+        up_params(&o, w, def);
+        ok = w[P_E0] == 23 && w[P_E6] == DX_CUT_OPEN;
+        o.p[P_E0] = 15;
+        up_params(&o, w, def);
+        ok &= w[P_E0] == 15;
+        o.ver = UP_VER, o.p[P_E0] = 20;
+        up_params(&o, w, def);
+        ok &= w[P_E0] == 20;
+        bad += check("version 1: DX7 voice 16.. + 3, below kept; version 2 as stored", ok);
+    }
+
     /* map by count: a record from a build with 2 parameters fewer */
     for (i = 0; i < P_COUNT; i++)
         def[i] = (int16_t)(1000 + i);
