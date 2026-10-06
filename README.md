@@ -31,7 +31,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 ## Status
 
-This is a work in progress. The host test suite passes (audio renders, voices, sequencer, UI, storage, update loader). It has not run on a device yet. Open items:
+This is a work in progress. The host test suite passes (audio renders, voices, sequencer, UI, storage, update loader). It has not run on a device yet. Open items (the full list is in TODO.md):
 
 - **RAM:** the DX7 state adds about 18 KB, and `tools/build.py` checks the limit at link time. If it is too much, the user bank moves to flash.
 - **CPU:** a real-chip measurement with all voices sounding is still missing.
