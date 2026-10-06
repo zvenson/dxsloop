@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only  (C) 2026 Sven Trogus
+     Web MIDI diagnosis: which ports the browser sees, and whether an FM-1 answers the identity query. -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sloopDX MIDI check</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;background:#111;color:#eee;margin:0;padding:16px;max-width:720px}
+pre{background:#000;color:#9f9;padding:12px;border-radius:6px;white-space:pre-wrap}button{font:inherit;padding:8px 16px;background:#287CFF;color:#fff;border:0;border-radius:6px}</style></head>
+<body><h1>sloopDX MIDI check</h1>
+<p>Click the button, allow MIDI (with SysEx). The log shows every MIDI port the browser sees and the FM-1's answer.</p>
+<button id="go">Check</button><pre id="log">(waiting)</pre>
+<script>
+const log = (s) => { document.getElementById("log").textContent += s + "\n"; };
+const HS = [0xF0, 0x00, 0x32, 0x45, 0x00, 0x00, 0x00, 0x40, 0x7F, 0xF7];
+document.getElementById("go").onclick = async () => {
+  document.getElementById("log").textContent = "";
+  log("browser: " + navigator.userAgent);
+  if (!navigator.requestMIDIAccess) { log("no Web MIDI in this browser"); return; }
+  let acc;
+  try { acc = await navigator.requestMIDIAccess({ sysex: true }); } catch (e) { log("requestMIDIAccess failed: " + e); return; }
+  log("sysex enabled: " + acc.sysexEnabled);
+  const ins = [...acc.inputs.values()], outs = [...acc.outputs.values()];
+  log("inputs (" + ins.length + "): " + ins.map((p) => `"${p.name}" [${p.state}/${p.connection}]`).join(", "));
+  log("outputs (" + outs.length + "): " + outs.map((p) => `"${p.name}" [${p.state}/${p.connection}]`).join(", "));
+  for (const input of ins) {
+    const output = outs.find((o) => o.name === input.name) || (outs.length === 1 ? outs[0] : null);
+    if (!output) { log(`"${input.name}": no matching output`); continue; }
+    try { await input.open(); await output.open(); } catch (e) { log(`"${input.name}": open failed: ${e}`); continue; }
+    const got = await new Promise((res) => {
+      const t = setTimeout(() => res(null), 1500);
+      input.onmidimessage = (m) => { if (m.data[0] === 0xF0) { clearTimeout(t); res([...m.data]); } };
+      try { output.send(HS); } catch (e) { clearTimeout(t); res("send failed: " + e); }
+    });
+    if (!got) log(`"${input.name}": no answer to the identity query in 1.5 s`);
+    else if (typeof got === "string") log(`"${input.name}": ${got}`);
+    else {
+      const text = String.fromCharCode(...got.slice(8, 40).filter((b) => b > 31 && b < 127));
+      log(`"${input.name}": answered ${got.length} bytes: ${got.map((b) => b.toString(16).padStart(2, "0")).join(" ")}`);
+      log(`  identity text: "${text}"`);
+    }
+    input.onmidimessage = null;
+    input.close(); output.close();
+  }
+  log("done");
+};
+</script></body></html>
