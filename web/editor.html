@@ -776,6 +776,21 @@ const dxvoice = {
   async save(rq) { return parse[CMD.BANK_SAVE](await rq(req.bankSave(), { timeout: 3000, retries: 0 })).rc; },
 };
 
+/* numbers in front of the voices and kits, so a long list says where you are: factory voices 01..17, the
+   user bank U01..U32 (its own names after the slot), kits 1..5 */
+const DX_NFACTORY = 17;
+const pad2 = (n) => String(n).padStart(2, "0");
+function numbered(d, v, name) {
+  const i = v - d.min;
+  if (d.label === "VOICE") {
+    if (i < DX_NFACTORY) return `${pad2(i + 1)} ${name}`;
+    const u = "U" + pad2(i - DX_NFACTORY + 1);
+    return name === u ? u : `${u} ${name}`;
+  }
+  if (d.label === "KIT") return `${i + 1} ${name}`;
+  return name;
+}
+
 /* which reply belongs to which request (the device echoes these) */
 function replyMatches(cmd, args, a) {
   switch (cmd) {
@@ -922,7 +937,7 @@ function fmtValue(d, v) {
     case F.CUTOFF: { const h = 30 * Math.pow(16000 / 30, (v & 127) / 127); return h < 1000 ? [String(Math.round(h)), "Hz"] : [(h / 1000).toFixed(1), "kHz"]; }
     case F.DB: return v <= 0 ? ["OFF", ""] : [((v - 112) / 2).toFixed(1), "dB"];
     case F.SEMI: return [sign(v), "st"];
-    case F.ENUM: return [d.names[v - d.min] ?? String(v), d.unit || ""];
+    case F.ENUM: return [numbered(d, v, d.names[v - d.min] ?? String(v)), d.unit || ""];
     case F.BPM: return [String(v), "BPM"];
     case F.NOTE: return [NOTE_NAMES[((v % 12) + 12) % 12], ""];
     case F.ONOFF: return [v ? "ON" : "OFF", ""];
@@ -1553,7 +1568,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.4 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.5 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */
@@ -2465,7 +2480,7 @@ function updateBrowser() {
   const ps = $("preset");
   const names = dev.names[e] || [];
   if (ps.dataset.engine !== String(e)) {
-    ps.replaceChildren(...names.map((n, i) => el("option", { value: i, text: n })));
+    ps.replaceChildren(...names.map((n, i) => el("option", { value: i, text: `${pad2(i + 1)} ${n}` })));
     ps.dataset.engine = String(e);
   }
   if (document.activeElement !== ps) ps.value = String(dev.dump.preset);
@@ -2796,7 +2811,7 @@ function renderDrumBar() {
   const names = kd && kd.fmt === F.ENUM && kd.names.length ? kd.names : null;
   kit.hidden = !names;
   if (names && kit.dataset.n !== String(names.length)) {
-    kit.replaceChildren(...names.map((n, i) => el("option", { value: i + kd.min, text: n })));
+    kit.replaceChildren(...names.map((n, i) => el("option", { value: i + kd.min, text: `${i + 1} ${n}` })));
     kit.dataset.n = String(names.length);
   }
   if (names && document.activeElement !== kit) kit.value = String(dev.dump.p[pe0]);
@@ -3934,7 +3949,7 @@ function renderVoice() {
   if (!fact.options.length) {
     fact.append(el("option", { value: "", text: "—" }));
     (dev.pdesc && dev.pdesc[dev.info.pe0] && dev.pdesc[dev.info.pe0].names || []).slice(0, DX_NFACT)
-      .forEach((n, i) => fact.append(el("option", { value: i, text: n })));
+      .forEach((n, i) => fact.append(el("option", { value: i, text: `${pad2(i + 1)} ${n}` })));
   }
   $("vname").value = vName();
   const glob = $("vglob0"), peg = $("vpeg"), lfo = $("vlfo"), ops = $("vops");

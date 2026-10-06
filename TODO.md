@@ -17,6 +17,16 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
       gedrückt: zurück auf `>> 11`, `preset_trim.h` auf 0 und `tools/level_presets.py` zweimal laufen lassen.
 - [ ] .syx-Bank am Gerät laden (Editor oder `tools/fm1_bank_upload.py`), Neustart, Bank noch da?
 
+## 1b. Gefunden beim Bank-Upload über den ALSA-Sequencer (2026-10-06)
+
+- [ ] `usb.c ota_wire_send`: eine lange Antwort (BANK_INFO ~330 Bytes, DESC mit 49 Namen) wird nach 200 ms
+      ohne Platz in der Senderingschlange mitten im SysEx abgebrochen, ohne F7. Linux (ALSA seq) wartet dann
+      auf das Ende und verschluckt alles danach. Fix: nie mitten im Frame aufgeben (ganzen Frame vorher auf
+      Platz prüfen, sonst gar nicht senden), oder bei Abbruch ein F7 nachschieben. Über Chrome / WebMIDI
+      tritt es nicht auf.
+- [ ] `seq_bank_upload.py` (in ~/sloopDX/banks, außerhalb des Repos): Bank-Upload ohne python-rtmidi über
+      aseqsend / aseqdump; ins Repo als tools/, wenn der Fix oben drin ist.
+
 ## 2. .syx-Bank aufs Gerät
 
 - [x] Editor-Befehle 34..38 (BANK_BEGIN / WRITE / END / INFO / ERASE, Protokoll v6 in
@@ -33,7 +43,7 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Editor ohne Sample-Seiten, KIT-Liste = 5 FM-Kits, DX7-Parameter, .syx-Upload im Library-Tab;
       `node web/test_web.mjs` läuft wieder in `tests/run_tests.sh`.
 - [x] Installer-Seite auf sloopDX (`web/index_pkg.html` Vorlage, `docs/` erzeugt mit
-      `python3 web/make_site.py build/felucca.fwsc 1.4 docs`); `docs/firmware/sloopdx-1.4.fwsc`.
+      `python3 web/make_site.py build/felucca.fwsc 1.5 docs`); `docs/firmware/sloopdx-1.5.fwsc`.
 - [x] GitHub Action `.github/workflows/build.yml` (Build, Tests, Artefakt, Release bei `v*`-Tag).
       Ob der Runner pkgman.jieliapp.com und gitee erreicht, zeigt der erste Lauf.
 - [x] `INSTALL-SLOOPDX.bat`, `build-sloopdx.ps1`, `OPEN-EDITOR.bat`, `tools/build_windows.py`.
@@ -62,8 +72,8 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
       mit Dexed/msfa (Apache-2.0), Sample-Lizenzen raus.
 - [x] ABOUT-Seite (`ui_menu.c`): `GITHUB.COM/ZVENSON/DXSLOOP`.
 - [ ] isod89 per Issue über den Fork informieren (guter Ton, keine Pflicht).
-- [ ] Versionierung: `FELUCCA_VERSION "sloopDX 1.4"` (`ui.c`), Paket FM-1_900; das erste Release mit
-      `./build.sh --release 1.4` (Identität FM-1_914) und Tag `v1.4`.
+- [ ] Versionierung: `FELUCCA_VERSION "sloopDX 1.5"` (`ui.c`), Paket FM-1_900; das erste Release mit
+      `./build.sh --release 1.5` (Identität FM-1_915) und Tag `v1.5`.
 
 ## Nicht vergessen
 

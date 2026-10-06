@@ -20,6 +20,15 @@
   .lang { font-size: 12px; color: var(--dim); cursor: pointer; text-decoration: underline; background: none;
           border: 0; padding: 0; text-transform: lowercase; }
   .strip { display: flex; height: 4px; margin: 20px 0 24px; }
+  /* the boot animation of the FM-1 (splash.c): the 32 algorithms going by, in the DX7's panel colours */
+  .dxanim { background: #2e2a2b; border-radius: 4px; padding: 10px 0 6px; margin: -8px 0 24px; display: flex; justify-content: center; }
+  .dxanim svg { width: 100%; max-width: 360px; height: auto; display: block; }
+  .dxanim text { font: 12px ui-monospace, Menlo, monospace; fill: #cec8c2; }
+  .dxanim text.led { font: 600 28px ui-monospace, Menlo, monospace; fill: #ff2e22; }
+  .dxanim text.op { font-size: 11px; fill: #111; text-anchor: middle; dominant-baseline: central; }
+  .dxanim line { stroke: #cec8c2; stroke-width: 1; }
+  .dxanim polyline { stroke: #f4c0cb; fill: none; stroke-width: 1.2; }
+  .dxanim rect.c { fill: #42f5f5; } .dxanim rect.m { fill: #afd9f4; }
   .strip i { flex: 1; } .strip i:nth-child(1) { background: var(--blue); } .strip i:nth-child(2) { background: var(--green); }
   .strip i:nth-child(3) { background: var(--yellow); } .strip i:nth-child(4) { background: var(--orange); }
   h1 { font-size: 13px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
@@ -53,6 +62,7 @@
 <main>
   <div class="top"><div class="logo"><!--LOGO--></div><button class="lang" id="lang"></button></div>
   <div class="strip"><i></i><i></i><i></i><i></i></div>
+  <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
   <!--STUDIO_GUIDE-->
   <!--BANNER-->
   <h1>Firmware for the M-VAVE FM-1</h1>
@@ -92,6 +102,56 @@
     M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.<br>
     <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a></p>
 </main>
+<script>
+/* the algorithm animation: the same layout as the FM-1's screen (ui_voice.c ve_draw_alg); op 0 = OP6 */
+(() => {
+  const ALG = [[0xc1,0x11,0x11,0x14,0x01,0x14],[0x01,0x11,0x11,0x14,0xc1,0x14],[0xc1,0x11,0x14,0x01,0x11,0x14],[0xc1,0x11,0x94,0x01,0x11,0x14],[0xc1,0x14,0x01,0x14,0x01,0x14],[0xc1,0x94,0x01,0x14,0x01,0x14],[0xc1,0x11,0x05,0x14,0x01,0x14],[0x01,0x11,0xc5,0x14,0x01,0x14],[0x01,0x11,0x05,0x14,0xc1,0x14],[0x01,0x05,0x14,0xc1,0x11,0x14],[0xc1,0x05,0x14,0x01,0x11,0x14],[0x01,0x05,0x05,0x14,0xc1,0x14],[0xc1,0x05,0x05,0x14,0x01,0x14],[0xc1,0x05,0x11,0x14,0x01,0x14],[0x01,0x05,0x11,0x14,0xc1,0x14],[0xc1,0x11,0x02,0x25,0x05,0x14],[0x01,0x11,0x02,0x25,0xc5,0x14],[0x01,0x11,0x11,0xc5,0x05,0x14],[0xc1,0x14,0x14,0x01,0x11,0x14],[0x01,0x05,0x14,0xc1,0x14,0x14],[0x01,0x14,0x14,0xc1,0x14,0x14],[0xc1,0x14,0x14,0x14,0x01,0x14],[0xc1,0x14,0x14,0x01,0x14,0x04],[0xc1,0x14,0x14,0x14,0x04,0x04],[0xc1,0x14,0x14,0x04,0x04,0x04],[0xc1,0x05,0x14,0x01,0x14,0x04],[0x01,0x05,0x14,0xc1,0x14,0x04],[0x04,0xc1,0x11,0x14,0x01,0x14],[0xc1,0x14,0x01,0x14,0x04,0x04],[0x04,0xc1,0x11,0x14,0x04,0x04],[0xc1,0x14,0x04,0x04,0x04,0x04],[0xc4,0x04,0x04,0x04,0x04,0x04]];
+  const svg = document.getElementById("dxalg"), NS = "http://www.w3.org/2000/svg";
+  if (!svg) return;
+  const add = (tag, at, txt) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; svg.append(e); return e; };
+  function draw(a) {
+    const bus = [0, 0, 0], mods = [0, 0, 0, 0, 0, 0];
+    let car = 0, fbin = -1, fbout = -1;
+    ALG[a].forEach((fl, i) => {
+      const inb = (fl >> 4) & 3, outb = fl & 3;
+      if (inb) mods[i] = bus[inb];
+      if (!outb) car |= 1 << i; else if (fl & 4) bus[outb] |= 1 << i; else bus[outb] = 1 << i;
+      if (fl & 0x40) fbin = i;
+      if (fl & 0x80) fbout = i;
+    });
+    const tgt = [0, 1, 2, 3, 4, 5].map((i) => { for (let j = i + 1; j < 6; j++) if ((mods[j] >> i) & 1) return j; return -1; });
+    const depth = [0, 0, 0, 0, 0, 0];
+    for (let i = 5; i >= 0; i--) depth[i] = tgt[i] < 0 ? 0 : depth[tgt[i]] + 1;
+    const x2 = []; let ncol = 0;
+    const place = (c) => { let sum = 0, n = 0; for (let j = 5; j >= 0; j--) if (tgt[j] === c) { sum += place(j); n++; } x2[c] = n ? sum / n : 2 * ncol++ + 1; return x2[c]; };
+    for (let i = 5; i >= 0; i--) if ((car >> i) & 1) place(i);
+    const colw = Math.min(40, 200 / Math.max(ncol, 1)), rowh = Math.min(34, 140 / (Math.max(...depth) + 1));
+    const X = (i) => 120 - (ncol * colw) / 2 + (x2[i] * colw) / 2, Y = (i) => 140 - depth[i] * rowh;
+    svg.textContent = "";
+    add("text", { x: 4, y: 12 }, "algorithm");
+    add("text", { class: "led", x: 4, y: 42 }, String(a + 1));
+    for (let i = 0; i < 6; i++) {
+      for (let j = 0; j < 6; j++) if ((mods[j] >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(j), y2: Y(j) - 10 });
+      if ((car >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(i), y2: 162 });
+    }
+    add("line", { x1: 10, y1: 162.5, x2: 230, y2: 162.5 });
+    if (fbin >= 0 && fbout >= 0) {
+      const xr = Math.max(X(fbin), X(fbout)) + 18;
+      add("polyline", { points: `${X(fbout) + 12},${Y(fbout)} ${xr},${Y(fbout)} ${xr},${Y(fbin) - 14} ${X(fbin)},${Y(fbin) - 14} ${X(fbin)},${Y(fbin) - 10}` });
+    }
+    for (let i = 0; i < 6; i++) {
+      const c = (car >> i) & 1 ? "c" : "m";
+      add("rect", { class: c, x: X(i) - 12, y: Y(i) - 10, width: 24, height: 20 });
+      add("text", { class: "op", x: X(i), y: Y(i) }, String(6 - i));
+    }
+  }
+  /* as on the FM-1 at power-on: the algorithms go by, then each stays a moment; reduced motion: algorithm 1 */
+  let a = 0;
+  draw(0);
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  setInterval(() => { a = (a + 1) % 32; draw(a); }, 900);
+})();
+</script>
 <script type="module">
 /*LIB*/
 const $ = (id) => document.getElementById(id);

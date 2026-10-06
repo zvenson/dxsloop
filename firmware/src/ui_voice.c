@@ -241,6 +241,12 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
             str_cpy(b, lab, 4);
             str_cpy(b + 3, " ", 2);
         }
+        else {                                            /* factory: its number, 01..17 */
+            b[0] = (char)('0' + (ve_voice() + 1u) / 10u);
+            b[1] = (char)('0' + (ve_voice() + 1u) % 10u);
+            b[2] = ' ';
+            b[3] = 0;
+        }
         str_cpy(b + str_len(b), dx_names[ve_voice()], 12);
         return -1;
     case VK_GROUP:

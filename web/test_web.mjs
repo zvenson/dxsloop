@@ -694,7 +694,10 @@ async function editorDxBank() {
   ok(v1.names.length === 49 && v1.names.slice(0, 17).join() === v0.names.slice(0, 17).join() && v1.names[17] === "VOICE 01" && v1.names[20] === "A B"
     && v1.names[47] === "VOICE 31" && v1.names[48] === "U32", "dx7: DESC of P_E0 lists the bank's names as U01..U32 (an empty name stays Unn)");
   const set = E.parse[C.SET](await rq(E.req.set(0, info.pe0, 20)));
-  ok(set.value === 20 && E.fmtValue(v1, 20)[0] === "A B", "dx7: a user voice can be selected and is shown by name");
+  ok(E.fmtValue({ label: "VOICE", fmt: E.F.ENUM, min: 0, max: 48, names: Array(49).fill("X") }, 2)[0] === "03 X"
+    && E.fmtValue({ label: "KIT", fmt: E.F.ENUM, min: 0, max: 4, names: ["DX KIT", "808 FM"] }, 1)[0] === "2 808 FM",
+    "numbers: factory voices 01..17, kits 1..5");
+  ok(set.value === 20 && E.fmtValue(v1, 20)[0] === "U04 A B", "dx7: a user voice can be selected and is shown by slot and name (U04 A B)");
   /* a bad checksum: the device refuses it (rc 1) and the bank stays empty; a write without BEGIN is refused */
   const bad = { data: chk.data, checksum: (chk.checksum + 1) & 0x7F };
   const rcBad = await E.dxbank.upload(rq, bad);
