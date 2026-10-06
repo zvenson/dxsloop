@@ -38,6 +38,22 @@
   address { font-style: normal; font-size: 18px; line-height: 1.7; }
   @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
 </style>
+<!-- Matomo (self-hosted, matomo.designburgapps.com; without cookies: no consent banner needed) -->
+<script>
+  var _paq = window._paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['disableCookies']);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="https://matomo.designburgapps.com/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '1']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
 </head>
 <body>
 <nav><div class="wrap"><b>sloop<span>DX</span></b><div><a href="./">Home</a><a href="webapp/installer/">Install</a><a href="https://github.com/zvenson/dxsloop">GitHub</a></div></div></nav>
@@ -75,7 +91,7 @@
 
   <section class="wide">
     <h2>Datenschutz in Kürze</h2>
-    <p>Diese Seite setzt keine Cookies, nutzt kein Tracking und keine Analyse. Installer und Editor laufen vollständig in deinem Browser; die Verbindung zum FM-1 (Web MIDI) bleibt auf deinem Rechner, es werden keine Gerätedaten an den Server gesendet. Beim Abruf der Seite verarbeitet der Hosting- und Netzwerkdienst (Cloudflare) technisch notwendige Verbindungsdaten wie die IP-Adresse, um die Seite auszuliefern und abzusichern. Fragen zum Datenschutz: <a href="mailto:sven@designburg.net">sven@designburg.net</a>.</p>
+    <p>Für eine einfache Nutzungsstatistik verwende ich <b>Matomo</b>, selbst betrieben auf matomo.designburgapps.com, <b>ohne Cookies</b>. Dabei werden Seitenaufrufe, Verweisquelle, Browser- und Gerätetyp sowie die IP-Adresse verarbeitet, um die Statistik zu erstellen (berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO). Die Daten werden nicht an Dritte weitergegeben. Werbung oder Profilbildung gibt es nicht. Installer und Editor laufen vollständig in deinem Browser; die Verbindung zum FM-1 (Web MIDI) bleibt auf deinem Rechner, es werden keine Gerätedaten an den Server gesendet. Beim Abruf der Seite verarbeitet der Hosting- und Netzwerkdienst (Cloudflare) technisch notwendige Verbindungsdaten wie die IP-Adresse, um die Seite auszuliefern und abzusichern. Widerspruch gegen die Statistik und Fragen zum Datenschutz: <a href="mailto:sven@designburg.net">sven@designburg.net</a>.</p>
     <p class="dim">Source code: <a href="https://github.com/zvenson/dxsloop">github.com/zvenson/dxsloop</a> · GPL-3.0</p>
   </section>
 </main>

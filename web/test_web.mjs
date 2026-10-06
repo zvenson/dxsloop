@@ -759,7 +759,8 @@ function editorTabs() {
   const odd = [...ja].filter((k) => !en.has(k)).concat([...en].filter((k) => !ja.has(k)));
   ok(!miss.length && !odd.length, `editor: every string in ja and en (${used.size} used${miss.length ? ", missing " + miss : ""}${odd.length ? ", one language only " + odd : ""})`);
   /* the page script parses (the browser's view of it) */
-  const script = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
+  const body = html.slice(html.indexOf("</head>"));                      /* (the head holds the Matomo snippet) */
+  const script = body.slice(body.indexOf("<script>") + 8, body.lastIndexOf("</script>"));
   let err = null;
   try { new vm.Script(script); } catch (e) { err = e.message; }
   ok(!err, "editor: page script compiles" + (err ? ` (${err})` : ""));
