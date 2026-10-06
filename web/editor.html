@@ -776,16 +776,15 @@ const dxvoice = {
   async save(rq) { return parse[CMD.BANK_SAVE](await rq(req.bankSave(), { timeout: 3000, retries: 0 })).rc; },
 };
 
-/* numbers in front of the voices and kits, so a long list says where you are: factory voices 01..17, the
-   user bank U01..U32 (its own names after the slot), kits 1..5 */
+/* numbers in front of the voices and kits, so a long list says where you are: one running number for the
+   voices as on the FM-1 (01..17 factory, 18..49 the user bank U01..U32), kits 1..5 */
 const DX_NFACTORY = 17;
 const pad2 = (n) => String(n).padStart(2, "0");
 function numbered(d, v, name) {
   const i = v - d.min;
-  if (d.label === "VOICE") {
-    if (i < DX_NFACTORY) return `${pad2(i + 1)} ${name}`;
+  if (d.label === "VOICE") {                       /* one running number, as on the FM-1: 01..17, 18..49 */
     const u = "U" + pad2(i - DX_NFACTORY + 1);
-    return name === u ? u : `${u} ${name}`;
+    return i < DX_NFACTORY || name !== u ? `${pad2(i + 1)} ${name}` : `${pad2(i + 1)} ${u}`;
   }
   if (d.label === "KIT") return `${i + 1} ${name}`;
   return name;
@@ -1568,7 +1567,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.5 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.6 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */

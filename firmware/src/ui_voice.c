@@ -236,18 +236,12 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
     b[0] = 0;
     switch (r->kind) {
     case VK_VOICE:
-        if (ve_user() >= 0) {
-            ve_slot_label(lab, (uint32_t)ve_user());
-            str_cpy(b, lab, 4);
-            str_cpy(b + 3, " ", 2);
-        }
-        else {                                            /* factory: its number, 01..17 */
-            b[0] = (char)('0' + (ve_voice() + 1u) / 10u);
-            b[1] = (char)('0' + (ve_voice() + 1u) % 10u);
-            b[2] = ' ';
-            b[3] = 0;
-        }
-        str_cpy(b + str_len(b), dx_names[ve_voice()], 12);
+        b[0] = (char)('0' + (ve_voice() + 1u) / 10u);    /* its number in the list: 01..17 factory, 18..49 U01..U32 */
+        b[1] = (char)('0' + (ve_voice() + 1u) % 10u);
+        b[2] = ' ';
+        b[3] = 0;
+        str_cpy(b + 3, dx_names[ve_voice()], 12);
+        (void)lab;
         return -1;
     case VK_GROUP:
         if (r->idx >= 6u && ve_muted(r->idx - 6u)) { str_cpy(b, "OFF >", 6); return -1; }

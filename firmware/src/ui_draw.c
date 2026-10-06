@@ -394,7 +394,10 @@ static void graph_browse(void)
             up_name(k, nm);
         } else {                                         /* its kind: BASS, KEYS, PAD... */
             str_cpy(tag, preset_kind(n), sizeof tag);
-            str_cpy(nm, ENGINES[e]->presets[k].name, sizeof nm);
+            nm[0] = (char)('0' + (k + 1u) / 10u);        /* its number: the voice it plays (01..17) */
+            nm[1] = (char)('0' + (k + 1u) % 10u);
+            nm[2] = ' ';
+            str_cpy(nm + 3, ENGINES[e]->presets[k].name, sizeof nm - 3u);
         }
         if (sel)
             cv_rect(4, y + 6, 3, 3, C_WHITE);
@@ -472,6 +475,18 @@ static uint32_t trk_level(uint32_t c)                /* LEVEL 0..127 (the drum t
     return (uint32_t)(c == TRK_DRUM ? song.g[G_DRLVL] : trk[c].p[P_LEVEL]) & 127u;
 }
 
+/* the voice a DX7 part plays, numbered as in its VOICE list: 01..17 factory, 18..49 the user bank ("37 BRASS 1");
+ * it follows VOICE (the list, the editor), not only the preset that was loaded */
+static void dx_voice_label(const track_t *t, char *b, uint32_t n)
+{
+    uint32_t v = (uint32_t)t->p[P_E0] % DX_NVOICES;
+    b[0] = (char)('0' + (v + 1u) / 10u);
+    b[1] = (char)('0' + (v + 1u) % 10u);
+    b[2] = ' ';
+    b[3] = 0;
+    str_cpy(b + 3, dx_names[v], n - 3u);
+}
+
 static void trk_short_name(uint32_t c, char *b)      /* the track's sound, b holds 13 */
 {
     const track_t *t = &trk[c];
@@ -481,7 +496,7 @@ static void trk_short_name(uint32_t c, char *b)      /* the track's sound, b hol
     else if (user_of(t) < UP_SLOTS)
         up_name(user_of(t), b);
     else if (e->npresets)
-        str_cpy(b, e->presets[t->preset % e->npresets].name, 13);
+        dx_voice_label(t, b, 13);
     else
         str_cpy(b, e->name, 13);
 }
@@ -719,7 +734,7 @@ static void draw_foot(void)
     else if (user_of(t) < UP_SLOTS)
         up_name(user_of(t), pn);                       /* a user preset */
     else if (e->npresets)
-        str_cpy(pn, e->presets[TSEL->preset % e->npresets].name, sizeof pn);
+        dx_voice_label(TSEL, pn, sizeof pn);
     if (ui.home) {
         str_cpy(ti, "HOME", sizeof ti);
     } else {                                           /* page title + number in its family: "ENV DEST 2/2" */

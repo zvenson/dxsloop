@@ -5,13 +5,13 @@ Set-Location $PSScriptRoot
 $Distro = if ($env:SLOOPDX_WSL_DISTRO) { $env:SLOOPDX_WSL_DISTRO } else { 'Ubuntu' }
 $Toolchain = if ($env:SLOOPDX_TOOLCHAIN) { $env:SLOOPDX_TOOLCHAIN } else { '/root/.jieli/toolchain' }
 Write-Host ""
-Write-Host "  s l o o p D X   1.5" -ForegroundColor White
+Write-Host "  s l o o p D X   1.6" -ForegroundColor White
 Write-Host "  ---- ---- ---- ----" -ForegroundColor DarkGray
 Write-Host "== Building the firmware (WSL $Distro)" -ForegroundColor Cyan
 python tools/build_windows.py --distro $Distro --toolchain $Toolchain --sdk build/deps/ac79
 if ($LASTEXITCODE -ne 0) { throw "The build failed" }
 Write-Host "== Making the installer site" -ForegroundColor Cyan
-python web/make_site.py build/felucca.fwsc 1.5 build/sloopdx-site
+python web/make_site.py build/felucca.fwsc 1.6 build/sloopdx-site
 if ($LASTEXITCODE -ne 0) { throw "make_site failed" }
 Write-Host ""
 Write-Host "Installer: http://localhost:8766/webapp/installer/  (Chrome or Edge, FM-1 on USB)" -ForegroundColor Green

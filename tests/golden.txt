@@ -17,7 +17,7 @@ preset/DX7/13_FLUTE 892a02255d2d1e8c
 preset/DX7/14_SAW_LEAD 175107742a313914
 preset/DX7/15_KOTO decd6410a1eee01c
 preset/DX7/16_INIT_VOICE 3e83d4931fdc0a3c
-drums/fm_kit c11ca1ce36254083
+drums/fm_kit 78953cc0719bf4eb
 mode/DX7/FM_BASS/POLY 69179c52338ed2f2
 mode/DX7/FM_BASS/MONO c52460f80c89a0fe
 mode/DX7/FM_BASS/LEGATO d2eeb5b0d171c502
@@ -42,7 +42,7 @@ sends/DX7/EPIANO_1/delay 4e448a417040dbec
 sends/DX7/EPIANO_1/reverb dd95bca5e310efb4
 sends/DX7/EPIANO_1/all 162c9631d9abb253
 sends/DX7/EPIANO_1/dist e9a696038953a1cd
-song/4track_mix 921b575c6fb67224
+song/4track_mix 62841f3875ec034d
 slicer/gate/ANALOG_DARK_STR 2dd2cb48589f2e86
 slicer/stut/DIGITAL_RHODES 14f94c9e9d321787
-slicer/song_gate_stut 855ede0c72ab40b2
+slicer/song_gate_stut fa7eaaeceb3510bb
