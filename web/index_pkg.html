@@ -6,6 +6,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sloopDX installer</title>
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
 <style>
   :root { --bg: #000; --fg: #f2f2f2; --dim: #8a8a92; --tile: #16161a; --line: #2a2a30;
           --blue: #42f5f5; --green: #afd9f4; --yellow: #f4c0cb; --orange: #e6d1b9; --red: #ff2c34; }
@@ -13,7 +16,19 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 15px/1.6 "Helvetica Neue", -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
-  main { max-width: 560px; margin: 0 auto; padding: 32px 16px 48px; }
+  main { max-width: 1440px; margin: 0 auto; padding: 28px 32px 56px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 64px; align-items: start; }
+  .col-side { position: sticky; top: 24px; }
+  .col-side .dxanim { margin: 0 0 18px; padding: 22px 14px 12px; border-radius: 16px; }
+  .col-side .dxanim svg { max-width: none; }
+  .top .nav { display: flex; gap: 22px; margin-left: auto; margin-right: 8px; font-size: 14.5px; }
+  .top .nav a { color: var(--dim); text-decoration: none; } .top .nav a:hover { color: var(--fg); }
+  h1 { font-size: clamp(34px, 4vw, 56px) !important; font-weight: 300 !important; text-transform: none !important;
+       letter-spacing: -0.3px !important; color: var(--fg) !important; margin: 6px 0 14px !important; }
+  h1 b { color: var(--cyan); font-weight: 700; }
+  body { background: #151213 !important; }
+  .lead { font-size: 19px !important; }
+  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } .col-side { position: static; } .top .nav { display: none; } }
   .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .logo svg { display: block; width: 220px; height: auto; }
   .logo rect:first-child { fill: transparent; }
@@ -60,20 +75,13 @@
 </head>
 <body>
 <main>
-  <div class="top"><div class="logo"><!--LOGO--></div><button class="lang" id="lang" hidden></button></div>
+  <div class="top"><a class="logo" href="../../"><!--LOGO--></a><nav class="nav"><a href="../../">Home</a><a href="../editor/">Editor</a><a href="../../#cheatsheet">Cheat Sheet</a><a href="https://github.com/zvenson/dxsloop">GitHub</a></nav><button class="lang" id="lang" hidden></button></div>
   <div class="strip"><i></i><i></i><i></i><i></i></div>
-  <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
+  <div class="grid"><div class="col-main">
   <!--STUDIO_GUIDE-->
   <!--BANNER-->
-  <h1>Firmware for the M-VAVE FM-1</h1>
-  <p class="lead">SLOOP as a pure DX7 FM synth: four tracks — three synths and a drum machine — one engine, a six-operator DX7 voice (Dexed's msfa core, within 1 LSB of Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, 16 punch-in effects. No factory patterns, nothing to load: everything you hear, you play.</p>
-  <p class="small"><a href="../../#cheatsheet">Cheat Sheet (A4, German)</a> · <a href="../../sloopdx-cheat-sheet.pdf">PDF</a> · <a href="../editor/">Web editor</a></p>
-  <div class="tiles">
-    <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, Dexed's sound</span></div>
-    <div class="tile" style="--c: var(--green)"><b>17+32</b><span>factory voices + your .syx bank</span></div>
-    <div class="tile" style="--c: var(--yellow)"><b>16</b><span>punch-in fx: hold fx + key</span></div>
-    <div class="tile" style="--c: var(--orange)"><b>rec</b><span>no click: the loop follows you</span></div>
-  </div>
+  <h1>Install <b>sloopDX</b></h1>
+  <p class="lead">The M-VAVE FM-1 as a six-operator DX7 (Dexed's msfa core): voice editing on the device, 256 voices from your own .syx banks, four FM drum kits, and SLOOP's live workflow with three synth tracks and a drum track.</p>
   <p data-t="intro"></p>
   <p data-t="warn"></p>
   <p><button id="go" disabled data-t="install"></button></p>
@@ -102,6 +110,17 @@
     Font: Terminus (Dimitar Toshkov Zhekov, SIL OFL 1.1).<br>
     M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.<br>
     <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a></p>
+  </div>
+  <aside class="col-side">
+    <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
+  <p class="small"><a href="../../#cheatsheet">Cheat Sheet (A4)</a> · <a href="../../sloopdx-cheat-sheet.pdf">PDF</a> · <a href="../editor/">Web editor</a> · <a href="https://github.com/zvenson/dxsloop">GitHub</a></p>
+  <div class="tiles">
+    <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, Dexed's sound</span></div>
+    <div class="tile" style="--c: var(--green)"><b>256</b><span>voices from 8 .syx banks</span></div>
+    <div class="tile" style="--c: var(--yellow)"><b>16</b><span>punch-in fx: hold fx + key</span></div>
+    <div class="tile" style="--c: var(--orange)"><b>rec</b><span>no click: the loop follows you</span></div>
+  </div>
+  </aside></div>
 </main>
 <script>
 /* the algorithm animation: the same layout as the FM-1's screen (ui_voice.c ve_draw_alg); op 0 = OP6 */

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- sloopDX: an operator pair as the FM-1 draws its algorithms (modulator over carrier, feedback loop) -->
+  <rect width="64" height="64" rx="14" fill="#2e2a2b"/>
+  <line x1="27" y1="24" x2="27" y2="38" stroke="#cec8c2" stroke-width="2.5"/>
+  <line x1="27" y1="50" x2="27" y2="56" stroke="#cec8c2" stroke-width="2.5"/>
+  <line x1="10" y1="56.5" x2="54" y2="56.5" stroke="#cec8c2" stroke-width="2.5"/>
+  <polyline points="39,17 48,17 48,6 27,6 27,10" fill="none" stroke="#f4c0cb" stroke-width="3"/>
+  <rect x="15" y="10" width="24" height="15" rx="2.5" fill="#afd9f4"/>
+  <rect x="15" y="36" width="24" height="15" rx="2.5" fill="#42f5f5"/>
+</svg>

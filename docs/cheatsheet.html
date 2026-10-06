@@ -1,11 +1,14 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-only  (C) 2026 Sven Trogus
-     sloopDX cheat sheet: one A4 page (print it, or save it as PDF from the browser). German. -->
-<html lang="de">
+     sloopDX cheat sheet: one A4 page (print it, or save it as PDF from the browser). English; cheatsheet-de.html is German. -->
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sloopDX Cheat Sheet</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   @page { size: A4 portrait; margin: 9mm; }
   :root { --cyan: #13b8b8; --blue: #5d9fd0; --pink: #d9748a; --beige: #b08a5c; --led: #e3261c;
@@ -43,112 +46,202 @@
   .note { background: var(--tint); border-radius: 3px; padding: 3px 5px; margin-top: 2px; }
   footer { margin-top: 4px; border-top: 0.5px solid var(--line); padding-top: 3px; color: var(--dim); font-size: 7.2pt;
            display: flex; justify-content: space-between; }
+  .page2 { break-before: page; }
+  @media print { .page2 { margin-top: 0; } }
+  .fig { display: flex; gap: 8px; align-items: center; margin: 3px 0 4px; }
+  .fig svg { flex: none; }
+  .fig p { margin: 0; }
+  .rec td:first-child { width: 22%; }
+  .big { font-size: 9pt; }
 </style>
 </head>
 <body>
 <div class="page">
 <header>
   <h1>sloop<b>DX</b> &nbsp;Cheat Sheet</h1>
-  <div class="sub">DX7-FM-Synth + FM-Drums für das M-VAVE FM-1<br>Version 1.8 · dx7.designburgapps.com · Kurzanleitung (DIN A4)</div>
+  <div class="sub">DX7 FM synth + FM drums for the M-VAVE FM-1<br>Version 1.8 · dx7.designburgapps.com · github.com/zvenson/dxsloop</div>
 </header>
 <div class="strip"><i></i><i></i><i></i><i></i></div>
 
 <div class="cols">
 
 <section>
-  <h2>Die vier Spuren</h2>
-  <p><span class="chip" style="background:#42f5f5"></span>1 &nbsp;<span class="chip" style="background:#afd9f4"></span>2 &nbsp;<span class="chip" style="background:#f4c0cb"></span>3 = DX7-Synths (8 Stimmen gemeinsam) &nbsp;·&nbsp; <span class="chip" style="background:#e6d1b9"></span>4 = Drums (6 eigene Stimmen). Jede Spur hat ihr eigenes Pattern.</p>
+  <h2>The four tracks</h2>
+  <p><span class="chip" style="background:#42f5f5"></span>1 &nbsp;<span class="chip" style="background:#afd9f4"></span>2 &nbsp;<span class="chip" style="background:#f4c0cb"></span>3 = DX7 synths (8 voices shared) &nbsp;·&nbsp; <span class="chip" style="background:#e6d1b9"></span>4 = drums (6 voices of their own). Every track has its own pattern.</p>
 </section>
 
 <section>
-  <h2>Grundbedienung</h2>
+  <h2>Basics</h2>
   <table>
-    <tr><td><kbd>ALGORITHM</kbd></td><td>Spur wählen (auf jeder Seite)</td></tr>
-    <tr><td><kbd>PRESETS</kbd></td><td>Sound: 01–17 Werk, 18–49 deine Bank, dann User-Presets · Drums: Kit</td></tr>
-    <tr><td><kbd>SELECT</kbd></td><td>Tempo</td></tr>
-    <tr><td><kbd>KNOB 1–4</kbd></td><td>HOME: BRITE · ATK · REL · FDBK der Stimme (wirkt sofort)</td></tr>
-    <tr><td><kbd>PLAY</kbd></td><td>Start / Stop aller Spuren</td></tr>
-    <tr><td><kbd>REC</kbd></td><td>läuft: sofort aufnehmen · steht: scharf, erster Ton startet · leeres Projekt: frei spielen, REC auf der „1“ schließt die Schleife</td></tr>
-    <tr><td><kbd>REC</kbd> halten</td><td>Spur löschen (Ring füllt sich, ~2 s)</td></tr>
-    <tr><td><kbd>OCT− / OCT+</kbd></td><td>Oktave (beide = 0) · Drums gehalten: Ghost / Hard</td></tr>
-    <tr><td><kbd>HOME</kbd></td><td>TRACKS · halten: Menü (Farbe, Low Cut, Lichter, USB-Audio, About)</td></tr>
-    <tr><td><kbd>EDIT</kbd> + <kbd>OCT−/+</kbd></td><td>Undo / Redo</td></tr>
+    <tr><td><kbd>ALGORITHM</kbd></td><td>select the track (on every page)</td></tr>
+    <tr><td><kbd>PRESETS</kbd></td><td>sound: 01–17 factory, 18–49 your bank, then user presets · drums: the kit</td></tr>
+    <tr><td><kbd>SELECT</kbd></td><td>tempo</td></tr>
+    <tr><td><kbd>KNOB 1–4</kbd></td><td>HOME: BRITE · ATK · REL · FDBK of the voice (act at once)</td></tr>
+    <tr><td><kbd>PLAY</kbd></td><td>start / stop all tracks</td></tr>
+    <tr><td><kbd>REC</kbd></td><td>playing: record now · stopped: armed, the first note starts · empty project: play freely, REC on the “1” closes the loop</td></tr>
+    <tr><td>hold <kbd>REC</kbd></td><td>clear the track (a ring fills, ~2 s)</td></tr>
+    <tr><td><kbd>OCT− / OCT+</kbd></td><td>octave (both = 0) · drums, held: ghost / hard hits</td></tr>
+    <tr><td><kbd>HOME</kbd></td><td>TRACKS · hold: menu (colour, low cut, lights, USB audio, about)</td></tr>
+    <tr><td><kbd>EDIT</kbd> + <kbd>OCT−/+</kbd></td><td>undo / redo</td></tr>
   </table>
 </section>
 
 <section>
-  <h2 class="b">Layer: Taste halten</h2>
+  <h2 class="b">Layers: hold a button</h2>
   <table>
-    <tr><th>Halten</th><th>Weiße Tasten</th><th>KNOB 1 · 2 · 3 · 4</th></tr>
-    <tr><td><kbd>FX</kbd></td><td>Punch-in-Effekt</td><td>Filter · Dust · Duck</td></tr>
-    <tr><td><kbd>EDIT</kbd></td><td>Sound/Note löschen</td><td>Shift · Länge ×2/½ · Transp.</td></tr>
-    <tr><td><kbd>ARP</kbd></td><td>Note-Repeat (Roll)</td><td>Rate</td></tr>
-    <tr><td><kbd>SEQ</kbd></td><td>Steps 1–16</td><td>Sound/Note · Div · Swing · Länge</td></tr>
-    <tr><td><kbd>SCL</kbd></td><td>Tonart des Songs</td><td>Chord · Scale · Keys · Transp.</td></tr>
-    <tr><td><kbd>GLO</kbd></td><td>1–4 Mute · 5–8 Solo · 16 Tap</td><td>Pegel Spur 1–4</td></tr>
-    <tr><td><kbd>SAVE</kbd></td><td>1–4 Section A–D spielen · 5–8 speichern · 13 Loop/Song · 14 Song-Rec</td><td></td></tr>
+    <tr><th>Hold</th><th>White keys</th><th>KNOB 1 · 2 · 3 · 4</th></tr>
+    <tr><td><kbd>FX</kbd></td><td>punch-in effect</td><td>filter · dust · duck</td></tr>
+    <tr><td><kbd>EDIT</kbd></td><td>erase that sound / note</td><td>shift · length ×2/½ · transp.</td></tr>
+    <tr><td><kbd>ARP</kbd></td><td>note repeat (roll)</td><td>rate</td></tr>
+    <tr><td><kbd>SEQ</kbd></td><td>steps 1–16</td><td>sound/note · div · swing · length</td></tr>
+    <tr><td><kbd>SCL</kbd></td><td>the key of the song</td><td>chord · scale · keys · transp.</td></tr>
+    <tr><td><kbd>GLO</kbd></td><td>1–4 mute · 5–8 solo · 16 tap</td><td>level of tracks 1–4</td></tr>
+    <tr><td><kbd>SAVE</kbd></td><td>1–4 play section A–D · 5–8 store · 13 loop/song · 14 song rec</td><td></td></tr>
   </table>
-  <p class="k">Layer festhalten: Taste halten + <kbd>HOME</kbd> tippen. Antippen statt halten öffnet die Seiten.</p>
+  <p class="k">Lock a layer: hold its button + tap <kbd>HOME</kbd>. Tap instead of hold: its pages.</p>
 </section>
 
 <section>
-  <h2 class="p">DX7-Stimme bearbeiten: <kbd>EDIT</kbd> tippen</h2>
+  <h2 class="p">Edit a DX7 voice: tap <kbd>EDIT</kbd></h2>
   <table>
-    <tr><td><kbd>SELECT</kbd></td><td>Zeile wählen</td></tr>
-    <tr><td><kbd>ALGORITHM</kbd></td><td>Wert ändern (1. Dreh auf „Algorithm“ zeigt nur das Bild)</td></tr>
-    <tr><td><kbd>EDIT</kbd></td><td>Gruppe öffnen / Aktion (2× tippen)</td></tr>
-    <tr><td><kbd>HOME</kbd></td><td>eine Ebene zurück</td></tr>
-    <tr><td><kbd>PRESETS</kbd></td><td>direkt zum nächsten / vorigen Operator</td></tr>
-    <tr><td><kbd>SAVE</kbd></td><td>Bank speichern (Punkt unten = ungespeichert)</td></tr>
+    <tr><td><kbd>SELECT</kbd></td><td>choose the row</td></tr>
+    <tr><td><kbd>ALGORITHM</kbd></td><td>change the value (the first turn on “Algorithm” only draws it)</td></tr>
+    <tr><td><kbd>EDIT</kbd></td><td>open a group / run an action (tap twice)</td></tr>
+    <tr><td><kbd>HOME</kbd></td><td>one level back</td></tr>
+    <tr><td><kbd>PRESETS</kbd></td><td>straight to the next / previous operator</td></tr>
+    <tr><td><kbd>SAVE</kbd></td><td>store the bank (a dot at the bottom = not stored)</td></tr>
   </table>
-  <p><b>Liste:</b> Voice · Bank 1–8 · Algorithm 1–32 · Feedback · Osc Sync · Transpose · <b>OP1–OP6 ›</b> · Pitch Env › · LFO › · Name › · Copy To · Init Voice · Store · More Pages ›</p>
-  <p><b>Operator:</b> On · Output Level · Coarse (Ratio) · Fine · Detune · Osc Mode · Rate 1–4 · Level 1–4 · Key Velocity · Amp Mod Sens · Break Point · Left/Right Depth · Left/Right Curve · Rate Scaling</p>
-  <p class="note">Werksstimme ändern = sie wird erst in den ersten freien User-Platz kopiert („COPIED TO U01“). Carrier = Cyan, Modulator = Hellblau im Algorithmus-Bild.</p>
+  <p><b>List:</b> Voice · Bank 1–8 · Algorithm 1–32 · Feedback · Osc Sync · Transpose · <b>OP1–OP6 ›</b> · Pitch Env › · LFO › · Name › · Copy To · Init Voice · Store · More Pages ›</p>
+  <p><b>Operator:</b> On · Output Level · Coarse (ratio) · Fine · Detune · Osc Mode · Rate 1–4 · Level 1–4 · Key Velocity · Amp Mod Sens · Break Point · Left/Right Depth · Left/Right Curve · Rate Scaling</p>
+  <p class="note">Changing a factory voice copies it into the first free user slot first (“COPIED TO U01”). In the algorithm drawing: carriers cyan, modulators light blue.</p>
 </section>
 
 <section>
-  <h2 class="p">Klang formen</h2>
+  <h2 class="p">Shape the sound</h2>
   <table>
-    <tr><td>BRITE</td><td>Pegel der Modulatoren: dumpf ↔ hell</td></tr>
-    <tr><td>ATK · DEC · REL</td><td>langsamer / länger (0 = wie programmiert)</td></tr>
-    <tr><td>FDBK</td><td>Feedback: Sinus → Säge</td></tr>
-    <tr><td><kbd>ENV</kbd>-Seite</td><td>ATK · DEC · REL der Carrier, SUS senkt Sustain (127 = Original)</td></tr>
-    <tr><td>ENV/LFO DEST</td><td>FLT / SHP = Helligkeit, PIT = Tonhöhe, AMP = Lautstärke</td></tr>
+    <tr><td>BRITE</td><td>the modulators’ level: dull ↔ bright</td></tr>
+    <tr><td>ATK · DEC · REL</td><td>slower / longer (0 = as programmed)</td></tr>
+    <tr><td>FDBK</td><td>feedback: sine → saw</td></tr>
+    <tr><td><kbd>ENV</kbd> page</td><td>ATK · DEC · REL of the carriers, SUS lowers the sustain (127 = as programmed)</td></tr>
+    <tr><td>ENV/LFO DEST</td><td>FLT / SHP = brightness, PIT = pitch, AMP = volume</td></tr>
   </table>
 </section>
 
 <section>
-  <h2 class="e">Drums: Spur 4, weiße Tasten</h2>
+  <h2 class="e">Drums: track 4, white keys</h2>
   <table class="lanes">
     <tr><td><b>F3</b>Kick</td><td><b>G3</b>Kick 2</td><td><b>A3</b>Snare</td><td><b>B3</b>Clap</td><td><b>C4</b>Hat</td><td><b>D4</b>Open</td><td><b>E4</b>Pedal</td><td><b>F4</b>Rim</td></tr>
     <tr><td><b>G4</b>Snare 2</td><td><b>A4</b>Tom L</td><td><b>B4</b>Tom H</td><td><b>C5</b>Crash</td><td><b>D5</b>Ride</td><td><b>E5</b>Shaker</td><td><b>F5</b>Conga</td><td><b>G5</b>Cowbell</td></tr>
   </table>
-  <p><b>Kits</b> (PRESETS): 1 DX KIT · 2 808 FM · 3 ELECTRO · 4 METAL · 5 USER (erste 16 Stimmen deiner Bank). Schwarze Taste = Sound links daneben. Closed/Pedal-Hat schneidet die Open-Hat ab. <kbd>EDIT</kbd> tippen: Grid / Kit.</p>
+  <p><b>Kits</b> (PRESETS): 1 DX KIT · 2 808 FM · 3 ELECTRO · 4 METAL · 5 USER (the first 16 voices of your bank). A black key plays the sound left of it. Closed / pedal hat cut the open hat. Tap <kbd>EDIT</kbd>: grid / kit.</p>
 </section>
 
 <section>
-  <h2 class="b">Eigene DX7-Bänke (.syx)</h2>
+  <h2 class="b">Your own DX7 banks (.syx)</h2>
   <ol>
     <li>Chrome / Edge: <b>dx7.designburgapps.com</b> → Editor → <b>Connect</b>.</li>
-    <li>Tab <b>Library</b>: „Bank in use“ 1–8 wählen, .syx (32 Stimmen, 4104 Bytes) ins Feld ziehen.</li>
-    <li>Am Gerät: PRESETS 18–49 oder EDIT → Voice. Bank wechseln: EDIT → Bank.</li>
+    <li>Tab <b>Library</b>: pick “Bank in use” 1–8, drop the .syx (32 voices, 4104 bytes).</li>
+    <li>On the FM-1: PRESETS 18–49, or EDIT → Voice. Switch banks: EDIT → Bank.</li>
   </ol>
-  <p class="k">8 Bänke × 32 = 256 Stimmen im Speicher. Original-DX7-ROMs: yamahablackboxes.com · Sammlungen: bobbyblues.recup.ch</p>
+  <p class="k">8 banks × 32 = 256 voices in memory. Original DX7 ROMs: yamahablackboxes.com · collections: bobbyblues.recup.ch</p>
 </section>
 
 <section>
-  <h2 class="r">Speichern &amp; Retten</h2>
+  <h2 class="r">Save &amp; rescue</h2>
   <table>
-    <tr><td>Projekt</td><td><kbd>SAVE</kbd> tippen → PROJECT: Slot, 2× drehen = Save / Load (4 Slots, Autosave)</td></tr>
-    <tr><td>Sound</td><td><kbd>SAVE</kbd> → USER: 32 User-Presets</td></tr>
-    <tr><td>Backup</td><td>Editor → Projects → Backup (Projekte, Presets, DX7-Bank)</td></tr>
-    <tr><td>Update</td><td>dx7.designburgapps.com → Install (USB direkt, kein Hub)</td></tr>
-    <tr><td>Zurück</td><td>M-UPGRADE + Original-Firmware · Notfall: FM-1-transporter</td></tr>
+    <tr><td>Project</td><td>tap <kbd>SAVE</kbd> → PROJECT: slot, turn twice = save / load (4 slots, autosave)</td></tr>
+    <tr><td>Sound</td><td><kbd>SAVE</kbd> → USER: 32 user presets</td></tr>
+    <tr><td>Backup</td><td>editor → Projects → Backup (projects, presets, DX7 bank)</td></tr>
+    <tr><td>Update</td><td>dx7.designburgapps.com → Install (USB straight in, no hub)</td></tr>
+    <tr><td>Go back</td><td>M-UPGRADE + the original firmware · emergency: FM-1-transporter</td></tr>
   </table>
 </section>
 
 </div>
-<footer><span>sloopDX · GPL-3.0 · basiert auf SLOOP (isod89) und Felucca (Leo Kuroshita) · DX7-Kern: Dexed msfa (Apache-2.0)</span><span>github.com/zvenson/dxsloop</span></footer>
+<footer><span>sloopDX · GPL-3.0 · based on SLOOP (isod89) and Felucca (Leo Kuroshita) · DX7 core: Dexed msfa (Apache-2.0)</span><span>github.com/zvenson/dxsloop</span></footer>
+</div>
+<div class="page page2">
+<header>
+  <h1>sloop<b>DX</b> &nbsp;The DX7 in five minutes</h1>
+  <div class="sub">How the synth works, how to reach every part of it<br>Cheat Sheet, page 2</div>
+</header>
+<div class="strip"><i></i><i></i><i></i><i></i></div>
+<div class="cols">
+
+<section>
+  <h2>Operators</h2>
+  <p class="big">A DX7 voice is made of <b>six operators</b>. Each is a sine oscillator with its own <b>envelope</b> and <b>level</b>. An operator is either a <b>carrier</b> (you hear it) or a <b>modulator</b> (it bends the wave of the operator below it: the more level, the more harmonics). That is FM: no filter, the brightness comes from the modulators.</p>
+  <div class="fig">
+    <svg width="120" height="84" viewBox="0 0 120 84"><line x1="40" y1="24" x2="40" y2="44" stroke="#888"/><line x1="40" y1="64" x2="40" y2="74" stroke="#888"/><line x1="8" y1="74.5" x2="112" y2="74.5" stroke="#888"/><polyline points="54,16 64,16 64,4 40,4 40,8" fill="none" stroke="#d9748a" stroke-width="1.6"/><rect x="26" y="8" width="28" height="18" rx="2" fill="#afd9f4"/><text x="40" y="21" font-size="10" text-anchor="middle">2</text><rect x="26" y="46" width="28" height="18" rx="2" fill="#42f5f5"/><text x="40" y="59" font-size="10" text-anchor="middle">1</text><text x="70" y="21" font-size="8" fill="#555">modulator</text><text x="60" y="59" font-size="8" fill="#555">carrier</text><text x="70" y="10" font-size="7.5" fill="#d9748a">feedback</text></svg>
+    <p>Operator 2 modulates operator 1. Light blue = modulator, cyan = carrier, the pink loop = <b>feedback</b> (an operator modulating itself: from sine to saw to noise).</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="b">Algorithms 1–32</h2>
+  <p>The <b>algorithm</b> says how the six are wired: stacks (2 → 1, deep and bright), pairs (5: three electric-piano-like pairs), one modulator on several carriers (22), or all six as carriers (32: an organ of sines). On the FM-1: EDIT → <i>Algorithm</i>, the first turn draws it, the next ones change it.</p>
+</section>
+
+<section>
+  <h2 class="p">Reaching the operators</h2>
+  <ol>
+    <li>Synth track (1–3): tap <kbd>EDIT</kbd>. The voice list opens.</li>
+    <li><kbd>SELECT</kbd> to <b>OP1</b> … <b>OP6</b>, tap <kbd>EDIT</kbd>: that operator's rows.</li>
+    <li><kbd>PRESETS</kbd>: the next / previous operator, on the same row (compare Rate 1 of all six quickly).</li>
+    <li><kbd>ALGORITHM</kbd> changes the value, <kbd>HOME</kbd> goes back, <kbd>SAVE</kbd> stores.</li>
+    <li>Row <b>On</b>: switch the operator off to hear what it does (not stored).</li>
+  </ol>
+  <p class="k">In the web editor (tab <b>Voice</b>) all six are on one page, with their envelopes drawn.</p>
+</section>
+
+<section>
+  <h2>Frequency: Coarse, Fine, Detune</h2>
+  <table>
+    <tr><td>Coarse</td><td>the ratio to the note: 0.50, 1, 2, 3 … 31. Whole ratios on a modulator = harmonic (organ, brass, bass); 1.41, 3.5 … = inharmonic (bells, metal)</td></tr>
+    <tr><td>Fine</td><td>between the ratios (1.00 → 1.99)</td></tr>
+    <tr><td>Detune</td><td>−7…+7: two carriers slightly apart beat (chorus, e-piano shimmer)</td></tr>
+    <tr><td>Osc Mode</td><td>FIXED: a frequency regardless of the key (1, 10, 100, 1000 Hz ranges): noises, drums, clicks</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2 class="b">Envelopes: 4 rates, 4 levels</h2>
+  <div class="fig">
+    <svg width="150" height="62" viewBox="0 0 150 62"><polyline points="4,56 22,8 48,20 98,24 128,56" fill="none" stroke="#13b8b8" stroke-width="2"/><line x1="98" y1="4" x2="98" y2="58" stroke="#aaa" stroke-dasharray="2 2"/><text x="10" y="40" font-size="7.5">R1</text><text x="30" y="11" font-size="7.5">R2</text><text x="68" y="18" font-size="7.5">R3</text><text x="112" y="36" font-size="7.5">R4</text><text x="16" y="7" font-size="7" fill="#666">L1</text><text x="44" y="30" font-size="7" fill="#666">L2</text><text x="82" y="32" font-size="7" fill="#666">L3</text><text x="100" y="62" font-size="7" fill="#666">key up</text></svg>
+    <p>Rates are <b>speeds</b> (99 = instant, low = slow), levels are <b>targets</b>. R1→L1 attack, R2→L2 and R3→L3 decay to the sustain L3 (held while the key is down), R4→L4 release. A carrier's envelope = volume, a modulator's = brightness over time.</p>
+  </div>
+</section>
+
+<section>
+  <h2 class="p">Touch and the keyboard</h2>
+  <table>
+    <tr><td>Key Velocity</td><td>0–7: harder = louder (carrier) or brighter (modulator)</td></tr>
+    <tr><td>Rate Scaling</td><td>0–7: high notes decay faster, as a piano</td></tr>
+    <tr><td>Break Point, Depth, Curve</td><td>level up or down the keyboard from a key: thinner bass, softer treble</td></tr>
+    <tr><td>Amp Mod Sens</td><td>how much the LFO's AMD reaches this operator (tremolo)</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2 class="e">Pitch envelope and LFO</h2>
+  <p><b>Pitch Env</b>: 4 rates, 4 levels for the pitch of all operators (level 50 = no shift): a blip on the attack, a slow drop. <b>LFO</b>: wave (triangle, saw, square, sine, S&amp;H), speed, delay, <b>PMD</b> (vibrato) with Pitch Mod Sens, <b>AMD</b> (tremolo) with Amp Mod Sens, key sync.</p>
+</section>
+
+<section>
+  <h2 class="r">Recipes: start from 17 INIT VOICE</h2>
+  <table class="rec">
+    <tr><td>Bass</td><td>Alg 1 or 5 · OP2 Coarse 1, Level 70–85, fast decay (R2 ~70, L2 0) · OP1 carrier · Feedback 4–6 for growl</td></tr>
+    <tr><td>E-piano</td><td>Alg 5 · carriers Coarse 1 with Detune ±2 · one modulator Coarse 14 with a short decay (the tine), Key Velocity 5–7</td></tr>
+    <tr><td>Bell</td><td>Alg 5 · modulator Coarse 3.5 (Fine) Level 70 · carrier long R3/R4 · L3 0 (it rings out)</td></tr>
+    <tr><td>Brass</td><td>Alg 22 · modulator envelope with a slower R1 than the carriers (the tone opens), Feedback 7, a little Pitch Env attack</td></tr>
+    <tr><td>Organ</td><td>Alg 32 · six carriers at Coarse 0.5, 1, 2, 3, 4, 6 (the drawbars), Levels set the mix</td></tr>
+    <tr><td>Pad</td><td>slow R1 (30–45) on the carriers, long R4, two carriers detuned ±3, LFO PMD a little</td></tr>
+  </table>
+  <p class="note">Then: <b>Copy To</b> a slot, <b>Name</b> it, <kbd>SAVE</kbd>. Factory voices are copied into a user slot automatically on the first change.</p>
+</section>
+
+</div>
+<footer><span>sloopDX · the DX7 engine is Dexed's msfa core (Apache-2.0): the same sound for the same patch</span><span>dx7.designburgapps.com</span></footer>
 </div>
 </body>
 </html>

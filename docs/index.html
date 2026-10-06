@@ -26,6 +26,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>sloopDX: a DX7 for the M-VAVE FM-1</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="description" content="sloopDX: free firmware that turns the M-VAVE FM-1 into a six-operator DX7 FM synth with FM drums, voice editing on the device and 256 voices from your own .syx banks.">
 <style>
   :root { --bg: #151213; --panel: #221e1f; --panel2: #2e2a2b; --line: #3a3435; --fg: #efe8e1; --dim: #a39a94;
@@ -35,7 +38,7 @@
   body { margin: 0; color: var(--fg); background: var(--bg);
          font: 16px/1.6 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
   a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 0 32px; }
   /* navigation */
   nav { position: sticky; top: 0; z-index: 10; background: rgba(21, 18, 19, 0.85); backdrop-filter: blur(10px);
         border-bottom: 1px solid var(--line); }
@@ -43,25 +46,39 @@
   nav .logo svg { height: 34px; width: auto; display: block; }
   nav .logo rect:first-child { fill: transparent; }
   nav .links { display: flex; gap: 22px; font-size: 14.5px; flex-wrap: wrap; justify-content: flex-end; }
+  nav .links { align-items: center; }
   nav .links a { color: var(--dim); } nav .links a:hover { color: var(--fg); text-decoration: none; }
+  nav .links a.gh { color: #111; background: var(--fg); padding: 6px 14px; border-radius: 999px; font-weight: 650; display: inline-flex; gap: 7px; align-items: center; }
+  nav .links a.gh:hover { background: var(--cyan); }
+  .gh svg { width: 16px; height: 16px; fill: currentColor; }
   /* hero */
-  .hero { position: relative; overflow: hidden; padding: 72px 0 64px;
+  .hero { position: relative; overflow: hidden; padding: 96px 0 88px;
           background: radial-gradient(900px 420px at 78% 30%, rgba(66, 245, 245, 0.10), transparent 70%),
                       radial-gradient(700px 380px at 10% 90%, rgba(244, 192, 203, 0.08), transparent 70%); }
-  .hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .hero .wrap { display: grid; grid-template-columns: 1fr 1.05fr; gap: 72px; align-items: center; }
   .eyebrow { font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--beige); margin: 0 0 14px; }
-  h1 { font-size: clamp(38px, 5.4vw, 64px); line-height: 1.04; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.5px; }
-  h1 b { font-weight: 700; color: var(--cyan); }
-  .lead { font-size: 19px; color: #d8d0c9; margin: 0 0 28px; max-width: 34em; }
+  h1 { font-size: clamp(42px, 6vw, 92px); line-height: 1.04; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.5px; }
+  h1 b { font-weight: 800; background: linear-gradient(90deg, var(--cyan), var(--blue) 45%, var(--pink) 75%, var(--beige));
+         -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 21px; color: #d8d0c9; margin: 0 0 28px; max-width: 34em; }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 8px; font-weight: 650;
          font-size: 15.5px; transition: transform 0.08s, filter 0.15s, background 0.15s; }
   .btn:hover { text-decoration: none; filter: brightness(1.1); transform: translateY(-1px); }
   .btn.primary { background: var(--cyan); color: #101010; box-shadow: 0 8px 30px rgba(66, 245, 245, 0.25); }
   .btn.ghost { border: 1px solid var(--line); color: var(--fg); background: rgba(255, 255, 255, 0.03); }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; }
+  /* the numbers band */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+  .stats div { padding: 34px 24px; text-align: center; border-right: 1px solid var(--line); }
+  .stats div:last-child { border-right: 0; }
+  .stats b { display: block; font-size: clamp(34px, 4vw, 56px); font-weight: 800; line-height: 1; }
+  .stats span { color: var(--dim); font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .stats div:nth-child(1) b { color: var(--cyan); } .stats div:nth-child(2) b { color: var(--blue); }
+  .stats div:nth-child(3) b { color: var(--pink); } .stats div:nth-child(4) b { color: var(--beige); }
   .small { font-size: 13px; color: var(--dim); margin-top: 14px; }
   /* the FM-1's boot animation */
-  .screen { background: var(--panel2); border-radius: 14px; padding: 18px 12px 10px; border: 1px solid var(--line);
+  .screen { background: var(--panel2); border-radius: 18px; padding: 26px 18px 14px; border: 1px solid var(--line);
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 0 0 6px #1a1718; }
   .screen svg { width: 100%; height: auto; display: block; }
   .screen text { font: 12px ui-monospace, Menlo, monospace; fill: #cec8c2; }
@@ -74,27 +91,36 @@
   .strip i:nth-child(1) { background: var(--cyan); } .strip i:nth-child(2) { background: var(--blue); }
   .strip i:nth-child(3) { background: var(--pink); } .strip i:nth-child(4) { background: var(--beige); }
   /* sections */
-  section { padding: 72px 0; }
+  section { padding: 96px 0; }
   section.alt { background: #1a1718; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  h2 { font-size: clamp(26px, 3.2vw, 36px); font-weight: 300; margin: 0 0 10px; letter-spacing: -0.3px; }
+  h2 { font-size: clamp(30px, 3.6vw, 52px); font-weight: 300; margin: 0 0 10px; letter-spacing: -0.3px; }
   h2 b { font-weight: 700; }
-  .intro { color: var(--dim); max-width: 46em; margin: 0 0 34px; font-size: 17px; }
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px 22px 20px;
+  .intro { color: var(--dim); max-width: 52em; margin: 0 0 40px; font-size: 19px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { background: linear-gradient(180deg, #262223, var(--panel)); border: 1px solid var(--line); border-radius: 14px; padding: 30px 28px 28px;
+          transition: transform 0.15s, box-shadow 0.15s;
           border-top: 3px solid var(--c, var(--cyan)); }
-  .card .n { font-size: 30px; font-weight: 700; color: var(--c, var(--cyan)); line-height: 1; margin-bottom: 8px; }
-  .card h3 { margin: 0 0 6px; font-size: 17px; }
-  .card p { margin: 0; color: var(--dim); font-size: 14.5px; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+  .card .n { font-size: 40px; font-weight: 700; color: var(--c, var(--cyan)); line-height: 1; margin-bottom: 8px; }
+  .card h3 { margin: 0 0 8px; font-size: 20px; }
+  .card p { margin: 0; color: var(--dim); font-size: 15.5px; }
   .shot { border-radius: 12px; border: 1px solid var(--line); width: 100%; height: auto; display: block;
           box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); background: #000; }
   .caption { color: var(--dim); font-size: 13.5px; margin-top: 12px; }
-  /* cheat sheet */
-  .sheet { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 36px; align-items: start; }
-  .paper { background: #fff; border-radius: 6px; padding: 10px; box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
-           transform: rotate(-1.2deg); transition: transform 0.2s; }
-  .paper:hover { transform: rotate(0deg) scale(1.01); }
+  /* cheat sheet: big, the paper itself */
+  .sheetwrap { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr); gap: 56px; align-items: start; }
+  .paper { display: block; background: #fff; border-radius: 6px; padding: 14px; box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+           transform: perspective(1400px) rotateY(4deg) rotate(-0.6deg); transition: transform 0.25s; }
+  .paper:hover { transform: none; }
+  .papers { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .paper.p2 { transform: perspective(1400px) rotateY(-4deg) rotate(0.6deg); }
   .paper img { width: 100%; height: auto; display: block; }
-  .pdf { width: 100%; height: 760px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .sheetinfo { position: sticky; top: 100px; }
+  .sheetinfo ul { list-style: none; padding: 0; margin: 18px 0 28px; display: grid; gap: 10px; }
+  .sheetinfo li { padding-left: 26px; position: relative; color: #d8d0c9; }
+  .sheetinfo li::before { content: ""; position: absolute; left: 0; top: 7px; width: 12px; height: 12px; border-radius: 3px; background: var(--cyan); }
+  .sheetinfo li:nth-child(2n)::before { background: var(--blue); } .sheetinfo li:nth-child(3n)::before { background: var(--pink); }
+  .sheetinfo .cta { flex-direction: column; align-items: stretch; } .sheetinfo .btn { justify-content: center; }
   .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
   .steps li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
               padding: 18px 20px 18px 64px; position: relative; }
@@ -106,10 +132,10 @@
   code { font: 13px ui-monospace, Menlo, monospace; background: #111; padding: 1px 6px; border-radius: 4px; color: var(--beige); }
   footer { padding: 36px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
   footer .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-  @media (max-width: 860px) {
-    .hero .wrap, .sheet, footer .wrap { grid-template-columns: 1fr; }
-    .cards { grid-template-columns: 1fr 1fr; }
-    .pdf { height: 520px; }
+  @media (max-width: 980px) {
+    .hero .wrap, .sheetwrap, footer .wrap { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr 1fr; } .stats { grid-template-columns: 1fr 1fr; }
+    .sheetinfo { position: static; } .paper { transform: none; }
   }
   @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } nav .links { gap: 14px; font-size: 13.5px; } }
 </style>
@@ -142,7 +168,7 @@
     <a href="#cheatsheet">Cheat Sheet</a>
     <a href="webapp/editor/">Editor</a>
     <a href="webapp/installer/">Install</a>
-    <a href="https://github.com/zvenson/dxsloop">GitHub</a>
+    <a class="gh" href="https://github.com/zvenson/dxsloop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.22 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg> GitHub</a>
   </div>
 </div></nav>
 
@@ -155,6 +181,7 @@
       <a class="btn primary" href="webapp/installer/">Install sloopDX</a>
       <a class="btn ghost" href="#cheatsheet">Cheat Sheet</a>
       <a class="btn ghost" href="webapp/editor/">Web editor</a>
+      <a class="btn ghost" href="https://github.com/zvenson/dxsloop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.22 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg> GitHub</a>
     </div>
     <p class="small">Chrome or Edge, the FM-1 on USB. Free and open source (GPL-3.0). Going back to the original firmware is always possible.</p>
   </div>
@@ -164,6 +191,7 @@
   </div>
 </div></header>
 <div class="strip"><i></i><i></i><i></i><i></i></div>
+<div class="stats"><div><b>6</b><span>operators</span></div><div><b>32</b><span>algorithms</span></div><div><b>256</b><span>voices from your banks</span></div><div><b>4</b><span>FM drum kits</span></div></div>
 
 <section id="features"><div class="wrap">
   <h2>A real <b>DX7</b> in a groovebox</h2>
@@ -186,20 +214,33 @@
 </div></section>
 
 <section id="cheatsheet"><div class="wrap">
-  <h2>sloopDX <b>Cheat Sheet</b></h2>
-  <p class="intro">Everything on one A4 page (in German): the controls, the layers, voice editing, the drum keys, the banks, saving and rescue. Print it and keep it next to the FM-1.</p>
-  <div class="sheet">
-    <div>
-      <a class="paper" href="sloopdx-cheat-sheet.pdf" target="_blank" rel="noopener" style="display:block">
-        <img src="sloopdx-cheat-sheet.png" alt="sloopDX Cheat Sheet, A4" loading="lazy"></a>
-      <div class="cta" style="margin-top:22px">
-        <a class="btn primary" href="sloopdx-cheat-sheet.pdf" download>Download PDF</a>
-        <a class="btn ghost" href="cheatsheet.html" target="_blank" rel="noopener">Open to print</a>
+  <div class="sheetwrap">
+    <div class="papers">
+      <a class="paper" href="sloopdx-cheat-sheet.pdf" target="_blank" rel="noopener" aria-label="Open the cheat sheet (PDF)">
+        <img src="sloopdx-cheat-sheet.png" alt="sloopDX Cheat Sheet, page 1: the controls" loading="lazy"></a>
+      <a class="paper p2" href="sloopdx-cheat-sheet.pdf#page=2" target="_blank" rel="noopener" aria-label="Page 2 of the cheat sheet (PDF)">
+        <img src="sloopdx-cheat-sheet-2.png" alt="sloopDX Cheat Sheet, page 2: the DX7 in five minutes" loading="lazy"></a>
+    </div>
+    <div class="sheetinfo">
+      <p class="eyebrow">Two pages, A4</p>
+      <h2>sloopDX <b>Cheat Sheet</b></h2>
+      <p class="intro" style="margin-bottom:0">Page 1: every control of the FM-1. Page 2: the DX7 in five minutes, how FM works, how to reach each operator, and recipes to start from.</p>
+      <ul>
+        <li>The controls and what every knob does</li>
+        <li>The layers: hold a button, play the keys</li>
+        <li>DX7 voice editing, operator by operator</li>
+        <li>Shaping the sound: BRITE, ENV, LFO</li>
+        <li>The 16 drum keys and the four kits</li>
+        <li>Loading your .syx banks, saving, rescue</li>
+        <li>Page 2: operators, algorithms, envelopes, recipes</li>
+      </ul>
+      <div class="cta">
+        <a class="btn primary" href="sloopdx-cheat-sheet.pdf" target="_blank" rel="noopener">Open the PDF</a>
+        <a class="btn ghost" href="sloopdx-cheat-sheet.pdf" download>Download</a>
+        <a class="btn ghost" href="cheatsheet.html" target="_blank" rel="noopener">Print from the browser</a>
+        <a class="btn ghost" href="sloopdx-cheat-sheet-de.pdf" target="_blank" rel="noopener">Deutsch (PDF)</a>
       </div>
     </div>
-    <object class="pdf" data="sloopdx-cheat-sheet.pdf#view=FitH" type="application/pdf" aria-label="sloopDX Cheat Sheet (PDF)">
-      <p class="caption">Your browser shows no PDFs here: <a href="sloopdx-cheat-sheet.pdf">open the PDF</a>.</p>
-    </object>
   </div>
 </div></section>
 
