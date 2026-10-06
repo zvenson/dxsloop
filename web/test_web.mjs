@@ -509,7 +509,8 @@ async function editorV5() {
   const info = E.parse[C.INFO](await rq(E.req.info()));
   ok(info.proto === 7 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (7: sloopDX)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
-     commands 37..41 (sloopDX, protocol 7), P_CHORD / the master globals as the mock has them */
+     commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8; the editor's voice page is
+     still to come, the mock answers 7), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
   const en = (/enum \{ ED_INFO = 1,([^}]*)\}/.exec(ec) || [])[1] || "";
   const names = ["ED_INFO", ...en.replace(/\/\*[^*]*\*\//g, "").split(",").map((x) => x.trim()).filter(Boolean)];
@@ -517,8 +518,9 @@ async function editorV5() {
   ok(names.indexOf("ED_DRUM_STEP") + 1 === C.DRUM_STEP && names.indexOf("ED_TRACK_CHANGED") + 1 === C.TRACK_CHANGED
     && names.indexOf("ED_BK_LIST") + 1 === C.BK_LIST && names.indexOf("ED_BK_PUT") + 1 === C.BK_PUT
     && names.indexOf("ED_BANK_BEGIN") + 1 === C.BANK_BEGIN && names.indexOf("ED_BANK_ERASE") + 1 === C.BANK_ERASE
-    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 7,
-    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, firmware protocol ${fwProto})`);
+    && names.indexOf("ED_VOICE_GET") + 1 === 42 && names.indexOf("ED_BANK_SAVE") + 1 === 45
+    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 8,
+    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, firmware protocol ${fwProto})`);
   const enumNames = (id) => (new RegExp(`${id}\\[\\] = \\{([^}]*)\\}`).exec(pc) || [])[1].split(",").map((x) => x.trim().replace(/"/g, ""));
   const chord = E.parse[C.DESC](await rq(E.req.desc(0, 49)));
   const gd = [];

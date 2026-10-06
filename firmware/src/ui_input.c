@@ -500,6 +500,10 @@ static void layer_tap(uint32_t layer)
         break;
     case LY_ERASE:
     case LY_STEP:
+        if (layer == LY_ERASE && on_voice_page()) {       /* the DX7 list: open the group, run the action */
+            voice_tap();
+            break;
+        }
         if (on_drum_page()) {                             /* DRUMS: GRID <-> KIT */
             drum_page = (uint8_t)((drum_page + 1u) % 2u);
             ui.force = 1;
@@ -528,7 +532,9 @@ static void layer_tap(uint32_t layer)
         open_family(FAM_GLO);
         break;
     case LY_SONG:                                         /* SAVE tapped: TRACKS -> the song, else the SAVE pages */
-        if (on_song_page())
+        if (on_voice_page())                              /* (the DX7 list: store the bank) */
+            ve_store();
+        else if (on_song_page())
             arrangement_save();
         else if (!ui.home && cur_page()->scope == SC_TRK)
             studio_open(SC_SONG);
@@ -807,6 +813,10 @@ static void ui_input(void)
         return;
     }
 #endif
+    if (on_voice_page()) {
+        voice_screen_input(pressed, home);
+        return;
+    }
     if (home == BT_TAP)                                 /* HOME acts on release: a hold opens the menu */
         go_home();
     cursor_fix();                                       /* LEN may have changed (knob, editor, load) */

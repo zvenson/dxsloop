@@ -254,7 +254,43 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 
 Every synth track is a six-operator FM synthesizer: the DX7 voice of Dexed's msfa core, ported to integer arithmetic for the FM-1's chip and checked bit-exact against Dexed, so a patch sounds here as it does there. 32 algorithms, six operators each with a rate / level envelope, keyboard rate and level scaling, velocity sensitivity and amplitude modulation, a pitch envelope, an LFO with pitch and amp modulation and key sync, operator feedback, transpose. The three parts share **8 voices**; each part plays the whole keyboard (no split).
 
-**EDIT** on a synth track opens two pages:
+### Voice edit (DX7)
+
+Tap **EDIT** on a synth track: the voice opens as a **list**, one row per setting, the way the Baud Girl FM-1+VA firmware edits FM (its idea, rebuilt here). The name is on the left, the value on the right, a thin bar shows where the value sits in its range.
+
+| Control | On the voice list |
+| --- | --- |
+| **SELECT** | moves the highlight (on this page only; tempo again everywhere else) |
+| **ALGORITHM** | changes the highlighted value (on this page only; the track again everywhere else) |
+| **EDIT** (tap) | opens a group (OP1–OP6, Pitch Env, LFO, Name) or runs an action (tap twice for Copy To, Init Voice, Store) |
+| **HOME** | back to the top of the list; on the top, back to TRACKS |
+| **SAVE** | stores your bank in the FM-1's memory |
+| **KNOB 1–4** | the voice's quick knobs, as on HOME |
+| keys, **OCT− / OCT+**, **PLAY** | play as always, so you hear every change |
+
+The top of the list:
+
+| Row | What it is |
+| --- | --- |
+| **Voice** | the voice the track plays: the 17 factory voices, then U01–U32 |
+| **Algorithm** | 1–32. The first turn only draws the algorithm: six boxes, the carriers in your track colour along the bottom, each modulator above the operator it feeds, feedback as a loop. Turn again to change it |
+| **Feedback** | 0–7 |
+| **Osc Sync** | every operator starts its wave together on each note |
+| **Transpose** | ±24 semitones |
+| **OP1 › … OP6 ›** | one operator: Output Level, Coarse (shown as the ratio, or the fixed range), Fine, Detune ±7, Osc Mode (ratio / fixed), Rate 1–4, Level 1–4, Key Velocity, Amp Mod Sens, Break Point, Left / Right Depth, Left / Right Curve, Rate Scaling |
+| **Pitch Env ›** | Rate 1–4, Level 1–4 (0 = no shift) |
+| **LFO ›** | Wave, Speed, Delay, Pitch Mod Depth, Amp Mod Depth, Pitch Mod Sens, Key Sync |
+| **Name ›** | ten characters, one row each |
+| **Copy To** | copies the voice into the slot you pick with ALGORITHM, and plays it from there |
+| **Init Voice** | a plain sine voice in the slot |
+| **Store** | as SAVE |
+| **More Pages ›** | the quick knobs (VOICE, SHAPE) and the track's voice mode |
+
+**Where the edit goes.** As on a DX7, you edit a voice in one of your 32 slots. Change anything on a factory voice and sloopDX first copies it into the first slot called INIT VOICE (with no bank loaded: U01), switches the track to that slot and says *COPIED TO U01*. With no free slot it says so: pick one with **Copy To**. The next note plays every change; notes already sounding keep theirs. A dot after the name at the bottom means the bank has changes that are not stored: **SAVE** keeps them, power-off forgets them.
+
+### The quick knobs
+
+**More Pages** (or tapping EDIT on the pages after it) opens two pages of macro knobs:
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |

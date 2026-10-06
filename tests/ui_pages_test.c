@@ -69,8 +69,11 @@ static void up_name(uint32_t k, char *b) { str_cpy(b, k ? "MY PAD" : "MY LEAD", 
 static void up_slot_label(char *b, uint32_t k) { fmt_int(b, (int32_t)k + 1); }
 static void up_ui(uint32_t op, uint32_t k) { (void)op; (void)k; }
 static void settings_save(void) {}
+static uint32_t dx_stores;
+static int dx_bank_store(void) { dx_stores++; return 0; }
 #include "../firmware/src/ui_song.c"
 #include "../firmware/src/ui_studio.c"
+#include "../firmware/src/ui_voice.c"
 #include "../firmware/src/icons.c"
 #include "../firmware/src/ui_draw.c"
 #include "../firmware/src/ui_layers.c"
@@ -135,6 +138,48 @@ int main(int argc, char **argv)
     go_home(); ui.force = 1; frame(); ppm("page-tracks");
     open_family(FAM_ENV); ui.force = 1; ui.hot_col = 1; ui.hot_t = 30; frame(); ppm("page-env");
     open_family(FAM_EDIT); ui.force = 1; frame(); ppm("page-edit");
+    {   /* DX7 voice edit (ui_voice.c): the list, ALGORITHM = value, EDIT = into a group, HOME = back, SAVE */
+        uint32_t e0 = (uint32_t)TSEL->p[P_E0], alg0 = DX_SYNTH[e0 % DX_NSYNTH][134], slot;
+        dx_bank_clear();
+        go_home(); frame();
+        open_family(FAM_EDIT); ui.force = 1; frame();
+        check(on_voice_page() && ve.lvl == VL_TOP, "voice edit: EDIT opens the DX7 list on a synth part");
+        encs[panel.enc[EN_SELECT]] = 1; frame();                      /* -> Algorithm */
+        encs[panel.enc[EN_ALGO]] = 1; frame();                        /* first turn: only the diagram */
+        check(ve.diag && ve_get(134) == alg0 && ve_user() < 0, "voice edit: the first ALGORITHM turn on Algorithm draws it, changes nothing");
+        ui.force = 1; frame(); ppm("voice-alg");
+        encs[panel.enc[EN_ALGO]] = 1; frame();                        /* now it changes: a copy into U01 */
+        slot = (uint32_t)ve_user();
+        check(ve_user() == 0 && TSEL->p[P_E0] == (int16_t)DX_NSYNTH && dx_user_param_get(0, 134) == alg0 + 1u && ve.dirty,
+              "voice edit: a change to a factory voice copies it into U01 and plays it from there");
+        ui.force = 1; frame(); ppm("voice-alg2");
+        encs[panel.enc[EN_SELECT]] = 4; frame();                      /* -> OP1 (row 5) */
+        encs[panel.enc[EN_SELECT]] = 2; frame();                      /* -> OP3 */
+        tap(B_EDIT);
+        check(ve.lvl == VL_OP && ve.op == 2u && ve.row == 0u, "voice edit: EDIT on OP3 opens its list");
+        {
+            uint32_t before = dx_user_param_get(slot, 3u * 21u + 16u);   /* OP3 = block 3: Output Level */
+            encs[panel.enc[EN_ALGO]] = -3; frame();
+            check(dx_user_param_get(slot, 3u * 21u + 16u) == (before >= 3u ? before - 3u : 0u), "voice edit: ALGORITHM changes OP3's Output Level");
+        }
+        encs[panel.enc[EN_SELECT]] = 5; frame();                      /* -> Rate 1 */
+        encs[panel.enc[EN_ALGO]] = -200; frame();
+        check(dx_user_param_get(slot, 3u * 21u + 0u) == 0u, "voice edit: a value stops at its range (Rate 1 at 0)");
+        ui.force = 1; frame(); ppm("voice-op3");
+        tap(B_HOME);
+        check(on_voice_page() && ve.lvl == VL_TOP && ve.row == 7u, "voice edit: HOME goes back to the top list, on OP3");
+        dx_stores = 0;
+        tap(B_SAVE);
+        check(dx_stores == 1u && !ve.dirty, "voice edit: SAVE stores the bank, the dot goes");
+        encs[panel.enc[EN_SELECT]] = 6; frame();                      /* -> Name */
+        tap(B_EDIT);
+        encs[panel.enc[EN_ALGO]] = 1; frame();
+        check(ve.lvl == VL_NAME && dx_user_name[slot][0] != 'F', "voice edit: the name, one character at a time");
+        tap(B_HOME); tap(B_HOME);
+        check(!on_voice_page(), "voice edit: HOME on the top list leaves");
+        TSEL->p[P_E0] = (int16_t)e0;
+        dx_bank_clear();
+    }
     open_family(FAM_FX); ui.force = 1; frame(); ppm("page-fx");
     open_family(FAM_SEQ); ui.force = 1; frame(); ppm("page-step");
     open_family(FAM_GLO); ui.force = 1; frame(); ppm("page-global");
