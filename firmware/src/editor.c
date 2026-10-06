@@ -7,7 +7,9 @@
  * DRUM_STEP (33) reads / writes the drum track's 16 lanes, TRACK ends with the solo mask;
  * v6 = SLOOP 2.3: BK_LIST / BK_GET / BK_PUT (34-36), backup and restore of the storage objects;
  * v7 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (37-41) load a DX7 .syx bank in pieces, INFO ends
- * with 7, backup object 8 is the bank; the sample-slot commands 11-15 answer rc 7 (no slots).
+ * with 7, backup object 8 is the bank; the sample-slot commands 11-15 answer rc 7 (no slots);
+ * v8 = sloopDX voice editing: VOICE_GET / PUT (42, 43: a packed voice), VOICE_PARAM (44: one unpacked
+ * parameter of a user slot, live), BANK_SAVE (45: the bank to flash, STORE); INFO ends with 8.
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -24,8 +26,9 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
        ED_DRUM_STEP,                                                            /* v5: the 16 drum lanes */
        ED_BK_LIST, ED_BK_GET, ED_BK_PUT,                                        /* v6: backup / restore (SLOOP 2.3) */
-       ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE };  /* v7: the DX7 user bank (sloopDX) */
-#define ED_PROTOCOL 7
+       ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE,    /* v7: the DX7 user bank (sloopDX) */
+       ED_VOICE_GET, ED_VOICE_PUT, ED_VOICE_PARAM, ED_BANK_SAVE };               /* v8: voice editing (sloopDX) */
+#define ED_PROTOCOL 8
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -883,6 +886,42 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
     case ED_BANK_ERASE:                                    /* -> rc */
         ui.force = 1;
         ed_b(dx_bank_erase());
+        break;
+    case ED_VOICE_GET: {                                   /* index 0..48 (VOICE) -> index, 128 packed bytes */
+        uint8_t b[128];
+        if (na < 1u || a[0] >= DX_NVOICES)
+            return;
+        dx_voice_get(a[0], b);
+        ed_b(a[0]);
+        for (i = 0; i < 128u; i++)
+            ed_b(b[i]);
+        break;
+    }
+    case ED_VOICE_PUT:                                     /* slot 0..31, 128 packed bytes -> slot, rc (0 ok, 1 args) */
+        if (na < 1u)
+            return;
+        ed_b(a[0]);
+        if (a[0] >= DX_NUSER || na < 129u) {
+            ed_b(1);
+            break;
+        }
+        dx_user_put(a[0], a + 1);
+        ui.force = 1;
+        ed_b(0);
+        break;
+    case ED_VOICE_PARAM:                                   /* slot, idx 0..154 [, value] -> slot, idx, value */
+        if (na < 2u || a[0] >= DX_NUSER || a[1] >= DX_NPARAM)
+            return;
+        if (na >= 3u) {
+            dx_user_param_set(a[0], a[1], a[2]);
+            ui.force = 1;
+        }
+        ed_b(a[0]);
+        ed_b(a[1]);
+        ed_b(dx_user_param_get(a[0], a[1]));
+        break;
+    case ED_BANK_SAVE:                                     /* -> rc (0 ok, 1 no bank, 2 flash) */
+        ed_b(!dx_user_ok ? 1u : (uint32_t)dx_bank_store());
         break;
     case ED_TRACK_PARAM: {                                 /* track, id [, v14] -> track, id, v14 */
         track_t *t;

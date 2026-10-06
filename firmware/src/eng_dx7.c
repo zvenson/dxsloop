@@ -83,6 +83,106 @@ static int dx_bank_end(uint32_t checksum)    /* 0 ok (the bank plays), 1 checksu
     return 0;
 }
 
+static void dx_unpack(const uint8_t *b, uint8_t *u);
+static void dx_sanitize(uint8_t *u);
+/* an unpacked voice (156) -> the DX7's packed 128 bytes (the inverse of dx_unpack) */
+static void dx_pack(const uint8_t *u, uint8_t *b)
+{
+    uint32_t op, i;
+    for (op = 0; op < 6u; op++) {
+        const uint8_t *o = u + op * 21u;
+        uint8_t *q = b + op * 17u;
+        for (i = 0; i < 11u; i++)
+            q[i] = o[i];
+        q[11] = (uint8_t)(o[11] | o[12] << 2);
+        q[12] = (uint8_t)(o[13] | o[20] << 3);
+        q[13] = (uint8_t)(o[14] | o[15] << 2);
+        q[14] = o[16];
+        q[15] = (uint8_t)(o[17] | o[18] << 1);
+        q[16] = o[19];
+    }
+    for (i = 0; i < 8u; i++)
+        b[102 + i] = u[126 + i];
+    b[110] = u[134];
+    b[111] = (uint8_t)(u[135] | u[136] << 3);
+    b[112] = u[137], b[113] = u[138], b[114] = u[139], b[115] = u[140];
+    b[116] = (uint8_t)(u[141] | u[142] << 1 | u[143] << 4);
+    b[117] = u[144];
+    for (i = 0; i < 10u; i++)
+        b[118 + i] = u[145 + i];
+}
+
+/* ---- voice editing (the device's EDIT pages and the editor's voice page): a user slot is the edit
+ * buffer, as on a DX7; dx_bank_store() (project.c) is STORE. Without a bank, the first edit makes one:
+ * every slot INIT VOICE. Factory voices are read-only; copy one into a slot (dx_user_put) to edit it. */
+#define DX_NPARAM 155u                               /* the unpacked voice: 6 x 21 operator bytes, 29 global */
+static const uint8_t DX_PMAX[29] = {99, 99, 99, 99, 99, 99, 99, 99, 31, 7, 1, 99, 99, 99, 99, 1, 5, 7, 48,
+                                    127, 127, 127, 127, 127, 127, 127, 127, 127, 127};   /* 126..154: as dx_sanitize + name */
+static uint32_t dx_param_max(uint32_t idx)
+{
+    static const uint8_t OPMAX[21] = {99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 3, 3, 7, 3, 7, 99, 1, 31, 99, 14};
+    return idx < 126u ? OPMAX[idx % 21u] : idx < DX_NPARAM ? DX_PMAX[idx - 126u] : 0u;
+}
+static void dx_bank_init_all(void)                   /* no bank -> a bank of INIT VOICE */
+{
+    uint32_t k;
+    for (k = 0; k < DX_NUSER; k++)
+        dx_pack(DX_SYNTH[DX_NSYNTH - 1], dx_user[k]);
+    dx_user_ok = 1;
+    dx_bank_busy = 0;
+    dx_bank_names();
+}
+/* voice vi of VOICE (0..16 factory, 17..48 the user bank) as the packed 128 bytes */
+static void dx_voice_get(uint32_t vi, uint8_t *b)
+{
+    uint32_t i;
+    vi %= DX_NVOICES;
+    if (vi < DX_NSYNTH) {
+        dx_pack(DX_SYNTH[vi], b);
+    } else if (dx_user_ok) {
+        for (i = 0; i < 128u; i++)
+            b[i] = dx_user[vi - DX_NSYNTH][i];
+    } else {
+        dx_pack(DX_SYNTH[DX_NSYNTH - 1], b);
+    }
+}
+static void dx_user_put(uint32_t k, const uint8_t *b)   /* packed voice -> slot k (RAM; STORE = dx_bank_store) */
+{
+    uint32_t i;
+    if (k >= DX_NUSER)
+        return;
+    if (!dx_user_ok)
+        dx_bank_init_all();
+    for (i = 0; i < 128u; i++)
+        dx_user[k][i] = b[i] & 127u;
+    dx_bank_names();
+}
+static uint32_t dx_user_param_get(uint32_t k, uint32_t idx)   /* unpacked parameter idx (0..154) of slot k */
+{
+    uint8_t u[156];
+    if (k >= DX_NUSER || idx >= DX_NPARAM)
+        return 0;
+    if (!dx_user_ok)
+        dx_bank_init_all();
+    dx_unpack(dx_user[k], u);
+    dx_sanitize(u);
+    return u[idx];
+}
+static void dx_user_param_set(uint32_t k, uint32_t idx, uint32_t v)
+{
+    uint8_t u[156];
+    if (k >= DX_NUSER || idx >= DX_NPARAM)
+        return;
+    if (!dx_user_ok)
+        dx_bank_init_all();
+    dx_unpack(dx_user[k], u);
+    dx_sanitize(u);
+    u[idx] = (uint8_t)(v > dx_param_max(idx) ? dx_param_max(idx) : v);
+    dx_pack(u, dx_user[k]);
+    if (idx >= 145u)
+        dx_bank_names();
+}
+
 /* DX7 32-voice bulk dump (4104 bytes) -> the user bank; 0 = not one (header, length or checksum) */
 static int dx_bank_load(const uint8_t *s, uint32_t n)
 {

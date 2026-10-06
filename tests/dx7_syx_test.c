@@ -8,8 +8,8 @@
 #include "hostsim.c"
 #undef main
 
-/* the DX7's 128-byte packed voice (the inverse of dx_unpack) */
-static void dx_pack(const uint8_t *u, uint8_t *b)
+/* (dx_pack is the firmware's now; this copy stays as the test's independent reference) */
+static void dx_pack_ref(const uint8_t *u, uint8_t *b)
 {
     uint32_t op, i;
     for (op = 0; op < 6u; op++) {
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
         uint32_t sum = 0;
         s[0] = 0xF0, s[1] = 0x43, s[2] = 0, s[3] = 9, s[4] = 0x20, s[5] = 0;
         for (k = 0; k < 32; k++)
-            dx_pack(src_voice((uint32_t)k), s + 6 + 128 * k);
+            dx_pack_ref(src_voice((uint32_t)k), s + 6 + 128 * k);
         for (i = 0; i < 4096; i++)
             sum += s[6 + i];
         s[4102] = (uint8_t)((128u - (sum & 127u)) & 127u);
@@ -99,6 +99,37 @@ int main(int argc, char **argv)
             fails++, printf("FAIL: a wrong checksum must leave no bank\n");
         if (!dx_bank_load(s, (uint32_t)n))
             fails++, printf("FAIL: the dump again\n");
+    }
+    {   /* voice editing: get / put / a parameter, pack <-> unpack round trip, a bank from nothing */
+        uint8_t b[128], b2[128], u2[156];
+        dx_bank_clear();
+        dx_voice_get(3, b);                     /* factory SLAP BASS, packed */
+        dx_unpack(b, u2);
+        if (memcmp(u2, DX_SYNTH[3], 155))
+            fails++, printf("FAIL: dx_voice_get(3) does not unpack to the factory voice\n");
+        dx_user_put(5, b);                      /* -> U06; the other slots INIT VOICE */
+        if (!dx_user_ok || strcmp(dx_names[DX_NSYNTH + 5], "SLAP BASS") || strcmp(dx_names[DX_NSYNTH + 0], "INIT VOICE"))
+            fails++, printf("FAIL: dx_user_put: U06 = %s, U01 = %s\n", dx_names[DX_NSYNTH + 5], dx_names[DX_NSYNTH + 0]);
+        dx_user_param_set(5, 134, 31);          /* algorithm 32 */
+        dx_user_param_set(5, 16, 77);           /* OP1 output level */
+        dx_user_param_set(5, 135, 99);          /* feedback: clamped to 7 */
+        if (dx_user_param_get(5, 134) != 31 || dx_user_param_get(5, 16) != 77 || dx_user_param_get(5, 135) != 7)
+            fails++, printf("FAIL: dx_user_param_set / get\n");
+        dx_voice_get(DX_NSYNTH + 5, b2);
+        dx_unpack(b2, u2);
+        if (u2[134] != 31 || u2[16] != 77 || u2[135] != 7)
+            fails++, printf("FAIL: the edited slot read back packed\n");
+        dx_user_param_set(5, 145, 'Z');         /* the name's first letter */
+        if (dx_names[DX_NSYNTH + 5][0] != 'Z')
+            fails++, printf("FAIL: name edit\n");
+        for (k = 0; k < DX_NSYNTH; k++) {       /* every factory voice survives pack -> unpack */
+            dx_pack(DX_SYNTH[k], b);
+            dx_unpack(b, u2);
+            if (memcmp(u2, DX_SYNTH[k], 155))
+                fails++, printf("FAIL: pack / unpack of factory voice %d\n", k);
+        }
+        if (!dx_bank_load(s, (uint32_t)n))
+            fails++, printf("FAIL: the dump again (after editing)\n");
     }
     s[100] ^= 1;                                /* one bit wrong: the checksum refuses it */
     if (dx_bank_load(s, (uint32_t)n) || dx_user_ok) {

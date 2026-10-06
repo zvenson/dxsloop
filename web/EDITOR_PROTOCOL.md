@@ -4,14 +4,14 @@ The firmware side is `firmware/src/editor.c` (sloopDX is based on SLOOP, which i
 frames keep its "FL" header). Commands 16-26 (user presets and live sync) form protocol v2; commands
 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; command 33 and
 the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 34-36 (backup) form protocol v6 (SLOOP 2.3); commands 37-41 (the DX7 user bank) form
-protocol v7 (sloopDX).
+protocol v7 (sloopDX); commands 42-45 (voice editing) form protocol v8 (sloopDX).
 
 **v7 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
 (VOICE) is an enum of 49 names: the 17 factory voices, then U01..U32, the user bank. A DX7 32-voice bulk
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
-0 slots, the others rc 7). `INFO` ends with 7. SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
+0 slots, the others rc 7). `INFO` ends with 8 (7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
 v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
 sample slots 32..34.
 
@@ -56,7 +56,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (7 on sloopDX, 6 on SLOOP 2.3, 5 on SLOOP 2.0-2.2); older firmware ends after the names / NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (8 on sloopDX, 7 on sloopDX 1.0 before voice editing, 6 on SLOOP 2.3, 5 on SLOOP 2.0-2.2); older firmware ends after the names / NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -110,6 +110,13 @@ An absent status byte retains the original reply format.
 | 39 BANK_END | checksum (byte 4102 of the .syx) | rc: 0 ok (the bank plays and is in flash), 1 checksum (the bank stays empty), 2 flash (the bank plays until power-off) |
 | 40 BANK_INFO | — | ok (0 = no bank, 1 = a bank), then 32 name strings (U01..U32; empty strings without a bank) |
 | 41 BANK_ERASE | — | rc: 0 ok, 2 flash. The user bank is empty again |
+
+| cmd (v8, sloopDX voice editing) | Request args | Reply args |
+| --- | --- | --- |
+| 42 VOICE_GET | index 0..48 (the VOICE enum: 0..16 factory, 17..48 = U01..U32) | index, 128 bytes: the voice in the DX7's packed bulk format (7-bit, as in a .syx). Without a bank a user slot reads as INIT VOICE |
+| 43 VOICE_PUT | slot 0..31, 128 packed bytes | slot, rc (0 ok, 1 arguments). Replaces U(slot+1) in RAM: the next note on a part whose VOICE is that slot plays it; the name comes from bytes 118..127. Without a bank this makes one (every other slot INIT VOICE). Not in flash until BANK_SAVE |
+| 44 VOICE_PARAM | slot 0..31, idx 0..154 (get), or slot, idx, value (set) | slot, idx, value (clamped to the DX7 range of idx). idx is the position in the unpacked 155-byte voice (VCED order): op block k = idx 21k..21k+20 for OP6 (k 0) .. OP1 (k 5): R1 R2 R3 R4 L1 L2 L3 L4 BP LD RD LC RC RS AMS VEL LVL MODE COARSE FINE DET; 126..133 pitch EG R1-4 L1-4; 134 ALG 0..31; 135 FB; 136 OSC SYNC; 137 LFO SPEED; 138 DELAY; 139 PMD; 140 AMD; 141 LFO SYNC; 142 LFO WAVE; 143 PMS; 144 TRANSPOSE; 145..154 the name. Without a bank the first set makes one |
+| 45 BANK_SAVE | — | rc (0 ok, 1 no bank, 2 flash): STORE, the whole user bank to flash (~1 s) |
 
 **pack7:** groups of up to 7 bytes, each preceded by one byte holding their top bits
 (bit j = bit 7 of byte j).
@@ -289,5 +296,9 @@ written.
   from the editor. Since SLOOP 2.3 (after Felucca 1.0) the same USB device also has an audio input
   ("Felucca", 44.1 kHz stereo; bcdDevice 3.11): the MIDI port and this protocol are unchanged, and both
   work while the computer records.
-- **Safety.** Only `PROJECT` save, `BANK_END` / `BANK_ERASE`, `BK_PUT` and `UP_PUT` / `UP_STORE` / `UP_ERASE` write flash, and only in
+- **Voice editing (v8).** A user slot is the edit buffer, as on a DX7: `VOICE_PARAM` changes it live (RAM),
+  `BANK_SAVE` is STORE. The device's own EDIT pages edit the same slots; the editor re-reads a slot with
+  `VOICE_GET` after a `RELOAD` or when the user asks. The VOICE enum names change with the slot names: re-read
+  `DESC` of `P_E0`.
+- **Safety.** Only `PROJECT` save, `BANK_END` / `BANK_ERASE` / `BANK_SAVE`, `BK_PUT` and `UP_PUT` / `UP_STORE` / `UP_ERASE` write flash, and only in
   Felucca's own storage; never the app or the update area.
