@@ -22,15 +22,15 @@ def ok(cond, what):
 
 
 class FakeDevice:                                   # firmware/src/editor.c, the v6 part
-    def __init__(self, proto=6):
+    def __init__(self, proto=9):
         self.proto, self.bank, self.busy, self.ok, self.flash = proto, bytearray(4096), False, False, None
 
     def handle(self, p):
         cmd, a = p[4], p[5:-1]
         r = bytes([cmd])
         if cmd == B.INFO:
-            return r + b"FELUCCA sloopDX 1.6\0" + bytes([1, 58, 32, 64, 50]) + b"DX7\0" + bytes([4, self.proto])
-        if self.proto < 6 and cmd >= 34:
+            return r + b"FELUCCA sloopDX 1.7\0" + bytes([1, 58, 32, 64, 50]) + b"DX7\0" + bytes([4, self.proto])
+        if self.proto < 7 and cmd >= 37:
             return None
         if cmd == B.BANK_BEGIN:
             self.busy, self.ok = True, False
@@ -52,6 +52,10 @@ class FakeDevice:                                   # firmware/src/editor.c, the
             if not self.ok:
                 return r + b"\0" + b"\0" * 32
             return r + b"\1" + b"".join(n.encode() + b"\0" for n in B.names_of(self.bank))
+        if cmd == B.BANK_SELECT:
+            if a:
+                self.cur = a[0]
+            return r + bytes([getattr(self, "cur", 0), 8, 1 if self.ok else 0])
         if cmd == B.BANK_ERASE:
             self.ok, self.flash = False, None
             return r + b"\0"
@@ -129,8 +133,11 @@ ok(B.main(["--erase"], backend=FakeBackend(dev), out=io.StringIO()) == 0 and not
 out = io.StringIO()
 ok(B.main(["--names"], backend=FakeBackend(dev), out=out) == 0 and "no user bank" in out.getvalue(), "--names without a bank")
 
-old = FakeDevice(proto=5)
-ok(B.main([str(good)], backend=FakeBackend(old), out=io.StringIO()) == 1 and not old.ok, "SLOOP 2.x firmware: refused, nothing sent")
+dev3 = FakeDevice()
+ok(B.main([str(good), "--bank", "3"], backend=FakeBackend(dev3), out=io.StringIO()) == 0 and getattr(dev3, "cur", 0) == 2 and dev3.ok,
+   "--bank 3: BANK_SELECT 2, then the upload")
+old = FakeDevice(proto=6)
+ok(B.main([str(good)], backend=FakeBackend(old), out=io.StringIO()) == 1 and not old.ok, "SLOOP 2.3 firmware (protocol 6): refused, nothing sent")
 
 
 class Lossy(FakeDevice):                            # a byte lost on the way: the device's checksum catches it
@@ -143,5 +150,12 @@ class Lossy(FakeDevice):                            # a byte lost on the way: th
 lossy = Lossy()
 ok(B.main([str(good)], backend=FakeBackend(lossy), out=io.StringIO()) == 1 and not lossy.ok, "a damaged piece: the device refuses the bank")
 
+# the command numbers are the firmware's (editor.c), not just the tool's own
+ec = (ROOT / "firmware/src/editor.c").read_text()
+en = ec[ec.index("enum { ED_INFO = 1,"):]
+en = en[:en.index("};")]
+names = ["ED_INFO"] + [w.strip() for w in __import__("re").sub(r"/\*.*?\*/", "", en[len("enum { ED_INFO = 1,"):], flags=__import__("re").S).split(",") if w.strip()]
+ok(names.index("ED_BANK_BEGIN") + 1 == B.BANK_BEGIN and names.index("ED_BANK_ERASE") + 1 == B.BANK_ERASE
+   and names.index("ED_BANK_SELECT") + 1 == B.BANK_SELECT, "command numbers == firmware/src/editor.c")
 print("BANK UPLOAD TEST FAILED" if failed else "bank upload ok")
 sys.exit(1 if failed else 0)

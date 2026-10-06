@@ -71,6 +71,8 @@ static void up_ui(uint32_t op, uint32_t k) { (void)op; (void)k; }
 static void settings_save(void) {}
 static uint32_t dx_stores;
 static int dx_bank_store(void) { dx_stores++; return 0; }
+static uint32_t dx_selects;
+static int dx_bank_select(uint32_t k) { if (k >= DX_NBANKS) return 1; dx_selects++; dx_bank_cur = (uint8_t)k; dx_bank_clear(); return 0; }
 #include "../firmware/src/ui_song.c"
 #include "../firmware/src/ui_studio.c"
 #include "../firmware/src/ui_voice.c"
@@ -145,7 +147,7 @@ int main(int argc, char **argv)
         go_home(); frame();
         open_family(FAM_EDIT); ui.force = 1; frame();
         check(on_voice_page() && ve.lvl == VL_TOP, "voice edit: EDIT opens the DX7 list on a synth part");
-        encs[panel.enc[EN_SELECT]] = 1; frame();                      /* -> Algorithm */
+        encs[panel.enc[EN_SELECT]] = 2; frame();                      /* -> Algorithm (row 1 is Bank) */
         encs[panel.enc[EN_ALGO]] = 1; frame();                        /* first turn: only the diagram */
         check(ve.diag && ve_get(134) == alg0 && ve_user() < 0, "voice edit: the first ALGORITHM turn on Algorithm draws it, changes nothing");
         ui.force = 1; frame(); ppm("voice-alg");
@@ -191,7 +193,7 @@ int main(int argc, char **argv)
             check(!ve_muted(2) && patch[3u * 21u + 16u] != 0u, "voice edit: another voice switches every operator on again");
         }
         tap(B_HOME);
-        check(on_voice_page() && ve.lvl == VL_TOP && ve.row == 7u, "voice edit: HOME goes back to the top list, on OP3");
+        check(on_voice_page() && ve.lvl == VL_TOP && ve.row == 8u, "voice edit: HOME goes back to the top list, on OP3");
         dx_stores = 0;
         tap(B_SAVE);
         check(dx_stores == 1u && !ve.dirty, "voice edit: SAVE stores the bank, the dot goes");
@@ -199,10 +201,34 @@ int main(int argc, char **argv)
         tap(B_EDIT);
         encs[panel.enc[EN_ALGO]] = 1; frame();
         check(ve.lvl == VL_NAME && dx_user_name[slot][0] != 'F', "voice edit: the name, one character at a time");
-        tap(B_HOME); tap(B_HOME);
+        tap(B_HOME);
+        encs[panel.enc[EN_SELECT]] = -20; frame();                    /* -> Voice, then Bank */
+        encs[panel.enc[EN_SELECT]] = 1; frame();
+        dx_selects = 0;
+        encs[panel.enc[EN_ALGO]] = 2; frame();
+        check(dx_selects == 1u && dx_bank_cur == 1u, "voice edit: the Bank row switches to the next of the 8 banks");
+        ui.force = 1; frame(); ppm("voice-bank");
+        encs[panel.enc[EN_ALGO]] = -5; frame();
+        check(dx_bank_cur == 0u, "voice edit: back to bank 1");
+        tap(B_HOME);
         check(!on_voice_page(), "voice edit: HOME on the top list leaves");
         TSEL->p[P_E0] = (int16_t)e0;
         dx_bank_clear();
+    }
+    {   /* PRESETS on HOME: after 17 INIT VOICE comes the user bank, 18 = U01 .. 49 = U32, then the user presets */
+        uint32_t total;
+        dx_bank_init_all();
+        go_home(); frame();
+        apply_preset(16);
+        encs[panel.enc[EN_PRESET]] = 1; frame();
+        check(TSEL->p[P_E0] == (int16_t)DX_NSYNTH && preset_pos(&total) == 17u && total >= 49u,
+              "PRESETS: after 17 the bank voices (18 = U01)");
+        encs[panel.enc[EN_PRESET]] = 5; frame();
+        check(TSEL->p[P_E0] == (int16_t)(DX_NSYNTH + 5u), "PRESETS: on through the bank (23 = U06)");
+        encs[panel.enc[EN_PRESET]] = -6; frame();
+        check(TSEL->p[P_E0] == 16 && TSEL->preset == 16u, "PRESETS: back to 17 INIT VOICE");
+        dx_bank_clear();
+        apply_preset(0);
     }
     open_family(FAM_FX); ui.force = 1; frame(); ppm("page-fx");
     open_family(FAM_SEQ); ui.force = 1; frame(); ppm("page-step");

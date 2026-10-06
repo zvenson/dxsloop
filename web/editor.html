@@ -3,7 +3,7 @@
      Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments -->
 <!-- sloopDX web editor (SLOOP's, reduced to the DX7 engine). One file, no libraries. Protocol: EDITOR_PROTOCOL.md.
      Add ?mock=1 to the URL to use a built-in simulated device. -->
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -191,12 +191,71 @@
   .strip button.selb:disabled { opacity: 1; background: none; color: var(--dim); }
   #sysinfo th { padding-right: 16px; }
   [hidden] { display: none !important; }
+
+  /* ===================================================== sloopDX look === */
+  /* the DX7's panel: a dark warm grey, the membrane keys' cyan, light blue, pink and beige (one per track),
+     the red LED, a light LCD text; always dark, whatever the system says */
+  :root, :root[data-theme], :root:not([data-theme="light"]) {
+    --bg: #1b1819; --fg: #ede6df; --dim: #9a928c; --line: #3a3435; --panel: #262223; --panel2: #2e2a2b;
+    --cyan: #42f5f5; --blue: #afd9f4; --pink: #f4c0cb; --beige: #e6d1b9; --led: #ff2e22; }
+  html { color-scheme: dark; }
+  body { background: radial-gradient(1200px 500px at 50% -200px, #2a2526, var(--bg)); background-attachment: fixed;
+         font: 14px/1.45 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 1180px; padding: 22px 20px 40px; }
+  h1 { font-size: 30px; font-weight: 300; letter-spacing: 0.5px; margin: 0 0 2px; }
+  h1 .dx { color: var(--cyan); font-weight: 600; }
+  h2 { border-bottom: 0; text-transform: uppercase; letter-spacing: 1.2px; font-size: 11px; color: var(--beige);
+       margin: 0 0 8px; }
+  a { color: var(--blue); }
+  header.top { position: sticky; top: 0; z-index: 5; background: rgba(38, 34, 35, 0.94); backdrop-filter: blur(6px);
+               border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px 0; margin: 10px 0 14px;
+               box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+  button { background: var(--cyan); color: #111; border-radius: 5px; padding: 4px 12px; font-weight: 600;
+           transition: filter 0.12s, transform 0.05s; }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  select, input[type=text], input[type=number], input[type=search] {
+    background: #141213; border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; color: var(--fg); }
+  input[type=range] { accent-color: var(--cyan); }
+  input[type=checkbox] { accent-color: var(--cyan); }
+  #status { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--beige); background: #111;
+            border-radius: 5px; padding: 4px 10px; margin: 6px 0 4px; min-height: 1.6em; }
+  .tabs { border-bottom: 1px solid var(--line); gap: 2px; margin-top: 10px; }
+  .tabs button { background: none; color: var(--dim); font-weight: 500; border-radius: 6px 6px 0 0; padding: 7px 14px;
+                 border: 0; border-bottom: 2px solid transparent; }
+  .tabs button:hover { color: var(--fg); filter: none; }
+  .tabs button[aria-selected="true"] { background: var(--panel2); color: var(--fg); border-bottom-color: var(--cyan); }
+  .trackbar { border-bottom: 0; padding: 10px 0; gap: 8px; }
+  .trackbar .seg { display: inline-flex; gap: 6px; }
+  .trackbar .seg button { background: var(--panel2); color: var(--fg); border: 1px solid var(--line); min-width: 54px; }
+  .trackbar .seg button:nth-child(1)[aria-pressed="true"] { background: var(--cyan); color: #111; }
+  .trackbar .seg button:nth-child(2)[aria-pressed="true"] { background: var(--blue); color: #111; }
+  .trackbar .seg button:nth-child(3)[aria-pressed="true"] { background: var(--pink); color: #111; }
+  .trackbar .seg button:nth-child(4)[aria-pressed="true"] { background: var(--beige); color: #111; }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
+                  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+  .groups { column-gap: 16px; }
+  .group { background: var(--panel2); border-radius: 8px; padding: 10px 12px 8px; border-top: 3px solid var(--cyan); }
+  .groups .group:nth-child(4n + 2) { border-top-color: var(--blue); }
+  .groups .group:nth-child(4n + 3) { border-top-color: var(--pink); }
+  .groups .group:nth-child(4n + 4) { border-top-color: var(--beige); }
+  .row { min-height: 26px; }
+  .row .v { color: var(--beige); font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  .browser select[size] { background: #141213; border-radius: 6px; padding: 4px; }
+  .browser select[size] option:checked { background: var(--cyan); color: #111; }
+  .list { border-color: var(--line); border-radius: 6px; background: #1a1718; }
+  .list tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025); }
+  .list tr.sel td { background: var(--cyan); color: #111; }
+  .drop { border: 1.5px dashed var(--blue); border-radius: 8px; background: rgba(175, 217, 244, 0.05); color: var(--blue); }
+  #steps td, #steps th { border-bottom: 1px solid var(--line); }
+  footer { color: var(--dim); border-top: 1px solid var(--line); padding-top: 12px; }
+  #p-voice { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
 </style>
 </head>
 <body>
 <main>
-  <button class="lang" id="lang"></button>
-  <h1>sloopDX editor</h1>
+  <button class="lang" id="lang" hidden></button>
+  <h1>sloop<span class="dx">DX</span> editor</h1>
   <p class="dim"><a href="../installer/" style="color:inherit" data-t="installer"></a></p>
   <!-- always visible: connection, version, sync mode, the tabs and (Sound / Sequencer / Tracks) the track selector -->
   <header class="top">
@@ -336,6 +395,7 @@
         <p class="dim" id="dxhint"></p>
         <div id="dxpane" hidden>
           <p class="dim" data-t="dxHelp"></p>
+          <p class="bar" id="dxbankbar"><label><span data-t="dxBankSel"></span> <select id="dxbanksel"></select></label></p>
           <div class="drop" id="dxdrop" tabindex="0" role="button"><span data-t="dxDrop"></span></div>
           <p class="bar">
             <button id="dxchoose" data-t="dxChoose" data-ic="symbol_folder_open"></button>
@@ -388,7 +448,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   DRUM_STEP: 33,
   BK_LIST: 34, BK_GET: 35, BK_PUT: 36,              /* v6: backup / restore (SLOOP 2.3) */
   BANK_BEGIN: 37, BANK_WRITE: 38, BANK_END: 39, BANK_INFO: 40, BANK_ERASE: 41,     /* v7: the DX7 user bank (sloopDX) */
-  VOICE_GET: 42, VOICE_PUT: 43, VOICE_PARAM: 44, BANK_SAVE: 45 };                   /* v8: voice editing (sloopDX) */
+  VOICE_GET: 42, VOICE_PUT: 43, VOICE_PARAM: 44, BANK_SAVE: 45,                     /* v8: voice editing (sloopDX) */
+  BANK_SELECT: 46 };                                                                /* v9: 8 user banks (sloopDX) */
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -557,8 +618,11 @@ const parse = {
     const r = new Reader(a);
     const o = { ok: r.b(), names: [] };
     for (let i = 0; i < DX7.VOICES; i++) o.names.push(r.s());
+    o.bank = r.i < a.length ? r.b() : 0;              /* v9: the bank in use and how many there are */
+    o.nbanks = r.i < a.length ? r.b() : 1;
     return o;
   },
+  [CMD.BANK_SELECT](a) { return { bank: a[0], nbanks: a[1], ok: a[2] }; },
   [CMD.BANK_ERASE](a) { return { rc: new Reader(a).b() }; },
   /* v8: voice editing. VOICE_GET: index, 128 packed bytes; VOICE_PARAM: slot, idx, value */
   [CMD.VOICE_GET](a) { return { index: a[0], data: Uint8Array.from(a.slice(1, 1 + DX7.VOICE_LEN)) }; },
@@ -631,6 +695,7 @@ const req = {
   voicePut: (slot, packed) => [CMD.VOICE_PUT, [slot & 0x7F, ...Array.from(packed, (x) => x & 0x7F)]],
   voiceParam: (slot, idx, v) => [CMD.VOICE_PARAM, [slot & 0x7F, idx & 0x7F, (idx >> 7) & 0x7F, ...(v == null ? [] : [v & 0x7F])]],
   bankSave: () => [CMD.BANK_SAVE, []],
+  bankSelect: (k) => [CMD.BANK_SELECT, k == null ? [] : [k & 0x7F]],
 };
 
 /* ----------------------------------------------------------- DX7 bank --- */
@@ -774,6 +839,7 @@ const dxvoice = {
   async put(rq, slot, u) { return parse[CMD.VOICE_PUT](await rq(req.voicePut(slot, dx7Pack(u)))).rc; },
   async param(rq, slot, idx, v, opt) { return parse[CMD.VOICE_PARAM](await rq(req.voiceParam(slot, idx, v), opt)).value; },
   async save(rq) { return parse[CMD.BANK_SAVE](await rq(req.bankSave(), { timeout: 3000, retries: 0 })).rc; },
+  async select(rq, k) { return parse[CMD.BANK_SELECT](await rq(req.bankSelect(k), { timeout: 3000, retries: 0 })); },
 };
 
 /* numbers in front of the voices and kits, so a long list says where you are: one running number for the
@@ -1411,7 +1477,7 @@ function makeMockDevice(opt = {}) {
     tracks: [0, 1, 2, 3].map(newTrack), sel: 0, rec: 0, solo: 0,
     g: GP.map((d) => d.def),
     slots: [null, null, null, null],
-    dx: { data: null, pending: null },               /* the DX7 user bank (4096 voice bytes) and an upload in progress */
+    dx: { data: null, pending: null, cur: 0, banks: new Array(8).fill(null) },   /* the bank in use (4096 voice bytes), an upload, the 8 slots */
     bank: new Array(opt.slots || 32).fill(null),     /* user presets: {engine, name, p, pattern} */
     settings: Uint8Array.from({ length: 88 }, (_, i) => (i * 37 + 5) & 0xFF),   /* v6: the settings object (opaque here) */
     bkSnap: null, bkPut: null,
@@ -1496,6 +1562,7 @@ function makeMockDevice(opt = {}) {
     if (opt.v3 && cmd >= CMD.TRACK_PARAM) return null;
     if ((opt.noBackup || opt.sloop23) && cmd >= CMD.BANK_BEGIN) return null;   /* SLOOP firmware: no DX7 bank */
     if (opt.proto7 && cmd >= CMD.VOICE_GET) return null;                       /* sloopDX 1.0: no voice editing */
+    if (opt.proto8 && cmd >= CMD.BANK_SELECT) return null;                     /* sloopDX 1.1-1.6: one bank */
     const NB = st.bank.length;
     switch (cmd) {
       case CMD.UP_LIST: {
@@ -1567,10 +1634,10 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.6 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.7 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */
+        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : 9);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1714,6 +1781,19 @@ function makeMockDevice(opt = {}) {
         const names = st.dx.data ? dx7BankNames(st.dx.data) : [];
         b(st.dx.data ? 1 : 0);
         for (let i = 0; i < DX7.VOICES; i++) s(names[i] || "");
+        b(st.dx.cur); b(8);
+        break;
+      }
+      case CMD.BANK_SELECT: {                          /* as project.c dx_bank_select: the slot in use changes */
+        if (a.length >= 1) {
+          if (a[0] >= 8) return null;
+          st.dx.banks[st.dx.cur] = st.dx.data;
+          st.dx.cur = a[0];
+          st.dx.data = st.dx.banks[a[0]];
+          st.dx.pending = null;
+          dxNames();
+        }
+        b(st.dx.cur); b(8); b(st.dx.data ? 1 : 0);
         break;
       }
       /* v8: voice editing, as eng_dx7.c: a factory voice reads as itself (the mock has INIT VOICE with its name),
@@ -1991,7 +2071,7 @@ const TEXT = {
     confirmSave: "スロット {n} に上書き保存しますか？", confirmLoad: "スロット {n} を読み込みますか？ 今の音色とパターンは置き換わります。",
     confirmClear: "シーケンスを全部消しますか？", confirmInit: "音色を初期化しますか？",
     erase: "消去",
-    dxBank: "本体の DX7 ユーザーバンク",
+    dxBank: "本体の DX7 ユーザーバンク", dxBankSel: "バンク", dxBankN: "バンク", dxSelected: "使用中のバンク: ",
     dxHelp: "DX7 の 32 音色バルクダンプ（.syx、4104 バイト）を書き込みます。その音色は VOICE の U01〜U32 として、最初の 16 音色は USER ドラムキットとして鳴ります。",
     dxDrop: "ここに .syx をドロップ、またはクリック", dxChoose: ".syx を選ぶ", dxNoBank: "バンクなし", voices: "音色",
     dxConnect: "FM-1 を接続すると DX7 バンクを書き込めます。", dxNone: "このファームウェアには DX7 ユーザーバンクがありません。",
@@ -2068,7 +2148,7 @@ const TEXT = {
     confirmSave: "Overwrite slot {n}?", confirmLoad: "Load slot {n}? The current sound and pattern will be replaced.",
     confirmClear: "Clear the whole sequence?", confirmInit: "Reset the sound to the engine defaults?",
     erase: "Erase",
-    dxBank: "DX7 user bank on the device",
+    dxBank: "DX7 user banks on the device", dxBankSel: "Bank in use", dxBankN: "Bank", dxSelected: "Bank in use: ",
     dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE, the first 16 as the USER drum kit.",
     dxDrop: "Drop a .syx here, or click", dxChoose: "Choose .syx", dxNoBank: "no bank", voices: "voices",
     dxConnect: "Connect the FM-1 to upload a DX7 bank.", dxNone: "This firmware has no DX7 user bank.",
@@ -2119,7 +2199,7 @@ const TEXT = {
     dxBankL: "DX7 bank", userBank: "User presets", none: "none",
   },
 };
-let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
+let lang = "en";                                   /* sloopDX: English only (the Japanese strings stay, unused) */
 const t = (k) => TEXT[lang][k] ?? k;
 let lastKey = null, lastArg = "";
 function sayK(k, arg = "") { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; }
@@ -3744,6 +3824,13 @@ function renderDxBank() {
   $("dxpane").hidden = !has;
   if (!has) return;
   const b = dev.dxbank;
+  const bs = $("dxbanksel");
+  $("dxbankbar").hidden = !(b.nbanks > 1);
+  if (b.nbanks > 1) {                                 /* v9: which of the 8 banks; uploads and U01..U32 use it */
+    if (bs.options.length !== b.nbanks) bs.replaceChildren(...Array.from({ length: b.nbanks }, (_, k) => el("option", { value: k, text: `${t("dxBankN")} ${k + 1}` })));
+    bs.value = String(b.bank);
+    bs.disabled = libBusy;
+  }
   $("dxstatus").textContent = b.ok ? `${b.names.filter(Boolean).length} ${t("voices")}` : t("dxNoBank");
   $("dxstatus").className = b.ok ? "" : "dim";
   const tb = el("table", {}, el("colgroup", {}, el("col", { class: "n" }), el("col")),
@@ -3753,6 +3840,15 @@ function renderDxBank() {
   $("dxchoose").disabled = libBusy;
   $("dxerase").disabled = !b.ok || libBusy;
 }
+$("dxbanksel").addEventListener("change", () => {
+  const k = +$("dxbanksel").value;
+  libOp(async () => {
+    await dxbank.select(rqf, k);
+    dev.dxbank = await dxbank.info(rqf);
+    await rereadEngineDesc();
+    sayK("dxSelected", String(k + 1));
+  });
+});
 async function dxUpload(file) {
   if (!dev || !dev.dxbank || libBusy || !file) return;
   let syx;

@@ -9,7 +9,9 @@
  * v7 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (37-41) load a DX7 .syx bank in pieces, INFO ends
  * with 7, backup object 8 is the bank; the sample-slot commands 11-15 answer rc 7 (no slots);
  * v8 = sloopDX voice editing: VOICE_GET / PUT (42, 43: a packed voice), VOICE_PARAM (44: one unpacked
- * parameter of a user slot, live; its number in two 7-bit bytes), BANK_SAVE (45: the bank to flash, STORE); INFO ends with 8.
+ * parameter of a user slot, live; its number in two 7-bit bytes), BANK_SAVE (45: the bank to flash, STORE);
+ * v9 = 8 user banks: BANK_SELECT (46) picks the one U01..U32 play and the bank commands act on; BANK_INFO ends
+ * with its number; INFO ends with 9.
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -27,8 +29,9 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_DRUM_STEP,                                                            /* v5: the 16 drum lanes */
        ED_BK_LIST, ED_BK_GET, ED_BK_PUT,                                        /* v6: backup / restore (SLOOP 2.3) */
        ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE,    /* v7: the DX7 user bank (sloopDX) */
-       ED_VOICE_GET, ED_VOICE_PUT, ED_VOICE_PARAM, ED_BANK_SAVE };               /* v8: voice editing (sloopDX) */
-#define ED_PROTOCOL 8
+       ED_VOICE_GET, ED_VOICE_PUT, ED_VOICE_PARAM, ED_BANK_SAVE,                /* v8: voice editing (sloopDX) */
+       ED_BANK_SELECT };                                                        /* v9: 8 user banks (sloopDX) */
+#define ED_PROTOCOL 9
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -878,10 +881,22 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(rc);
         break;
     }
-    case ED_BANK_INFO:                                     /* -> ok, 32 names */
+    case ED_BANK_INFO:                                     /* -> ok, 32 names, (v9) the bank in use, banks */
         ed_b(dx_user_ok);
         for (i = 0; i < DX_NUSER; i++)
             ed_str(dx_user_ok ? dx_user_name[i] : "", 10);
+        ed_b(dx_bank_cur);
+        ed_b(DX_NBANKS);
+        break;
+    case ED_BANK_SELECT:                                   /* [bank 0..7] -> bank in use, banks, ok (a bank there) */
+        if (na >= 1u) {
+            if (dx_bank_select(a[0]))
+                return;
+            ui.force = 1;
+        }
+        ed_b(dx_bank_cur);
+        ed_b(DX_NBANKS);
+        ed_b(dx_user_ok);
         break;
     case ED_BANK_ERASE:                                    /* -> rc */
         ui.force = 1;

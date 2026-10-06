@@ -7,7 +7,7 @@ The same as the web editor's library page: BANK_BEGIN, eight BANK_WRITE of 512 b
 dump's checksum byte (web/EDITOR_PROTOCOL.md, v6). The device keeps the bank in flash; U01..U32 then play
 the voices and the USER drum kit the first 16.
 
-  fm1_bank_upload.py BANK.syx [--port NAME]      load the bank
+  fm1_bank_upload.py BANK.syx [--bank N] [--port NAME]   load the bank (into bank N of 8, sloopDX 1.7+)
   fm1_bank_upload.py --names [--port NAME]       the names of the bank on the device
   fm1_bank_upload.py --erase [--port NAME]       no user bank
   fm1_bank_upload.py --check BANK.syx            only check the file (no device)
@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fm1_install as I  # noqa: E402
 
 HDR = bytes([0xF0, 0x7D, 0x46, 0x4C])
-INFO, DESC, BANK_BEGIN, BANK_WRITE, BANK_END, BANK_INFO, BANK_ERASE = 1, 5, 34, 35, 36, 37, 38
+INFO, DESC, BANK_BEGIN, BANK_WRITE, BANK_END, BANK_INFO, BANK_ERASE, BANK_SELECT = 1, 5, 37, 38, 39, 40, 41, 46
 PIECE = 512
 NVOICE, VOICE = 32, 128
 
@@ -165,8 +165,13 @@ def run(a, backend, out):
     link, name = find_device(backend, a.port)
     try:
         version, proto = device_info(link)
-        if proto < 6:
+        if proto < 7:
             raise BankError(1, f"{name} runs {version} (protocol {proto}): no DX7 bank there (sloopDX needed)")
+        if a.bank_no is not None:
+            if proto < 9 or not 1 <= a.bank_no <= 8:
+                raise BankError(2, "--bank needs sloopDX 1.7 or later and a bank 1..8")
+            r = request(link, BANK_SELECT, bytes([a.bank_no - 1]), timeout=3.0)
+            print(f"bank in use: {r[0] + 1} of {r[1]}", file=out)
         if a.erase:
             r = request(link, BANK_ERASE, timeout=3.0)
             print("the user bank is empty" + (" (flash write failed)" if r and r[0] else ""), file=out)
@@ -192,6 +197,7 @@ def main(argv=None, backend=None, out=sys.stdout):
     ap.add_argument("--names", action="store_true", help="show the bank on the device")
     ap.add_argument("--erase", action="store_true", help="remove the user bank from the device")
     ap.add_argument("--check", action="store_true", help="only check the file")
+    ap.add_argument("--bank", dest="bank_no", type=int, help="which of the device's 8 banks (1..8, sloopDX 1.7+)")
     a = ap.parse_args(argv)
     if not a.bank and not (a.names or a.erase):
         ap.print_usage(file=out)

@@ -4,14 +4,14 @@ The firmware side is `firmware/src/editor.c` (sloopDX is based on SLOOP, which i
 frames keep its "FL" header). Commands 16-26 (user presets and live sync) form protocol v2; commands
 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; command 33 and
 the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 34-36 (backup) form protocol v6 (SLOOP 2.3); commands 37-41 (the DX7 user bank) form
-protocol v7 (sloopDX); commands 42-45 (voice editing) form protocol v8 (sloopDX).
+protocol v7 (sloopDX); commands 42-45 (voice editing) form protocol v8 (sloopDX); command 46 (8 banks) forms protocol v9.
 
 **v7 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
 (VOICE) is an enum of 49 names: the 17 factory voices, then U01..U32, the user bank. A DX7 32-voice bulk
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
-0 slots, the others rc 7). `INFO` ends with 8 (7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
+0 slots, the others rc 7). `INFO` ends with 9 (8 before the 8 banks, 7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
 v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
 sample slots 32..34.
 
@@ -56,7 +56,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (8 on sloopDX, 7 on sloopDX 1.0 before voice editing, 6 on SLOOP 2.3, 5 on SLOOP 2.0-2.2); older firmware ends after the names / NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (9 on sloopDX 1.7+, 8 on sloopDX 1.1-1.6 with voice editing, 7 on sloopDX 1.0 before voice editing, 6 on SLOOP 2.3, 5 on SLOOP 2.0-2.2); older firmware ends after the names / NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -117,6 +117,12 @@ An absent status byte retains the original reply format.
 | 43 VOICE_PUT | slot 0..31, 128 packed bytes | slot, rc (0 ok, 1 arguments). Replaces U(slot+1) in RAM: the next note on a part whose VOICE is that slot plays it; the name comes from bytes 118..127. Without a bank this makes one (every other slot INIT VOICE). Not in flash until BANK_SAVE |
 | 44 VOICE_PARAM | slot 0..31, idx 0..154 as 2 × 7 bit LSB first (get), or slot, idx (2), value (set) | slot, idx (2), value (clamped to the DX7 range of idx). idx is the position in the unpacked 155-byte voice (VCED order): op block k = idx 21k..21k+20 for OP6 (k 0) .. OP1 (k 5): R1 R2 R3 R4 L1 L2 L3 L4 BP LD RD LC RC RS AMS VEL LVL MODE COARSE FINE DET; 126..133 pitch EG R1-4 L1-4; 134 ALG 0..31; 135 FB; 136 OSC SYNC; 137 LFO SPEED; 138 DELAY; 139 PMD; 140 AMD; 141 LFO SYNC; 142 LFO WAVE; 143 PMS; 144 TRANSPOSE; 145..154 the name. Without a bank the first set makes one |
 | 45 BANK_SAVE | — | rc (0 ok, 1 no bank, 2 flash): STORE, the whole user bank to flash (~1 s) |
+
+| cmd (v9, sloopDX: 8 banks) | Request args | Reply args |
+| --- | --- | --- |
+| 46 BANK_SELECT | — (query), or bank 0..7 | bank in use, number of banks (8), ok (1 = that slot holds a bank). Switching loads the bank from flash: U01..U32 play it, and BANK_BEGIN / WRITE / END / INFO / ERASE / SAVE and VOICE_* act on it. Unstored voice edits of the bank left are dropped (the device's own voice list stores them first). The device remembers the bank in use. Re-read `DESC` of `P_E0` afterwards |
+
+`BANK_INFO` (v9) ends with the bank in use and the number of banks (older editors ignore the two bytes).
 
 **pack7:** groups of up to 7 bytes, each preceded by one byte holding their top bits
 (bit j = bit 7 of byte j).

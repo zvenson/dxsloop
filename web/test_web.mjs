@@ -44,7 +44,7 @@ async function editorMock() {
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
   ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
-    && info.ntrk === 4 && info.proto === 8 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 8)");
+    && info.ntrk === 4 && info.proto === 9 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 9)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (17 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, two unused */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
@@ -451,7 +451,7 @@ async function editorBackup() {
   const C = E.CMD;
   const { m, rq, done } = attachMock({});
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 8, "backup: INFO protocol 8 (backup since 6)");
+  ok(info.proto === 9, "backup: INFO protocol 9 (backup since 6)");
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8");
   ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..8, no sample slots)");
   await rq(E.req.upStore(3, "BACKUP ME"));
@@ -508,7 +508,7 @@ async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 8 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (8: sloopDX voice editing)");
+  ok(info.proto === 9 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (9: sloopDX, 8 banks)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
      commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
@@ -519,8 +519,9 @@ async function editorV5() {
     && names.indexOf("ED_BK_LIST") + 1 === C.BK_LIST && names.indexOf("ED_BK_PUT") + 1 === C.BK_PUT
     && names.indexOf("ED_BANK_BEGIN") + 1 === C.BANK_BEGIN && names.indexOf("ED_BANK_ERASE") + 1 === C.BANK_ERASE
     && names.indexOf("ED_VOICE_GET") + 1 === 42 && names.indexOf("ED_BANK_SAVE") + 1 === 45
-    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 8,
-    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, firmware protocol ${fwProto})`);
+    && names.indexOf("ED_BANK_SELECT") + 1 === C.BANK_SELECT && C.BANK_SELECT === 46
+    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 9,
+    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, BANK_SELECT 46, firmware protocol ${fwProto})`);
   const enumNames = (id) => (new RegExp(`${id}\\[\\] = \\{([^}]*)\\}`).exec(pc) || [])[1].split(",").map((x) => x.trim().replace(/"/g, ""));
   const chord = E.parse[C.DESC](await rq(E.req.desc(0, 49)));
   const gd = [];
@@ -637,10 +638,20 @@ async function editorVoice() {
   const desc = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const saved = await E.dxvoice.save(rq);
   const u1 = await E.dxvoice.get(rq, 17);
-  ok(info.proto === 8 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
+  ok(info.proto === 9 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
     "voice: VOICE_GET / PUT / PARAM on the mock (ALG 10 set, feedback clamped to 7, OP1 kept)");
   ok(desc.names[17 + 5] === "MY SLAP" && desc.names[17] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
     "voice: the name in DESC of VOICE, the other slots INIT VOICE, BANK_SAVE ok");
+  /* v9: 8 banks; the bank in use is what U01..U32 and the bank commands see */
+  const sel1 = await E.dxvoice.select(rq, 1);
+  const empty = await E.dxbank.info(rq);
+  await E.dxvoice.put(rq, 0, E.dx7InitVoice("BANK TWO"));
+  const two = await E.dxbank.info(rq);
+  const sel0 = await E.dxvoice.select(rq, 0);
+  const one = await E.dxbank.info(rq);
+  ok(sel1.bank === 1 && sel1.nbanks === 8 && sel1.ok === 0 && !empty.ok && empty.bank === 1 && two.names[0] === "BANK TWO"
+    && sel0.bank === 0 && sel0.ok === 1 && one.names[5] === "MY SLAP" && one.bank === 0 && one.nbanks === 8,
+    "voice: BANK_SELECT switches between 8 banks; each keeps its voices");
   done();
   const old = attachMock({ proto7: true });
   const i7 = E.parse[C.INFO](await old.rq(E.req.info()));
@@ -756,7 +767,7 @@ function editorTabs() {
   const smp = html.split("\n").filter((l) => /sample|SMP_|ANALOG|ADPCM/i.test(l));
   ok(smp.length === 1 && /SMP_BEGIN: 11, SMP_WRITE: 12, SMP_END: 13, SMP_ERASE: 14, SMP_INFO: 15/.test(smp[0]) && !/smpInfo|renderSamples|parseWav|imaEncode/.test(html),
     "editor: no sample code left (only the CMD numbers 11..15)");
-  ok(/<title>sloopDX editor<\/title>/.test(html) && /<h1>sloopDX editor<\/h1>/.test(html) && /based on SLOOP and Felucca/.test(html) && !/SLOOP Editor/.test(html),
+  ok(/<title>sloopDX editor<\/title>/.test(html) && /<h1>sloop<span class="dx">DX<\/span> editor<\/h1>/.test(html) && /based on SLOOP and Felucca/.test(html) && !/SLOOP Editor/.test(html),
     "editor: sloopDX branding, SLOOP / Felucca credits kept");
   ok(!/#[0-9a-f]{3,6}\b/i.test(html.slice(html.indexOf("[hidden]") - 6000, html.indexOf("[hidden]")).replace(/:root[^}]*\}/g, "")),
     "editor: no colours beyond the black / white tokens in the new styles");

@@ -75,6 +75,9 @@ def main(pkg, version, out):
     (inst / "index.html").write_text(html, encoding="utf-8")
     shutil.copy(pkg, fw / name)
     shutil.copy(HERE / "editor.html", ed / "index.html")
+    for f in ("cheatsheet.html", "sloopdx-spickzettel.pdf", "midi.html"):   # the A4 cheat sheet (and its PDF), the MIDI check
+        if (HERE / f).exists():
+            shutil.copy(HERE / f, out / f)
     for f in ("fukiai.ttf", "FUKIAI-LICENSE.txt"):
         if (HERE / f).exists():
             shutil.copy(HERE / f, ed / f)

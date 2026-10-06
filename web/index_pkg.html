@@ -60,13 +60,14 @@
 </head>
 <body>
 <main>
-  <div class="top"><div class="logo"><!--LOGO--></div><button class="lang" id="lang"></button></div>
+  <div class="top"><div class="logo"><!--LOGO--></div><button class="lang" id="lang" hidden></button></div>
   <div class="strip"><i></i><i></i><i></i><i></i></div>
   <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
   <!--STUDIO_GUIDE-->
   <!--BANNER-->
   <h1>Firmware for the M-VAVE FM-1</h1>
   <p class="lead">SLOOP as a pure DX7 FM synth: four tracks — three synths and a drum machine — one engine, a six-operator DX7 voice (Dexed's msfa core, within 1 LSB of Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, 16 punch-in effects. No factory patterns, nothing to load: everything you hear, you play.</p>
+  <p class="small"><a href="../../cheatsheet.html">Cheat sheet (German, A4)</a> · <a href="../../sloopdx-spickzettel.pdf">PDF</a> · <a href="../editor/">Web editor</a></p>
   <div class="tiles">
     <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, Dexed's sound</span></div>
     <div class="tile" style="--c: var(--green)"><b>17+32</b><span>factory voices + your .syx bank</span></div>
@@ -225,7 +226,7 @@ const TEXT = {
     back: "M-VAVE's own updater, M-UPGRADE (Downloads → PC Software), works too. If it does not find the FM-1, close every other app and browser tab that uses MIDI.",
   },
 };
-let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
+let lang = "en";                                   /* sloopDX: English only (the Japanese strings stay, unused) */
 const t = (k) => TEXT[lang][k];
 let lastKey = null, lastArg = "";
 function applyLang() {

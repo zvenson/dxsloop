@@ -1,0 +1,154 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only  (C) 2026 Sven Trogus
+     sloopDX cheat sheet: one A4 page (print it, or save it as PDF from the browser). German. -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sloopDX Spickzettel</title>
+<style>
+  @page { size: A4 portrait; margin: 9mm; }
+  :root { --cyan: #13b8b8; --blue: #5d9fd0; --pink: #d9748a; --beige: #b08a5c; --led: #e3261c;
+          --ink: #1d1a1b; --dim: #6b6460; --line: #ddd6cf; --tint: #f6f2ee; }
+  * { box-sizing: border-box; }
+  html { background: #8a8380; }
+  body { margin: 0; color: var(--ink); font: 8.4pt/1.32 "Inter", "Helvetica Neue", Arial, sans-serif; }
+  .page { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 9mm; background: #fff; }
+  @media print { html { background: none; } .page { margin: 0; width: auto; min-height: 0; padding: 0; box-shadow: none; } }
+  header { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2.5px solid var(--ink);
+           padding-bottom: 3px; margin-bottom: 5px; }
+  h1 { font-size: 21pt; font-weight: 300; margin: 0; letter-spacing: 0.3px; }
+  h1 b { color: var(--cyan); font-weight: 700; }
+  header .sub { font-size: 8.5pt; color: var(--dim); text-align: right; }
+  .strip { display: flex; height: 3px; margin: 0 0 6px; } .strip i { flex: 1; }
+  .strip i:nth-child(1) { background: #42f5f5; } .strip i:nth-child(2) { background: #afd9f4; }
+  .strip i:nth-child(3) { background: #f4c0cb; } .strip i:nth-child(4) { background: #e6d1b9; }
+  .cols { columns: 2; column-gap: 6mm; }
+  section { break-inside: avoid; margin: 0 0 5px; }
+  h2 { font-size: 8.6pt; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 2px; padding: 1px 0 1px 5px;
+       border-left: 4px solid var(--cyan); }
+  h2.b { border-color: var(--blue); } h2.p { border-color: var(--pink); } h2.e { border-color: var(--beige); } h2.r { border-color: var(--led); }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 1.1px 3px; vertical-align: top; border-bottom: 0.5px solid var(--line); }
+  th { text-align: left; font-weight: 600; color: var(--dim); font-size: 7.4pt; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  kbd { font: 600 7.4pt ui-monospace, Menlo, monospace; background: var(--tint); border: 0.5px solid var(--line);
+        border-radius: 2px; padding: 0 2px; white-space: nowrap; }
+  .k { color: var(--dim); }
+  p { margin: 1px 0 2px; }
+  ol { margin: 1px 0 2px; padding-left: 14px; } li { margin: 0 0 1px; }
+  .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; vertical-align: -1px; margin-right: 2px; }
+  .lanes td { font-weight: 400; text-align: center; padding: 1px 1px; font-size: 7.3pt; }
+  .lanes td b { display: block; font-size: 7pt; color: var(--dim); }
+  .note { background: var(--tint); border-radius: 3px; padding: 3px 5px; margin-top: 2px; }
+  footer { margin-top: 4px; border-top: 0.5px solid var(--line); padding-top: 3px; color: var(--dim); font-size: 7.2pt;
+           display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>sloop<b>DX</b> &nbsp;Spickzettel</h1>
+  <div class="sub">DX7-FM-Synth + FM-Drums für das M-VAVE FM-1<br>Version 1.7 · dx7.designburgapps.com</div>
+</header>
+<div class="strip"><i></i><i></i><i></i><i></i></div>
+
+<div class="cols">
+
+<section>
+  <h2>Die vier Spuren</h2>
+  <p><span class="chip" style="background:#42f5f5"></span>1 &nbsp;<span class="chip" style="background:#afd9f4"></span>2 &nbsp;<span class="chip" style="background:#f4c0cb"></span>3 = DX7-Synths (8 Stimmen gemeinsam) &nbsp;·&nbsp; <span class="chip" style="background:#e6d1b9"></span>4 = Drums (6 eigene Stimmen). Jede Spur hat ihr eigenes Pattern.</p>
+</section>
+
+<section>
+  <h2>Grundbedienung</h2>
+  <table>
+    <tr><td><kbd>ALGORITHM</kbd></td><td>Spur wählen (auf jeder Seite)</td></tr>
+    <tr><td><kbd>PRESETS</kbd></td><td>Sound: 01–17 Werk, 18–49 deine Bank, dann User-Presets · Drums: Kit</td></tr>
+    <tr><td><kbd>SELECT</kbd></td><td>Tempo</td></tr>
+    <tr><td><kbd>KNOB 1–4</kbd></td><td>HOME: BRITE · ATK · REL · FDBK der Stimme (wirkt sofort)</td></tr>
+    <tr><td><kbd>PLAY</kbd></td><td>Start / Stop aller Spuren</td></tr>
+    <tr><td><kbd>REC</kbd></td><td>läuft: sofort aufnehmen · steht: scharf, erster Ton startet · leeres Projekt: frei spielen, REC auf der „1“ schließt die Schleife</td></tr>
+    <tr><td><kbd>REC</kbd> halten</td><td>Spur löschen (Ring füllt sich, ~2 s)</td></tr>
+    <tr><td><kbd>OCT− / OCT+</kbd></td><td>Oktave (beide = 0) · Drums gehalten: Ghost / Hard</td></tr>
+    <tr><td><kbd>HOME</kbd></td><td>TRACKS · halten: Menü (Farbe, Low Cut, Lichter, USB-Audio, About)</td></tr>
+    <tr><td><kbd>EDIT</kbd> + <kbd>OCT−/+</kbd></td><td>Undo / Redo</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2 class="b">Layer: Taste halten</h2>
+  <table>
+    <tr><th>Halten</th><th>Weiße Tasten</th><th>KNOB 1 · 2 · 3 · 4</th></tr>
+    <tr><td><kbd>FX</kbd></td><td>Punch-in-Effekt</td><td>Filter · Dust · Duck</td></tr>
+    <tr><td><kbd>EDIT</kbd></td><td>Sound/Note löschen</td><td>Shift · Länge ×2/½ · Transp.</td></tr>
+    <tr><td><kbd>ARP</kbd></td><td>Note-Repeat (Roll)</td><td>Rate</td></tr>
+    <tr><td><kbd>SEQ</kbd></td><td>Steps 1–16</td><td>Sound/Note · Div · Swing · Länge</td></tr>
+    <tr><td><kbd>SCL</kbd></td><td>Tonart des Songs</td><td>Chord · Scale · Keys · Transp.</td></tr>
+    <tr><td><kbd>GLO</kbd></td><td>1–4 Mute · 5–8 Solo · 16 Tap</td><td>Pegel Spur 1–4</td></tr>
+    <tr><td><kbd>SAVE</kbd></td><td>1–4 Section A–D spielen · 5–8 speichern · 13 Loop/Song · 14 Song-Rec</td><td></td></tr>
+  </table>
+  <p class="k">Layer festhalten: Taste halten + <kbd>HOME</kbd> tippen. Antippen statt halten öffnet die Seiten.</p>
+</section>
+
+<section>
+  <h2 class="p">DX7-Stimme bearbeiten: <kbd>EDIT</kbd> tippen</h2>
+  <table>
+    <tr><td><kbd>SELECT</kbd></td><td>Zeile wählen</td></tr>
+    <tr><td><kbd>ALGORITHM</kbd></td><td>Wert ändern (1. Dreh auf „Algorithm“ zeigt nur das Bild)</td></tr>
+    <tr><td><kbd>EDIT</kbd></td><td>Gruppe öffnen / Aktion (2× tippen)</td></tr>
+    <tr><td><kbd>HOME</kbd></td><td>eine Ebene zurück</td></tr>
+    <tr><td><kbd>PRESETS</kbd></td><td>direkt zum nächsten / vorigen Operator</td></tr>
+    <tr><td><kbd>SAVE</kbd></td><td>Bank speichern (Punkt unten = ungespeichert)</td></tr>
+  </table>
+  <p><b>Liste:</b> Voice · Bank 1–8 · Algorithm 1–32 · Feedback · Osc Sync · Transpose · <b>OP1–OP6 ›</b> · Pitch Env › · LFO › · Name › · Copy To · Init Voice · Store · More Pages ›</p>
+  <p><b>Operator:</b> On · Output Level · Coarse (Ratio) · Fine · Detune · Osc Mode · Rate 1–4 · Level 1–4 · Key Velocity · Amp Mod Sens · Break Point · Left/Right Depth · Left/Right Curve · Rate Scaling</p>
+  <p class="note">Werksstimme ändern = sie wird erst in den ersten freien User-Platz kopiert („COPIED TO U01“). Carrier = Cyan, Modulator = Hellblau im Algorithmus-Bild.</p>
+</section>
+
+<section>
+  <h2 class="p">Klang formen</h2>
+  <table>
+    <tr><td>BRITE</td><td>Pegel der Modulatoren: dumpf ↔ hell</td></tr>
+    <tr><td>ATK · DEC · REL</td><td>langsamer / länger (0 = wie programmiert)</td></tr>
+    <tr><td>FDBK</td><td>Feedback: Sinus → Säge</td></tr>
+    <tr><td><kbd>ENV</kbd>-Seite</td><td>ATK · DEC · REL der Carrier, SUS senkt Sustain (127 = Original)</td></tr>
+    <tr><td>ENV/LFO DEST</td><td>FLT / SHP = Helligkeit, PIT = Tonhöhe, AMP = Lautstärke</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2 class="e">Drums: Spur 4, weiße Tasten</h2>
+  <table class="lanes">
+    <tr><td><b>F3</b>Kick</td><td><b>G3</b>Kick 2</td><td><b>A3</b>Snare</td><td><b>B3</b>Clap</td><td><b>C4</b>Hat</td><td><b>D4</b>Open</td><td><b>E4</b>Pedal</td><td><b>F4</b>Rim</td></tr>
+    <tr><td><b>G4</b>Snare 2</td><td><b>A4</b>Tom L</td><td><b>B4</b>Tom H</td><td><b>C5</b>Crash</td><td><b>D5</b>Ride</td><td><b>E5</b>Shaker</td><td><b>F5</b>Conga</td><td><b>G5</b>Cowbell</td></tr>
+  </table>
+  <p><b>Kits</b> (PRESETS): 1 DX KIT · 2 808 FM · 3 ELECTRO · 4 METAL · 5 USER (erste 16 Stimmen deiner Bank). Schwarze Taste = Sound links daneben. Closed/Pedal-Hat schneidet die Open-Hat ab. <kbd>EDIT</kbd> tippen: Grid / Kit.</p>
+</section>
+
+<section>
+  <h2 class="b">Eigene DX7-Bänke (.syx)</h2>
+  <ol>
+    <li>Chrome / Edge: <b>dx7.designburgapps.com</b> → Editor → <b>Connect</b>.</li>
+    <li>Tab <b>Library</b>: „Bank in use“ 1–8 wählen, .syx (32 Stimmen, 4104 Bytes) ins Feld ziehen.</li>
+    <li>Am Gerät: PRESETS 18–49 oder EDIT → Voice. Bank wechseln: EDIT → Bank.</li>
+  </ol>
+  <p class="k">8 Bänke × 32 = 256 Stimmen im Speicher. Original-DX7-ROMs: yamahablackboxes.com · Sammlungen: bobbyblues.recup.ch</p>
+</section>
+
+<section>
+  <h2 class="r">Speichern &amp; Retten</h2>
+  <table>
+    <tr><td>Projekt</td><td><kbd>SAVE</kbd> tippen → PROJECT: Slot, 2× drehen = Save / Load (4 Slots, Autosave)</td></tr>
+    <tr><td>Sound</td><td><kbd>SAVE</kbd> → USER: 32 User-Presets</td></tr>
+    <tr><td>Backup</td><td>Editor → Projects → Backup (Projekte, Presets, DX7-Bank)</td></tr>
+    <tr><td>Update</td><td>dx7.designburgapps.com → Install (USB direkt, kein Hub)</td></tr>
+    <tr><td>Zurück</td><td>M-UPGRADE + Original-Firmware · Notfall: FM-1-transporter</td></tr>
+  </table>
+</section>
+
+</div>
+<footer><span>sloopDX · GPL-3.0 · basiert auf SLOOP (isod89) und Felucca (Leo Kuroshita) · DX7-Kern: Dexed msfa (Apache-2.0)</span><span>github.com/zvenson/dxsloop</span></footer>
+</div>
+</body>
+</html>

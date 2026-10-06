@@ -438,42 +438,76 @@ _Static_assert(sizeof(persist_t) == PERSIST_SIZE_V22 + 4u, "lights: the last wor
 static persist_t persist_saved;
 #endif
 
-/* the DX7 user bank (eng_dx7.c dx_user, 4096 bytes) as two storage objects of 16 voices: both valid = a bank */
-#if FELUCCA_FLASH
+/* the DX7 user banks: 8 in flash, each two storage objects of 16 voices (both valid = a bank); the one in use is
+ * dx_user (eng_dx7.c), its number in OBJ_DXMETA. Like a DX7's cartridges: switching loads 4 KB */
 #define DX_BANK_HALF (sizeof dx_user / 2u)
-static void dx_bank_boot(void)
+#define DX_META_MAGIC 0x31424458u                 /* "DXB1" */
+#if FELUCCA_FLASH
+static int dx_bank_read(uint32_t k)              /* bank k of flash -> dx_user: 1 a bank, 0 none */
 {
     uint8_t *b = &dx_user[0][0];
-    if (flash_ok && st_load(OBJ_DXBANK0, b, DX_BANK_HALF) == (int)DX_BANK_HALF &&
-        st_load(OBJ_DXBANK0 + 1, b + DX_BANK_HALF, DX_BANK_HALF) == (int)DX_BANK_HALF) {
+    uint32_t o = OBJ_DXBANK0 + 2u * (k % DX_NBANKS);
+    if (flash_ok && st_load(o, b, DX_BANK_HALF) == (int)DX_BANK_HALF &&
+        st_load(o + 1u, b + DX_BANK_HALF, DX_BANK_HALF) == (int)DX_BANK_HALF) {
         dx_user_ok = 1;
         dx_bank_names();
-    } else {
-        dx_bank_clear();
+        return 1;
     }
+    dx_bank_clear();
+    return 0;
+}
+static void dx_bank_boot(void)
+{
+    uint32_t m[2] = {0, 0};
+    dx_bank_cur = 0;
+    if (flash_ok && st_load(OBJ_DXMETA, m, sizeof m) == (int)sizeof m && m[0] == DX_META_MAGIC && m[1] < DX_NBANKS)
+        dx_bank_cur = (uint8_t)m[1];
+    dx_bank_read(dx_bank_cur);
 }
 #endif
-static int dx_bank_store(void)                    /* the bank in RAM -> flash: 0 ok, 2 flash error / no flash */
+static int dx_bank_store(void)                    /* the bank in RAM -> its flash slot: 0 ok, 2 flash error / no flash */
 {
 #if FELUCCA_FLASH
     const uint8_t *b = &dx_user[0][0];
+    uint32_t o = OBJ_DXBANK0 + 2u * dx_bank_cur;
     if (!flash_ok)
         return 2;
-    if (st_save(OBJ_DXBANK0, b, DX_BANK_HALF) || st_save(OBJ_DXBANK0 + 1, b + DX_BANK_HALF, DX_BANK_HALF))
+    if (st_save(o, b, DX_BANK_HALF) || st_save(o + 1u, b + DX_BANK_HALF, DX_BANK_HALF))
         return 2;
     return 0;
 #else
     return 2;
 #endif
 }
-static int dx_bank_erase(void)                    /* no bank, in RAM and in flash: 0 ok, 2 flash error */
+static int dx_bank_erase(void)                    /* no bank in the slot in use, in RAM and in flash: 0 ok, 2 flash error */
 {
     dx_bank_clear();
 #if FELUCCA_FLASH
     if (flash_ok) {
         static const uint8_t none[4] = {0, 0, 0, 0};
-        return st_save(OBJ_DXBANK0, none, 4) || st_save(OBJ_DXBANK0 + 1, none, 4) ? 2 : 0;
+        uint32_t o = OBJ_DXBANK0 + 2u * dx_bank_cur;
+        return st_save(o, none, 4) || st_save(o + 1u, none, 4) ? 2 : 0;
     }
+#endif
+    return 0;
+}
+/* another bank in use (the voice list's Bank row, the editor's BANK_SELECT): U01..U32 play it from now on.
+ * Unstored edits of the bank left are dropped (as switching a DX7's cartridge). 0 ok, 1 no such bank */
+static int dx_bank_select(uint32_t k)
+{
+    if (k >= DX_NBANKS)
+        return 1;
+    if (k == dx_bank_cur)
+        return 0;
+    dx_bank_cur = (uint8_t)k;
+#if FELUCCA_FLASH
+    dx_bank_read(k);
+    if (flash_ok) {
+        uint32_t m[2] = {DX_META_MAGIC, k};
+        st_save(OBJ_DXMETA, m, sizeof m);
+    }
+#else
+    dx_bank_clear();
 #endif
     return 0;
 }

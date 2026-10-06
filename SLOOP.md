@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.6
+# sloopDX 1.7
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.6 (numbered voices everywhere, shorter cymbals; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.7 (8 DX7 banks, 256 voices; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
 ### From SLOOP 2.3
 
@@ -68,11 +68,11 @@ The FM-1 restarts on the sloopDX logo. The editor is at `http://localhost:8766/w
 
 ## Sixty seconds to a beat
 
-1. **ALGORITHM** to track **4** (orange, drums). The white keys play 16 sounds: **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 hat**, D4 open hat… **PRESETS** picks a kit: try *TIGHT* or *BOOM*.
+1. **ALGORITHM** to track **4** (beige, drums). The white keys play 16 sounds: **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 hat**, D4 open hat… **PRESETS** picks a kit: try *808 FM* or *METAL*.
 2. Press **REC**: *rec ready*. **Play a beat freely, at your own tempo** — no click, no count-in. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard ones.
 3. **Press REC on the "1" after your last bar.** The loop closes: its length sets the tempo, the hits snap to the grid, the loop plays at once.
 4. **REC** again while it plays: you record on top (overdub). Hold **ARP** and hold the hat key: a 1/16 hat roll, recorded as ratchets.
-5. Turn **ALGORITHM** to track **1** (blue, *FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song (e.g. D); on track 2 (*EPIANO 1*) hold SCL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
+5. Turn **ALGORITHM** to track **1** (cyan, *FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song (e.g. D); on track 2 (*EPIANO 1*) hold SCL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
 6. Hold **FX** and press a white key for a punch-in effect; still holding FX, turn **KNOB 2** for DUST, **KNOB 3** for DUCK.
 7. Made a mistake? Hold **EDIT** and press **OCT−**: undo.
 
@@ -273,7 +273,8 @@ The top of the list:
 
 | Row | What it is |
 | --- | --- |
-| **Voice** | the voice the track plays: the 17 factory voices, then U01–U32 |
+| **Voice** | the voice the track plays: 01–17 the factory voices, 18–49 U01–U32 of the bank in use |
+| **Bank** | which of the 8 banks U01–U32 come from (1–8); the edits of the bank you leave are stored first |
 | **Algorithm** | 1–32. The first turn only draws the algorithm: six boxes, the carriers in your track colour along the bottom, each modulator above the operator it feeds, feedback as a loop. Turn again to change it |
 | **Feedback** | 0–7 |
 | **Osc Sync** | every operator starts its wave together on each note |
@@ -329,16 +330,16 @@ They act at once, also on notes that are already sounding (as Dexed does): turn 
 | BELLS | bells | | |
 | MARIMBA | marimba | | |
 
-## Your own DX7 bank (.syx)
+## Your own DX7 banks (.syx)
 
-sloopDX loads a standard **DX7 32-voice bulk dump** — a `.syx` file of 4104 bytes, the format every DX7 editor, librarian and the DX7 itself write. The 32 voices appear as **U01–U32** after the factory voices, named as in the bank, and the **USER** drum kit plays the first 16 of them. The header, length and checksum are checked and every parameter is clamped to its DX7 range, so a strange file cannot crash the engine. The bank is kept in flash and is there at the next power-on; one bank at a time.
+sloopDX loads standard **DX7 32-voice bulk dumps** — `.syx` files of 4104 bytes, the format every DX7 editor, librarian and the DX7 itself write. It keeps **8 banks** in flash, 256 voices; one of them is *in use*, like the cartridge in a DX7. Its 32 voices are **U01–U32**, numbered **18–49** after the 17 factory voices and named as in the bank, and the **USER** drum kit plays its first 16. The header, length and checksum are checked and every parameter is clamped to its DX7 range, so a strange file cannot crash the engine. The banks and the one in use stay after power-off.
 
-To load a bank:
+- **Play them:** turn **PRESETS** on HOME past 17: 18 = U01 … 49 = U32, then your user presets. Or EDIT → **Voice**.
+- **Switch banks:** EDIT → **Bank** (1–8) with ALGORITHM. Unstored edits of the bank you leave are stored first.
+- **Load a bank:** in the **web editor**, tab **Library**, pick *Bank in use* 1–8 and drop the `.syx`; or `python3 tools/fm1_bank_upload.py bank.syx --bank 3` (FM-1 on USB; needs `pip3 install mido python-rtmidi`).
+- **Where to find banks:** the original DX7 ROM cartridges at yamahablackboxes.com, hundreds of banks at bobbyblues.recup.ch (*DX7 All The Web*), soundarchive.co. sloopDX ships none of them: you load what you own.
 
-- from the **web editor**, tab **Library**: open or drop the `.syx`; or
-- from the command line: `python3 tools/fm1_bank_upload.py bank.syx` (FM-1 on USB; needs `pip3 install mido python-rtmidi`; the script is being written now).
-
-While a bank uploads, U01–U32 play INIT VOICE and the USER kit plays the DX KIT; when it is accepted they switch over. A bank that fails its checksum is refused and the old one stays empty. Single-voice dumps (163 bytes) are not loaded; put the voice into a 32-voice bank with any DX7 librarian first.
+While a bank uploads, U01–U32 play INIT VOICE and the USER kit plays the DX KIT; when it is accepted they switch over. A bank that fails its checksum is refused and that slot stays empty. DX7II "dump all" files and single-voice dumps (163 bytes) are not banks; a single voice goes in through the editor's **Voice** tab (Import .syx).
 
 ## Drum kits
 

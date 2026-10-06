@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "sloopDX 1.6"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 1.7"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -307,19 +307,17 @@ static void select_engine(uint32_t e)
     ui.force = 1;
 }
 
-/* the factory presets as one list by kind (basses, keys, organs, pads, leads, plucks and bells, stabs,
- * the rest), then the used user presets: the PRESETS knob and the PRESETS page browse it. By name: an
+/* the factory presets as one list (sloopDX: in their numbered order; the kind is a tag), then the used
+ * user presets: the PRESETS knob and the PRESETS page browse it. By name: an
  * engine's preset table may change order; tests/ui_pages_test.c checks every preset is here once */
 enum { BK_BASS, BK_KEYS, BK_ORGAN, BK_PAD, BK_LEAD, BK_PLUCK, BK_STAB, BK_FX };
 static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "PLCK", "STAB", "FX"};
-static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* sloopDX: the DX7 voices */
-    {BK_BASS, 0, "FM BASS"}, {BK_BASS, 0, "SLAP BASS"}, {BK_BASS, 0, "SUB BASS"},
-    {BK_KEYS, 0, "EPIANO 1"}, {BK_KEYS, 0, "EPIANO 2"}, {BK_KEYS, 0, "CLAV"},
-    {BK_ORGAN, 0, "ORGAN"},
-    {BK_PAD, 0, "STRINGS"}, {BK_PAD, 0, "GLASS PAD"},
-    {BK_LEAD, 0, "SAW LEAD"}, {BK_LEAD, 0, "FLUTE"},
-    {BK_PLUCK, 0, "BELLS"}, {BK_PLUCK, 0, "MARIMBA"}, {BK_PLUCK, 0, "PLUCK"}, {BK_PLUCK, 0, "KOTO"},
-    {BK_STAB, 0, "BRASS"},
+static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* sloopDX: the DX7 voices in their
+                                                                         * numbered order 01..17 (no jumps) */
+    {BK_KEYS, 0, "EPIANO 1"}, {BK_KEYS, 0, "EPIANO 2"}, {BK_BASS, 0, "FM BASS"}, {BK_BASS, 0, "SLAP BASS"},
+    {BK_BASS, 0, "SUB BASS"}, {BK_STAB, 0, "BRASS"}, {BK_PAD, 0, "STRINGS"}, {BK_PAD, 0, "GLASS PAD"},
+    {BK_PLUCK, 0, "BELLS"}, {BK_PLUCK, 0, "MARIMBA"}, {BK_ORGAN, 0, "ORGAN"}, {BK_KEYS, 0, "CLAV"},
+    {BK_PLUCK, 0, "PLUCK"}, {BK_LEAD, 0, "FLUTE"}, {BK_LEAD, 0, "SAW LEAD"}, {BK_PLUCK, 0, "KOTO"},
     {BK_FX, 0, "INIT VOICE"},
 };
 #define NBANK (sizeof BANK / sizeof BANK[0])
@@ -337,17 +335,23 @@ static void bank_resolve(void)
     }
     bank_ready = 1;
 }
+/* sloopDX: after the 17 factory presets the list goes on through the 32 voices of the DX7 user bank in use
+ * (18..49, as their VOICE numbers), then the user presets */
+#define NBANKV (dx_user_ok ? DX_NUSER : 0u)
+#define PRESET_BANKV (NENGINES + 1u)                 /* preset_at: a voice of the user bank, *k its slot */
 static uint32_t preset_pos(uint32_t *total)          /* list index of the selected track's preset */
 {
-    uint32_t i, cur = 0;
+    uint32_t i, cur = 0, v = (uint32_t)TSEL->p[P_E0] % DX_NVOICES;
     if (!bank_ready)
         bank_resolve();
     for (i = 0; i < NBANK; i++)
         if (BANK[i].e == TSEL->eng_req && bank_pi[i] == TSEL->preset)
             cur = i;
+    if (v >= DX_NSYNTH && NBANKV)
+        cur = NBANK + (v - DX_NSYNTH);               /* a bank voice is playing */
     if (user_of(TSEL) < UP_SLOTS)
-        cur = NBANK + up_rank(user_of(TSEL));
-    *total = NBANK + up_count();
+        cur = NBANK + NBANKV + up_rank(user_of(TSEL));
+    *total = NBANK + NBANKV + up_count();
     return cur;
 }
 
@@ -356,14 +360,18 @@ static uint32_t preset_at(uint32_t n, uint32_t *k)
 {
     if (!bank_ready)
         bank_resolve();
-    if (n >= NBANK) {
-        *k = up_nth(n - NBANK);
+    if (n >= NBANK + NBANKV) {
+        *k = up_nth(n - NBANK - NBANKV);
         return NENGINES;
+    }
+    if (n >= NBANK) {
+        *k = n - NBANK;
+        return PRESET_BANKV;
     }
     *k = bank_pi[n] == 0xFF ? 0u : bank_pi[n];
     return BANK[n].e;
 }
-static const char *preset_kind(uint32_t n) { return n < NBANK ? BANK_KIND[BANK[n].kind] : "USER"; }
+static const char *preset_kind(uint32_t n) { return n < NBANK ? BANK_KIND[BANK[n].kind] : n < NBANK + NBANKV ? "BANK" : "USER"; }
 
 static void preset_go(uint32_t n)                    /* load list index n into the selected track */
 {
@@ -372,6 +380,19 @@ static void preset_go(uint32_t n)                    /* load list index n into t
         return;                                      /* one GM kit: nothing to browse */
     if (e == NENGINES) {
         up_load(k);
+        return;
+    }
+    if (e == PRESET_BANKV) {                         /* a bank voice: the voice, its knobs as programmed;
+                                                      * the mix, sends and pattern stay */
+        uint32_t i;
+        TSEL->user = 0;
+        for (i = 1; i < 8u; i++)
+            TSEL->p[P_E0 + i] = 0;
+        TSEL->p[P_E0] = (int16_t)(DX_NSYNTH + k);
+        TSEL->p[P_ATK] = TSEL->p[P_DEC] = TSEL->p[P_REL] = 0;
+        TSEL->p[P_SUS] = 127;
+        sync_reload = 1;
+        ui.force = 1;
         return;
     }
     if (e != TSEL->eng_req)

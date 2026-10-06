@@ -8,6 +8,7 @@
  * first change to a factory voice copies it into the first INIT VOICE slot. Values go through
  * dx_user_param_set, so the next note plays them. */
 static int dx_bank_store(void);                          /* project.c: the user bank to flash, 0 ok */
+static int dx_bank_select(uint32_t k);                   /* project.c: another of the 8 banks in use */
 
 /* the DX7's panel: dark warm grey, mint membrane keys, light blue for the operators, salmon and orange for
  * the functions, the red LED, the green LCD */
@@ -21,7 +22,7 @@ static int dx_bank_store(void);                          /* project.c: the user 
 #define DX_LCD RGB(230, 209, 185)
 #define DX_LED RGB(255, 46, 34)
 enum { VL_TOP, VL_OP, VL_PEG, VL_LFO, VL_NAME };
-enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE, VK_OPON };
+enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE, VK_OPON, VK_BANK };
 enum { VF_INT, VF_ONOFF, VF_DET, VF_CURVE, VF_MODE, VF_COARSE, VF_NOTE, VF_TRANS, VF_WAVE, VF_ALG, VF_CHAR, VF_PEG };
 typedef struct {
     const char *name;
@@ -31,6 +32,7 @@ typedef struct {
 
 static const vrow_t VR_TOP[] = {
     {"Voice", VK_VOICE, 0, 0},
+    {"Bank", VK_BANK, 0, 0},                             /* which of the 8 user banks U01..U32 play */
     {"Algorithm", VK_PAR, 134, VF_ALG},
     {"Feedback", VK_PAR, 135, VF_INT},
     {"Osc Sync", VK_PAR, 136, VF_ONOFF},
@@ -250,6 +252,10 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
     case VK_OPON: str_cpy(b, ve_muted(ve.op) ? "OFF" : "ON", 4); return -1;
     case VK_NAME: str_cpy(b, dx_names[ve_voice()], 12); return -1;
     case VK_COPY: ve_slot_label(b, ve.copy); return -1;
+    case VK_BANK:
+        b[0] = (char)('1' + dx_bank_cur);
+        str_cpy(b + 1, dx_user_ok ? "" : " empty", 8);
+        return -1;
     case VK_INIT: case VK_STORE: case VK_MORE: str_cpy(b, ve.arm == r->kind + 1u ? "AGAIN" : ">", 6); return -1;
     default: break;
     }
@@ -400,7 +406,16 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
     }
     if ((s = panel_enc(EN_ALGO)) != 0 && ve.row < n) {    /* the value */
         const vrow_t *r = rows + ve.row;
-        if (r->kind == VK_OPON) {
+        if (r->kind == VK_BANK) {
+            int32_t k = clamp((int32_t)dx_bank_cur + (s > 0 ? 1 : -1), 0, DX_NBANKS - 1);
+            if ((uint32_t)k != dx_bank_cur) {
+                if (ve.dirty && dx_user_ok && !dx_bank_store())   /* (edits of the bank left are kept) */
+                    ve.dirty = 0;
+                dx_bank_select((uint32_t)k);
+                ve.dirty = 0;
+                ui.force = 1;
+            }
+        } else if (r->kind == VK_OPON) {
             ve_mute_toggle(ve.op);
         } else if (r->kind == VK_VOICE) {
             TSEL->p[P_E0] = (int16_t)clamp(TSEL->p[P_E0] + s, 0, DX_NVOICES - 1);
@@ -427,7 +442,7 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
         ve_go(VL_OP, (uint32_t)d);
         ve.row = (uint8_t)row;                            /* (the same row on the next operator) */
         ve.top = (uint8_t)top;
-        ve.row0 = (uint8_t)(5u + (uint32_t)d);            /* HOME comes back to that OP row */
+        ve.row0 = (uint8_t)(6u + (uint32_t)d);            /* HOME comes back to that OP row (VR_TOP: OP1 is row 6) */
         ui.force = 1;
     }
     for (k = 0; k < 4u; k++) {                            /* KNOB 1..4: the voice's quick knobs, as on HOME */

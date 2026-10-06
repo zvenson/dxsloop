@@ -392,6 +392,12 @@ static void graph_browse(void)
         if (e == NENGINES) {                             /* user preset: "U07" and its name */
             up_slot_label(tag, k);
             up_name(k, nm);
+        } else if (e == PRESET_BANKV) {                  /* a voice of the user bank: its VOICE number, 18..49 */
+            str_cpy(tag, "BANK", sizeof tag);
+            nm[0] = (char)('0' + (DX_NSYNTH + k + 1u) / 10u);
+            nm[1] = (char)('0' + (DX_NSYNTH + k + 1u) % 10u);
+            nm[2] = ' ';
+            str_cpy(nm + 3, dx_user_name[k], sizeof nm - 3u);
         } else {                                         /* its kind: BASS, KEYS, PAD... */
             str_cpy(tag, preset_kind(n), sizeof tag);
             nm[0] = (char)('0' + (k + 1u) / 10u);        /* its number: the voice it plays (01..17) */
