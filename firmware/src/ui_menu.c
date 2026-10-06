@@ -1,14 +1,19 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, HARDWARE CALIBRATION, ABOUT. */
+/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, LIGHTS, KEYS, NOTES, USB AUDIO, HARDWARE CALIBRATION, ABOUT. */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_PANEL, MI_ABOUT, MI_BACK, MI_COUNT };
-static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "HARDWARE CALIBRATION", "ABOUT", "BACK"};
+enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_PANEL, MI_ABOUT, MI_BACK, MI_COUNT };
+static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
+                                              "HARDWARE CALIBRATION", "ABOUT", "BACK"};
+static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};   /* every button lit, the labels readable */
+static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};      /* keys lit too, at the LIGHTS level */
+#define MI_DY 18                                   /* rows between two menu lines */
 
 static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
-                            settings.zoom * 104729u;
+                            settings.zoom * 104729u + lights_lvl * 1299709u + lights_keys * 15485863u +
+                            lights_notes * 32452843u + usb_full * 49979687u;
     if (!ui.force && sig == ui.menu_sig)
         return;
     ui.menu_sig = sig;
@@ -44,22 +49,29 @@ static void draw_menu(void)
             cv_text(4, 198, &FONT_S, "SLOOP DX: SVEN TROGUS", C_DIM);
         } else {
             for (i = 0; i < MI_COUNT; i++) {
-                int32_t y = 4 + (int32_t)i * 24;
+                int32_t y = 4 + (int32_t)i * MI_DY;
                 int sel = i == ui.menu_sel;
                 if (sel)
                     cv_rect(4, y + 6, 3, 3, C_WHITE);
                 cv_text(14, y, &FONT_S, MI_NAME[i], sel ? C_WHITE : C_GRAY);
-                if (i == MI_LOWCUT || i == MI_ZOOM)
-                    cv_text(90, y, &FONT_S, (i == MI_LOWCUT ? settings.lowcut : settings.zoom) ? "ON" : "OFF", C_HI);
+                if (i == MI_LOWCUT || i == MI_ZOOM || i == MI_NOTES)
+                    cv_text(100, y, &FONT_S, (i == MI_LOWCUT ? settings.lowcut : i == MI_ZOOM ? settings.zoom : lights_notes)
+                                                ? "ON" : "OFF", C_HI);
+                if (i == MI_LIGHTS)
+                    cv_text(100, y, &FONT_S, LIGHTS_NAME[lights_lvl % LIGHTS_N], C_HI);
+                if (i == MI_USB)                       /* the USB audio input: follows MASTER, or full level */
+                    cv_text(100, y, &FONT_S, usb_full ? "FULL" : "MASTER", C_HI);
+                if (i == MI_KEYS)
+                    cv_text(100, y, &FONT_S, KEYS_NAME[lights_keys % KEYS_N], lights_lvl ? C_HI : C_DIM);   /* (needs LIGHTS) */
                 if (i == MI_COLOR) {
                     uint32_t k;
-                    cv_text(90, y, &FONT_S, PALETTES[settings.palette].name, C_HI);
+                    cv_text(100, y, &FONT_S, PALETTES[settings.palette].name, C_HI);
                     for (k = 0; k < 5u; k++)
                         cv_rect(160 + (int32_t)k * 14, y + 3, 10, 10, pal[k]);
                 }
             }
-            cv_text(4, 170, &FONT_S, "PRESETS MOVE", C_DIM);
-            cv_text(4, 188, &FONT_S, "OCT+ OK   OCT- BACK", C_DIM);
+            cv_text(4, 4 + MI_COUNT * MI_DY + 4, &FONT_S, "PRESETS MOVE  KNOB 1 SET", C_DIM);
+            cv_text(4, 4 + MI_COUNT * MI_DY + 18, &FONT_S, "OCT+ OK   OCT- BACK", C_DIM);
         }
         cv_oy = 0;
         cv_blit(0, H_HEAD + 1 + pass * 124u);
@@ -108,6 +120,28 @@ static void menu_input(uint32_t pressed)
         uint32_t *v = ui.menu_sel == MI_LOWCUT ? &settings.lowcut : &settings.zoom;
         *v = s > 0 ? 1u : s < 0 ? 0u : !*v;
         fx_lowcut = (uint8_t)(settings.lowcut != 0);
+        ok = 0;
+    }
+    if ((s != 0 || ok) && ui.menu == 1 && ui.menu_sel == MI_USB) {     /* right FULL, left MASTER; OCT+ toggles */
+        usb_full = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !usb_full);
+        ok = 0;
+    }
+    if ((s != 0 || ok) && ui.menu == 1 && ui.menu_sel == MI_NOTES) {   /* (the same: right ON, left OFF) */
+        lights_notes = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !lights_notes);
+        ok = 0;
+    }
+    if ((s != 0 || ok) && ui.menu == 1 && (ui.menu_sel == MI_LIGHTS || ui.menu_sel == MI_KEYS)) {
+        /* KNOB 1: brighter / dimmer (stops at the ends); OCT+ steps round */
+        uint8_t *v = ui.menu_sel == MI_LIGHTS ? &lights_lvl : &lights_keys;
+        uint32_t n = ui.menu_sel == MI_LIGHTS ? LIGHTS_N : KEYS_N;
+        if (s > 0 && *v + 1u < n)
+            (*v)++;
+        else if (s < 0 && *v > 0u)
+            (*v)--;
+        else if (!s)
+            *v = (uint8_t)((*v + 1u) % n);
+        if (ui.menu_sel == MI_KEYS && lights_keys && !lights_lvl)
+            lights_lvl = LIGHTS_LOW;                   /* keys lit need a level: the lowest */
         ok = 0;
     }
     if (ok && ui.menu == 1) {

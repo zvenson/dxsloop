@@ -287,6 +287,13 @@
     <h2 data-t="projects" data-ic="symbol_folder"></h2>
     <p class="dim" data-t="projHelp"></p>
     <div class="slots" id="slots"></div>
+    <div class="group" id="bkgroup" style="margin-top:16px" hidden>
+      <h2 data-t="bkTitle" data-ic="port_disk"></h2>
+      <p class="dim" data-t="bkHelp"></p>
+      <p><button id="bk-save" data-t="bkSave"></button> <button id="bk-load" data-t="bkLoad"></button>
+        <input id="bk-file" type="file" accept=".json,application/json" hidden></p>
+      <progress id="bk-prog" max="1" value="0" hidden></progress>
+    </div>
   </section>
 
   <section class="panel" id="p-settings" data-tab="settings" data-dev hidden>
@@ -313,7 +320,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   TRACK: 27, TRACK_MIX: 28, TRACK_DUMP: 29, TRACK_STEP: 30,
   TRACK_PARAM: 31, TRACK_CHANGED: 32,
   DRUM_STEP: 33,
-  BANK_BEGIN: 34, BANK_WRITE: 35, BANK_END: 36, BANK_INFO: 37, BANK_ERASE: 38 };
+  BK_LIST: 34, BK_GET: 35, BK_PUT: 36,              /* v6: backup / restore (SLOOP 2.3) */
+  BANK_BEGIN: 37, BANK_WRITE: 38, BANK_END: 39, BANK_INFO: 40, BANK_ERASE: 41 };   /* v7: the DX7 user bank (sloopDX) */
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -446,6 +454,17 @@ const parse = {
     const r = new Reader(a);
     return stepExt(r, a, { track: r.b(), index: r.b(), n: r.b(), notes: [r.b(), r.b(), r.b(), r.b()], time: r.b(), flags: r.b(), vel: r.b() });
   },
+  /* v6: backup. LIST: rc, then per object id, length, CRC-32 (5 x 7 bit each) */
+  [CMD.BK_LIST](a) {
+    const r = new Reader(a), rc = r.b(), n = r.b(), items = [];
+    for (let i = 0; i < n; i++) items.push({ id: r.b(), len: u35dec(r), crc: u35dec(r) >>> 0 });
+    return { rc, items };
+  },
+  [CMD.BK_GET](a) {
+    const r = new Reader(a), id = r.b(), rc = r.b(), off = u35dec(r), count = r.b() | (r.b() << 7);
+    return { id, rc, off, count, data: unpack7(a.slice(r.i)) };
+  },
+  [CMD.BK_PUT](a) { const r = new Reader(a); return { op: r.b(), id: r.b(), rc: r.b() }; },
   /* v5: the drum track's step: the lanes on (16 bits), their levels and ratchets (2 bits each) */
   [CMD.DRUM_STEP](a) {
     const r = new Reader(a);
@@ -522,7 +541,14 @@ const req = {
   trackStep: (tr, i, st) => [CMD.TRACK_STEP, st ? [tr & 0x7F, ...req.stepSet(i, st)[1]] : [tr & 0x7F, i & 0x7F]],
   /* v4: get (v == null) or set parameter id (P_*) of track tr, clamped as SET */
   trackParam: (tr, id, v) => [CMD.TRACK_PARAM, v == null ? [tr & 0x7F, id & 0x7F] : [tr & 0x7F, id & 0x7F, ...v14enc(v)]],
-  /* v6: the DX7 user bank. bytes: 1..512 voice bytes of the dump (7 bit, as they are) at offset 0..4095 */
+  /* v6: backup / restore */
+  bkList: () => [CMD.BK_LIST, []],
+  bkGet: (id, off, n) => [CMD.BK_GET, [id & 0x7F, ...u35enc(off), n & 0x7F, (n >> 7) & 0x7F]],
+  bkBegin: (id, len, crc) => [CMD.BK_PUT, [0, id & 0x7F, ...u35enc(len), ...u35enc(crc)]],
+  bkData: (id, off, bytes) => [CMD.BK_PUT, [1, id & 0x7F, ...u35enc(off), ...pack7(bytes)]],
+  bkCommit: (id) => [CMD.BK_PUT, [2, id & 0x7F]],
+  bkAbort: (id) => [CMD.BK_PUT, [3, id & 0x7F]],
+  /* v7: the DX7 user bank. bytes: 1..512 voice bytes of the dump (7 bit, as they are) at offset 0..4095 */
   bankBegin: () => [CMD.BANK_BEGIN, []],
   bankWrite: (off, bytes) => [CMD.BANK_WRITE, [off & 0x7F, (off >> 7) & 0x7F, ...Array.from(bytes, (x) => x & 0x7F)]],
   bankEnd: (checksum) => [CMD.BANK_END, [checksum & 0x7F]],
@@ -582,6 +608,8 @@ function replyMatches(cmd, args, a) {
     case CMD.TRACK_MIX: case CMD.TRACK_DUMP: case CMD.DRUM_STEP: return a[0] === args[0];
     case CMD.WATCH: return (a[0] & 1) === (args[0] & 1);   /* bit 1: v4 firmware only */
     case CMD.TRACK_STEP: case CMD.TRACK_PARAM: return a[0] === args[0] && a[1] === args[1];
+    case CMD.BK_GET: return a[0] === args[0] && [0, 1, 2, 3, 4].every((k) => a[2 + k] === args[1 + k]);
+    case CMD.BK_PUT: return a[0] === args[0] && a[1] === args[1];
     default: return true;
   }
 }
@@ -721,6 +749,33 @@ function fmtValue(d, v) {
     default: return [String(v), d.unit || ""];
   }
 }
+
+/* ------------------------------------------------- 7-bit packing, CRC-32 (backup) --- */
+/* groups of up to 7 bytes, each preceded by their top bits */
+function pack7(b) {
+  const out = [];
+  for (let i = 0; i < b.length; i += 7) {
+    const g = Array.from(b.slice(i, i + 7));
+    out.push(g.reduce((m, x, j) => m | (((x >> 7) & 1) << j), 0));
+    for (const x of g) out.push(x & 0x7F);
+  }
+  return out;
+}
+function unpack7(a) {
+  const out = [];
+  for (let i = 0; i < a.length; i += 8) {
+    const top = a[i];
+    for (let j = 0; j < 7 && i + 1 + j < a.length; j++) out.push(a[i + 1 + j] | (((top >> j) & 1) << 7));
+  }
+  return Uint8Array.from(out);
+}
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
 
 /* -------------------------------------------------------------- librarian --- */
 /* A patch (library entry, user preset):
@@ -895,6 +950,92 @@ const dxbank = {
 };
 
 /* the current sound: DUMP + the first 16 steps */
+/* ---- v6: the complete backup (projects, sections, user presets, the DX7 bank, settings) ---- */
+function u35enc(v) { v >>>= 0; return [0, 1, 2, 3, 4].map((k) => Math.floor(v / 2 ** (7 * k)) & 0x7F); }
+function u35dec(r) { let v = 0; for (let k = 0; k < 5; k++) v += r.b() * 2 ** (7 * k); return v >>> 0; }
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function b64enc(b) {
+  let s = "";
+  for (let i = 0; i < b.length; i += 3) {
+    const n = (b[i] << 16) | ((b[i + 1] || 0) << 8) | (b[i + 2] || 0);
+    s += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + (i + 1 < b.length ? B64[(n >> 6) & 63] : "=") + (i + 2 < b.length ? B64[n & 63] : "=");
+  }
+  return s;
+}
+function b64dec(s) {
+  s = String(s).replace(/[^A-Za-z0-9+/]/g, "");
+  const out = new Uint8Array((s.length * 3) >> 2);
+  let o = 0, acc = 0, bits = 0;
+  for (const c of s) {
+    acc = ((acc << 6) | B64.indexOf(c)) & 0xFFFFFF;
+    bits += 6;
+    if (bits >= 8) { bits -= 8; out[o++] = (acc >> bits) & 255; }
+  }
+  return out.subarray(0, o);
+}
+/* object ids (firmware editor.c ED_BK_IDS): 0 the working project, 1 the settings, 2..5 projects A..D,
+   6..7 the user preset banks, 8 the DX7 user bank (sloopDX; 4096 voice bytes, 0 = none). SLOOP 2.3 has its
+   USR1..3 slots as 32..34 instead: sloopDX has nowhere to put them, so a SLOOP backup restores without them */
+const BK = { FORMAT: "sloop-backup", VERSION: 1, RESTORE: [6, 7, 8, 2, 3, 4, 5, 0, 1], SKIP: [32, 33, 34] };
+class BackupError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
+/* read everything; progress(done, total bytes) */
+async function backupCapture(rq, info, progress = () => {}) {
+  const L = parse[CMD.BK_LIST](await rq(req.bkList(), { timeout: 5000, retries: 0 }));
+  if (L.rc) throw new BackupError("bkRc" + L.rc, `LIST rc ${L.rc}`);
+  const total = L.items.reduce((s, it) => s + it.len, 0), objects = [];
+  let done = 0;
+  for (const it of L.items) {
+    const data = new Uint8Array(it.len);
+    for (let off = 0; off < it.len; off += 256) {
+      const n = Math.min(256, it.len - off);
+      const g = parse[CMD.BK_GET](await rq(req.bkGet(it.id, off, n), { timeout: 1500, retries: 2 }));
+      if (g.rc) throw new BackupError(g.rc === 5 ? "bkStale" : "bkRead", `GET ${it.id}+${off} rc ${g.rc}`);
+      if (g.data.length !== n) throw new BackupError("bkRead", `GET ${it.id}+${off}: ${g.data.length} bytes`);
+      data.set(g.data, off);
+      done += n;
+      progress(done, total);
+    }
+    if (crc32(data) !== it.crc) throw new BackupError("bkStale", `object ${it.id}: CRC`);
+    objects.push({ id: it.id, len: it.len, crc: it.crc, data: b64enc(data) });
+  }
+  return { format: BK.FORMAT, version: BK.VERSION, firmware: info.version, date: new Date().toISOString(), objects };
+}
+/* a backup file -> {id: Uint8Array}; every object checked against its length and CRC */
+function backupObjects(file) {
+  if (!file || file.format !== BK.FORMAT || !(file.version >= 1) || !Array.isArray(file.objects)) throw new BackupError("bkBad", "not a SLOOP / sloopDX backup");
+  const m = new Map();
+  for (const o of file.objects) {
+    const d = b64dec(o.data || "");
+    if (![...BK.RESTORE, ...BK.SKIP].includes(o.id) || d.length !== o.len || crc32(d) !== (o.crc >>> 0))
+      throw new BackupError("bkBad", `object ${o.id}: damaged`);
+    if (!BK.SKIP.includes(o.id)) m.set(o.id, d);
+  }
+  if (!m.has(0) || !m.has(1)) throw new BackupError("bkBad", "incomplete backup");
+  return m;
+}
+/* write it back: the preset banks, the DX7 bank, the projects, the working project, the settings */
+async function backupRestore(rq, file, progress = () => {}) {
+  const m = backupObjects(file);
+  const total = [...m.values()].reduce((s, d) => s + d.length, 0) || 1;
+  let done = 0;
+  for (const id of BK.RESTORE) {
+    if (!m.has(id)) continue;
+    const d = m.get(id);
+    let r = parse[CMD.BK_PUT](await rq(req.bkBegin(id, d.length, crc32(d)), { timeout: 1500, retries: 1 }));
+    if (r.rc) throw new BackupError("bkWrite", `begin ${id} rc ${r.rc}`);
+    for (let off = 0; off < d.length; off += 256) {
+      r = parse[CMD.BK_PUT](await rq(req.bkData(id, off, d.subarray(off, off + 256)), { timeout: 1500, retries: 1 }));
+      if (r.rc) throw new BackupError("bkWrite", `data ${id}+${off} rc ${r.rc}`);
+      done += Math.min(256, d.length - off);
+      progress(done, total);
+    }
+    r = parse[CMD.BK_PUT](await rq(req.bkCommit(id), { timeout: 5000, retries: 0 }));
+    if (r.rc === 3) throw new BackupError("bkStop", "stop the song first");
+    if (r.rc) throw new BackupError("bkWrite", `commit ${id} rc ${r.rc}`);
+  }
+  return true;
+}
+
 async function capturePatch(rq, info, name) {
   const dump = parse[CMD.DUMP](await rq(req.dump()), info);
   const steps = [];
@@ -987,7 +1128,7 @@ function makeMockDevice(opt = {}) {
     D("BPM", F.BPM, 40, 240, 90), D("SWING", F.SWING, 0, 100, 0), E("CLICK", ["OFF", "REC", "ON"], 0), D("TUNE", F.INT, -50, 50, 0),
     E("TIME", NDIV, 1), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
-    E("MIDI", NDASH, 0), E("SYNC", NDASH, 0), E("ROUT", NDASH, 0), D("CPU", F.INT, 0, 0, 0),
+    E("MIDI", NDASH, 0), E("SYNC", ["INT", "USB", "TRS"], 0), E("ROUT", NDASH, 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
     E("ENG", ["DX7"], 0), E("SET", NGO, 0),
     E("CLRSQ", NGO, 0), E("INIT", NGO, 0),
@@ -1077,6 +1218,8 @@ function makeMockDevice(opt = {}) {
     slots: [null, null, null, null],
     dx: { data: null, pending: null },               /* the DX7 user bank (4096 voice bytes) and an upload in progress */
     bank: new Array(opt.slots || 32).fill(null),     /* user presets: {engine, name, p, pattern} */
+    settings: Uint8Array.from({ length: 88 }, (_, i) => (i * 37 + 5) & 0xFF),   /* v6: the settings object (opaque here) */
+    bkSnap: null, bkPut: null,
     watch: false, v4: false, lastReq: 0,
   };
   for (const k of ["engine", "preset", "p", "step"]) {
@@ -1150,6 +1293,7 @@ function makeMockDevice(opt = {}) {
     const b = (x) => out.push(x & 0x7F), v = (x) => out.push(...v14enc(x)), s = (x) => out.push(...strEnc(x));
     if (opt.legacy && cmd >= CMD.UP_LIST) return null;
     if (opt.v3 && cmd >= CMD.TRACK_PARAM) return null;
+    if ((opt.noBackup || opt.sloop23) && cmd >= CMD.BANK_BEGIN) return null;   /* SLOOP firmware: no DX7 bank */
     const NB = st.bank.length;
     switch (cmd) {
       case CMD.UP_LIST: {
@@ -1224,7 +1368,7 @@ function makeMockDevice(opt = {}) {
         s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(6);                               /* v6: the protocol version (sloopDX: the DX7 user bank) */
+        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : 7);   /* the protocol version: 6 backup (SLOOP 2.3), 7 the DX7 bank (sloopDX) */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1374,6 +1518,54 @@ function makeMockDevice(opt = {}) {
         st.dx.data = null; st.dx.pending = null;
         dxNames();
         b(0);
+      /* v6 backup: the mock's objects are JSON bytes (projects, banks), the settings and the raw DX7 bank (8) */
+      case CMD.BK_LIST: {
+        if (opt.noBackup) return null;
+        const enc = (o) => Uint8Array.from(Array.from(JSON.stringify(o), (c) => c.charCodeAt(0) & 0x7F));
+        const bankOf = (h) => { const x = st.bank.slice(h * 16, h * 16 + 16); return x.some(Boolean) ? enc(x) : new Uint8Array(0); };
+        st.bkSnap = new Map([[0, enc(project())], [1, st.settings.slice()], ...[0, 1, 2, 3].map((k) => [2 + k, st.slots[k] ? enc(st.slots[k]) : new Uint8Array(0)]),
+          [6, bankOf(0)], [7, bankOf(1)], [8, st.dx.data ? st.dx.data.slice() : new Uint8Array(0)]]);
+        st.bkPut = null;
+        b(0); b(st.bkSnap.size);
+        for (const [id, d] of st.bkSnap) { b(id); out.push(...u35enc(d.length), ...u35enc(crc32(d))); }
+        break;
+      }
+      case CMD.BK_GET: {
+        if (opt.noBackup || a.length !== 8) return null;
+        const r = new Reader(a), id = r.b(), off = u35dec(r), n = r.b() | (r.b() << 7);
+        const d = st.bkSnap && st.bkSnap.get(id);
+        const rc = !d || !n || n > 256 || off + n > d.length ? 1 : st.bkPut && id === 0 ? 5 : 0;
+        b(id); b(rc); out.push(...u35enc(off)); b(rc ? 0 : n); b(rc ? 0 : n >> 7);
+        if (!rc) out.push(...pack7(d.subarray(off, off + n)));
+        break;
+      }
+      case CMD.BK_PUT: {
+        if (opt.noBackup || a.length < 2) return null;
+        const op = a[0], id = a[1], r = new Reader(a.slice(2));
+        let rc = 1;
+        if (op === 0 && a.length === 12 && [0, 1, 2, 3, 4, 5, 6, 7, 8].includes(id)) {
+          const len = u35dec(r), crc = u35dec(r);
+          if ((id >= 2 || len) && len <= 1 << 20) { st.bkPut = { id, len, crc, pos: 0, buf: new Uint8Array(len) }; st.bkSnap = null; rc = 0; }
+        } else if (!st.bkPut || st.bkPut.id !== id) rc = 5;
+        else if (op === 1 && a.length >= 9) {
+          const off = u35dec(r), d = unpack7(a.slice(7));
+          if (off === st.bkPut.pos && d.length && d.length <= st.bkPut.len - off) { st.bkPut.buf.set(d, off); st.bkPut.pos += d.length; rc = 0; }
+        } else if (op === 2) {
+          const P = st.bkPut;
+          st.bkPut = null;
+          rc = P.pos !== P.len || crc32(P.buf) !== P.crc ? 2 : 0;
+          if (!rc) try {
+            const js = () => JSON.parse(Array.from(P.buf, (c) => String.fromCharCode(c)).join(""));
+            if (id === 1) { if (P.len !== st.settings.length) throw 0; st.settings = P.buf.slice(); }
+            else if (id === 0) { const o = js(); st.tracks = o.tracks; st.sel = o.sel; st.g = o.g; }
+            else if (id <= 5) st.slots[id - 2] = P.len ? js() : null;
+            else if (id <= 7) { const x = P.len ? js() : new Array(16).fill(null); for (let i = 0; i < 16; i++) st.bank[(id - 6) * 16 + i] = x[i] || null; }
+            else { if (P.len && P.len !== DX7.DATA_LEN) throw 0; st.dx.data = P.len ? P.buf.slice() : null; st.dx.pending = null; dxNames(); }
+          } catch (e) { rc = 2; }
+        } else if (op === 3) { st.bkPut = null; rc = 0; }
+        b(op); b(id); b(rc);
+        break;
+      }
         break;
       default:
         return null;
@@ -1594,6 +1786,11 @@ const TEXT = {
     mixer: "ミキサー", mixHelp: "本体の TRACKS ページと同じ 4 トラック。フェーダーはレベル（ドラムは GLO > DRUMS LEVEL）。パンはどのトラックも選択を変えずに書き込みます（0.8 のファームウェアでは一瞬そのトラックを選びます）。REC は本体での録音待機の表示です。",
     level: "レベル", pan: "パン", mute: "ミュート", rec: "REC", selectTrack: "選択", selectedTrack: "選択中",
     projHelp: "プロジェクトは本体の状態をまとめて保存します: 4 トラックの音色とパターン、選択中のトラック、グローバル設定。",
+    bkTitle: "バックアップ", bkHelp: "FM-1 の中身をすべて 1 つのファイルに保存します: 今の曲、プロジェクト 1〜4（ソングのセクション A〜D）、ユーザープリセット、DX7 ユーザーバンク、設定（色、キャリブレーション、ソング、ライト）。復元すると、本体はファイルの状態に戻ります（今の内容は上書きされます）。",
+    bkSave: "バックアップを保存", bkLoad: "ファイルから復元", bkSaving: "バックアップ中 ", bkSaved: "バックアップを保存しました",
+    bkRestoring: "復元中 ", bkRestored: "復元しました", bkConfirm: "FM-1 の今の内容をすべてこのバックアップで置き換えます。続けますか？",
+    bkBad: "SLOOP / sloopDX のバックアップファイルではないか、壊れています: ", bkStop: "FM-1 の再生を止めてから、もう一度復元してください。",
+    bkStale: "本体の内容が途中で変わりました。もう一度バックアップしてください: ", bkRead: "読み取りエラー: ", bkWrite: "書き込みエラー: ", bkRc4: "フラッシュがありません",
     system: "システム", firmware: "ファームウェア", sync: "同期", tracksN: "トラック", stepsN: "ステップ数", enginesL: "エンジン",
     dxBankL: "DX7 バンク", userBank: "ユーザープリセット", none: "なし",
   },
@@ -1660,6 +1857,11 @@ const TEXT = {
     mixer: "Mixer", mixHelp: "The four tracks of the device's TRACKS page. The fader is the level (drums: GLO > DRUMS LEVEL). Pan is written to any track without changing the selection (firmware 0.8: by selecting it for a moment). REC shows a track armed for live recording on the device.",
     level: "Level", pan: "Pan", mute: "Mute", rec: "REC", selectTrack: "Select", selectedTrack: "Selected",
     projHelp: "A project keeps the whole device state: the sound and pattern of all four tracks, the selected track and the global settings.",
+    bkTitle: "Backup", bkHelp: "Everything on the FM-1 in one file: the music you are working on, the projects 1–4 (the song sections A–D), the user presets, the DX7 user bank and the settings (colours, calibration, the song, the lights). Restoring puts the FM-1 back as it was in the file (what is on it now is replaced).",
+    bkSave: "Save a backup", bkLoad: "Restore from a file", bkSaving: "Backing up ", bkSaved: "Backup saved",
+    bkRestoring: "Restoring ", bkRestored: "Restored", bkConfirm: "Replace everything on the FM-1 with this backup?",
+    bkBad: "Not a SLOOP / sloopDX backup, or damaged: ", bkStop: "Stop the FM-1 (PLAY), then restore again.",
+    bkStale: "The FM-1 changed during the backup; back up again: ", bkRead: "Read error: ", bkWrite: "Write error: ", bkRc4: "No flash",
     system: "System", firmware: "Firmware", sync: "Sync", tracksN: "Tracks", stepsN: "Steps", enginesL: "Engines",
     dxBankL: "DX7 bank", userBank: "User presets", none: "none",
   },
@@ -1905,9 +2107,9 @@ async function load(d) {
       try { d.slotUsed[k] = parse[CMD.PROJECT](await d.link.request(req.project(2, k))).used; }
       catch (e) { if (e.message === "closed") throw e; }
     }
-    /* v6: the DX7 user bank (its names); older firmware: none */
+    /* v7: the DX7 user bank (its names); SLOOP / older firmware: none */
     d.dxbank = null;
-    if (d.info.proto >= 6) {
+    if (d.info.proto >= 7) {
       try { d.dxbank = await dxbank.info((r, o) => d.link.request(r, { ...o, quiet: true })); }
       catch (e) { if (e.message === "closed") throw e; }
     }
@@ -1969,6 +2171,7 @@ function buildUI() {
   updateBrowser();
   renderSlots();
   renderSysinfo();
+  $("bkgroup").hidden = !(dev.info.proto >= 6);       /* v6 firmware: backup / restore */
 }
 
 /* the track selector (v3): T1..T3 synth parts, T4 the drum track; the editor shows the selected one */
@@ -3145,6 +3348,44 @@ function download(name, obj) {
 }
 const fileSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "patch";
 const today = () => new Date().toISOString().slice(0, 10);
+/* v6: backup / restore (the work: backupCapture / backupRestore above) */
+function bkProgress(key) {
+  const pr = $("bk-prog");
+  pr.hidden = false;
+  return (d, n) => { pr.value = d / n; sayK(key, `${Math.round(100 * d / n)} %`); };
+}
+function bkReport(e) {
+  if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.code === "bkStop" ? "" : e.message);
+  else report(e);
+}
+$("bk-save").addEventListener("click", () => op(async () => {
+  try {
+    const arc = await backupCapture(rq, dev.info, bkProgress("bkSaving"));
+    download(`sloopDX-backup-${today()}.json`, arc);
+    sayK("bkSaved");
+  } catch (e) { bkReport(e); } finally { $("bk-prog").hidden = true; }
+}));
+$("bk-load").addEventListener("click", () => { if (dev) $("bk-file").click(); });
+$("bk-file").addEventListener("change", async () => {
+  const f = $("bk-file").files[0];
+  $("bk-file").value = "";
+  if (!f || !dev) return;
+  let file;
+  try { file = JSON.parse(await f.text()); backupObjects(file); }
+  catch (e) { sayK("bkBad", e.message); return; }
+  if (!confirm(t("bkConfirm"))) return;
+  await op(async () => {
+    try {
+      selfLoad();
+      await backupRestore(rq, file, bkProgress("bkRestoring"));
+      dev.slotUsed = [null, null, null, null];
+      renderSlots();
+      if (dev.dxbank) try { dev.dxbank = await dxbank.info(rq); renderDxBank(); } catch (e) { /* shown by the next action */ }
+      await afterSoundChange("bkRestored");
+    } catch (e) { bkReport(e); } finally { $("bk-prog").hidden = true; }
+  });
+});
+
 $("libexp1").addEventListener("click", () => {
   const p = lib.find((x) => x.id === libSel);
   if (p) download(`felucca-patch-${fileSlug(p.name)}.json`, libraryFile("patch", [p], libCtx()));
@@ -3238,7 +3479,7 @@ $("bkexport").addEventListener("click", () => libOp(async () => {
 }));
 
 /* ------------------------------------------------------ DX7 user bank (v6) --- */
-/* dev.dxbank = BANK_INFO ({ok, names[32]}), null when the firmware has no bank (protocol < 6). An upload is
+/* dev.dxbank = BANK_INFO ({ok, names[32]}), null when the firmware has no bank (protocol < 7). An upload is
    checked here first (dx7CheckSyx), then BANK_BEGIN, 8 x BANK_WRITE, BANK_END; the VOICE enum is read again. */
 const DX_ERR = { length: "dxBadLen", header: "dxBadHdr", byte: "dxBadByte", checksum: "dxBadSum" };
 function renderDxBank() {

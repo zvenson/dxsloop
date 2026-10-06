@@ -3,9 +3,57 @@
 <p align="center"><b>SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.</b><br>
 Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/sloop-fm1">SLOOP</a>, which is based on <a href="https://github.com/hugelton/Felucca">Felucca</a>. Not affiliated with either.</p>
 
+<p align="center">
+<a href="https://zvenson.github.io/dxsloop/"><b>Install from the browser</b></a> ·
+<a href="SLOOP.md">Manual</a> ·
+<a href="DEMARRAGE-RAPIDE-FR.md">Guide en français</a> ·
+<a href="https://zvenson.github.io/dxsloop/webapp/editor/">Web editor</a> ·
+<a href="../../releases">Releases</a> ·
+<a href="../../issues">Report a bug</a>
+</p>
+
 ---
 
-sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects. The sample engines, sample sets and the other eight engines are gone.
+sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
+
+> **Status:** 1.0, based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+
+## Contents
+
+1. [From SLOOP 2.3](#from-sloop-23)
+2. [Screens](#screens)
+3. [What it does](#what-it-does)
+4. [Status](#status)
+5. [Install](#install)
+6. [Your first beat in 60 seconds](#your-first-beat-in-60-seconds)
+7. [The controls](#the-controls)
+8. [The menu: settings of the FM-1](#the-menu-settings-of-the-fm-1)
+9. [MIDI and USB audio](#midi-and-usb-audio)
+10. [The web editor](#the-web-editor)
+11. [Compatibility](#compatibility)
+12. [Troubleshooting](#troubleshooting)
+13. [Specifications](#specifications)
+14. [Documentation](#documentation)
+15. [Building and tests](#building-and-tests)
+16. [Contributing](#contributing)
+17. [Credits and thanks](#credits-and-thanks)
+18. [Licence](#licence)
+
+---
+
+## From SLOOP 2.3
+
+sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has been tried on a device in sloopDX yet.
+
+| | |
+| --- | --- |
+| **USB audio** | On USB the FM-1 is also an audio input (*Felucca*, 44.1 kHz stereo, no driver): record it in your DAW or Audacity over the same cable. Its level follows the MASTER knob, or stays at a fixed full level (HOME menu → **USB AUDIO**). From Felucca 1.0. |
+| **MIDI keyboard on the jack** | The 3.5 mm TRS MIDI IN works: a keyboard or a pad controller through a TRS-to-DIN adapter. Channels 1–3 the synths, 10 the drums, 4–16 the selected track. No note left hanging. |
+| **MIDI clock in** | GLO → SYSTEM → **SYNC** = USB or TRS: sloopDX follows a DAW or a drum machine — tempo, START, CONTINUE, STOP — pulse by pulse, with no drift. |
+| **Record your way** | The REC screen has three dials: **mode** (*free*: the tempo follows your playing, or *tempo*: the tempo you set), **length** (1, 2 or 4 bars), **start** (your first note, or a one-bar **count-in** after PLAY). |
+| **Lights for playing in the dark** | HOME menu: **LIGHTS** (every button glows, LOW / MID / HIGH), **KEYS** (the C keys or every white key), **NOTES** (the notes playing light their keys, by @renebohne). |
+| **Backup and restore** | The web editor saves everything on the FM-1 in one file — the music in progress, projects, user presets, settings and, on sloopDX, your DX7 bank — and puts it all back. |
+| **Steadier** | Knobs that answer every click; no dropped notes over USB MIDI; one voice fades on overload, never the bass or the lead; keys a millisecond faster; no stuck note after a VOICE change; stricter checks of what is read back from flash. |
 
 ## Screens
 
@@ -17,7 +65,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 - **DX7 engine:** 6 operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch.
 - **17 factory voices** in the DX7 tradition (designed here, not copied): EPIANO 1 and 2, FM BASS, SLAP BASS, SUB BASS, BRASS, STRINGS, GLASS PAD, BELLS, MARIMBA, ORGAN, CLAV, PLUCK, FLUTE, SAW LEAD, KOTO and INIT VOICE.
-- **Your own DX7 banks:** a standard 32-voice bulk dump (.syx, 4104 bytes) loads as U01–U32. The checksum is verified and every value is clamped to its range.
+- **Your own DX7 banks:** a standard 32-voice bulk dump (.syx, 4104 bytes) loads as U01–U32, from the web editor's Library tab or with `tools/fm1_bank_upload.py`. The checksum is verified and every value is clamped to its range. The bank stays in flash.
 - **Macro knobs per voice:** BRITE (modulator levels), ATK, DEC and REL (the operator rates), FDBK.
 - **Three synth parts plus a drum track**, sharing an 8-voice budget. Each part plays the whole keyboard (no split), and each track has its own pattern length.
 - **FM drums:** 16 lanes on the white keys (kick, kick 2, snare, clap, closed / open / pedal hat, rim, tight snare, low / high tom, crash, ride, shaker, conga, cowbell). Five kits:
@@ -28,29 +76,229 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
   - **USER**, which plays the first 16 voices of your loaded .syx bank as the lanes
 - **Drum details:** a pitch sweep on kicks and toms, a real multi-hit clap, and hat choke.
 - **From SLOOP:** the layers (FX punch-in, edit, arp, steps, scale and chords, mix, song), free takes, swing, chorus / delay / reverb sends, DUST and DUCK, undo / redo, projects and user presets.
+- **Recording your way:** record at once while playing, or arm and choose on the REC screen — a free take or the tempo set, 1, 2 or 4 bars, from the first note or after a one-bar count-in.
+- **MIDI:** USB MIDI in and out, class compliant; the TRS MIDI IN jack for a keyboard or pads; MIDI clock in (USB or TRS). Details: [MIDI and USB audio](#midi-and-usb-audio).
+- **USB audio:** the FM-1 is also a USB audio input — the master output, 44.1 kHz stereo, no driver, on the same cable as MIDI and the editor.
+- **Lights:** every button can glow so its label is readable on a black FM-1; the C keys or every white key can glow too; the notes playing can light their keys. See [The menu](#the-menu-settings-of-the-fm-1).
+- **Memory and safety:** autosave (stop and leave it 2.5 s; at power-on sloopDX comes back as you left it), 4 projects, 32 user presets, undo / redo, a full backup and restore from the web editor, and safe updates (the installer checks the package by SHA-256, the update loader by CRC; an interrupted install finishes when you press Install again; USB rescue with OCT− at power-on).
 
 ## Status
 
-This is a work in progress. The firmware builds (RAM 81 KB of 96 KB) and the host test suite passes (audio renders, voices, sequencer, UI, storage, update loader, .syx import, bank upload, web pages). It has not run on a device yet. Open items (the full list is in TODO.md):
+This is a work in progress, and it has not run on a device yet. What is known:
 
-- **Device test:** CPU with all voices sounding, levels, and the .syx bank on a real FM-1.
+- **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget), and the host test suite passes — audio renders against golden hashes, the voices, the sequencer (the REC modes and the count-in, MIDI clock), the UI pages and layers, flash storage, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages (editor, backup, installer).
+- **Untested:** everything on a real FM-1 — CPU with all voices sounding, the levels, the .syx bank in flash, and the features that came with SLOOP 2.3 (USB audio, the MIDI IN jack, MIDI clock, the lights, backup and restore).
 - **Voices:** the bass, clav and marimba voices are quiet (their level trims sit at the cap); the factory bank wants a pass by ear.
 
-## Building
+The full list of open items is in [TODO.md](TODO.md).
 
-See [BUILDING.md](BUILDING.md): the JieLi toolchain (`tools/get_toolchain.sh`) and three files of the AC79 SDK, then `./build.sh`. `tests/run_tests.sh` runs the host tests. To check the DX7 core against Dexed: `MSFA=<dexed>/Source/msfa sh tests/dx7ref/build.sh`.
+## Install
 
-Install the resulting `.fwsc` with `python tools/fm1_install.py build/<name>.fwsc`, or from the browser: on Windows `INSTALL-SLOOPDX.bat` builds and opens the web installer (`OPEN-EDITOR.bat` opens the editor); the installer page in `docs/` (GitHub Pages) carries the current package. Going back works with M-VAVE's own updater (M-UPGRADE) and the official firmware.
+### From the browser
 
-> Custom firmware is installed at your own risk. If an FM-1 no longer starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
+1. Open **[the sloopDX installer](https://zvenson.github.io/dxsloop/)** (the `docs/` page of this repository) in **Chrome or Edge** on a computer.
+2. Connect the FM-1 by USB — a **data** cable, directly (no hub).
+3. Press **INSTALL**, allow MIDI access, and wait for *Done*. The FM-1 restarts on the sloopDX logo.
 
-## Credits
+Nothing to download or compile. Your projects, user presets and settings are kept. After an install, **unplug and plug the FM-1 back in** once so the computer finds its USB audio input.
 
-- **sloopDX** (the DX7 engine, the FM drums, the fork): Sven Trogus.
-- **SLOOP** (isod89) and **Felucca** by Leo Kuroshita (@kurogedelic), Hügelton Instruments: the sequencer, UI, effects, storage, editor and installer.
-- **DX7 core:** the msfa engine from Dexed (Apache-2.0; © 2012 Google, 2016–2025 Pascal Gauthier).
-- **Font:** Terminus (SIL OFL 1.1).
+### Other ways
+
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.0.fwsc`) with `python tools/fm1_install.py sloopdx-1.0.fwsc` (needs `pip install mido python-rtmidi`).
+- **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
+
+### Going back
+
+- **To SLOOP:** install the `.fwsc` of a [SLOOP release](https://github.com/isod89/sloop-fm1/releases). Save a backup first: projects and presets made on sloopDX name DX7 voices and FM kits that SLOOP does not have, so expect to pick sounds again.
+- **To the official firmware:** save a backup with the editor first, then use M-VAVE's own updater, M-UPGRADE, with the FM-1 V15 firmware from m-vave.com (close every other app that uses MIDI). The installer page's **Return to the official firmware (V15)** does the same from the browser: select M-VAVE's unmodified `FM-1.fwsc` and install it. To come back, install sloopDX again and restore your backup.
+
+### Rescue
+
+- **The FM-1 no longer starts sloopDX:** hold **OCT−** alone while switching it on (*USB RESCUE*), then install again.
+- **An install was cut off:** the FM-1 stays in update mode; press INSTALL again and it finishes.
+- If an FM-1 no longer starts at all, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
+
+> Custom firmware is installed at your own risk. No warranty.
+
+## Your first beat in 60 seconds
+
+1. **ALGORITHM** to track **4** (orange, drums). The white keys are 16 FM drums; **PRESETS** picks a kit (try *TIGHT* or *BOOM*).
+2. Press **REC** and play a beat freely, at your own tempo. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard ones.
+3. **Press REC on the "1" after your last bar.** The loop closes, its length sets the tempo, the hits snap to the grid and it plays at once. (Prefer a set tempo, or a count-in? Turn KNOB 1 and KNOB 3 on the REC screen before you start.)
+4. **REC** again while it plays: you record on top. Hold **ARP** and hold the hat key for a hat roll.
+5. **ALGORITHM** to track **1** (*FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song; on track 2 (*EPIANO 1*), hold SCL and turn **KNOB 1** to *7TH*: every white key now plays a chord.
+6. Hold **FX** and press a white key for a punch-in effect; still holding FX, turn **KNOB 2** for DUST, **KNOB 3** for DUCK.
+7. Tap **EDIT** on a synth track: the DX7 pages. **KNOB 2 BRITE** opens the voice up, **KNOB 4 DEC** makes it snappier.
+8. A mistake? Hold **EDIT** and press **OCT−**: undo.
+
+## The controls
+
+| Control | What it does |
+| --- | --- |
+| **MASTER** | volume (and the USB audio level, if USB AUDIO is on MASTER) |
+| **SELECT** | tempo, on every page, even inside a layer |
+| **ALGORITHM** | the selected track: 1 · 2 · 3 (synths) · 4 (drums) |
+| **PRESETS** | the selected track's voice, or the drum kit |
+| **KNOB 1–4** | what the four dials at the bottom of the screen show, each in its colour |
+| **OCT− / OCT+** | octave (both: back to 0) · on the drum track, held: ghost / hard hits |
+| **FX · SCL · ENV · LFO · EDIT · GLO** (top row) | tap: their pages (EDIT on a synth track: the DX7 VOICE and SHAPE pages) · hold FX, SCL, EDIT, GLO: a layer. **SCL** is the second button of the top row, between FX and ENV |
+| **HOME** | the TRACKS screen · hold: the menu · tapped while a layer is held: lock it |
+| **SAVE** | on TRACKS: the SONG screen · elsewhere: the SAVE pages · hold: the song layer |
+| **ARP · SEQ** | tap: their pages · hold: note repeat · steps |
+| **PLAY** | start / stop all four tracks; its light flashes on every beat |
+| **REC** | playing: record now / stop · stopped: arm (the REC screen) · hold: clear the track |
+| **EDIT + OCT− / OCT+** | undo / redo |
+
+Colours: **blue** track 1 and KNOB 1, **green** 2, **yellow** 3, **orange** 4 (drums). White is what you touch; red is recording.
+
+## The menu: settings of the FM-1
+
+Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT−** closes. These are settings of the FM-1, not of a project: loading a project or NEW PROJECT does not change them, and the backup keeps them.
+
+| Item | Choices | What it does |
+| --- | --- | --- |
+| **COLOR** | 5 palettes | the screen's colours |
+| **LOWCUT** | OFF / ON | a low cut for the small built-in speaker |
+| **ZOOM** | OFF / ON | a large readout of the value you turn |
+| **LIGHTS** | OFF / LOW / MID / HIGH | every button glows at that level; what is active stays at full light |
+| **KEYS** | OFF / C KEYS / WHITE KEYS | the C keys, or every white key, glow too |
+| **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
+| **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
+| **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
+| **ABOUT** | | the version (*sloopDX 1.0*) and its build date, the credits |
+
+Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
+
+## MIDI and USB audio
+
+### MIDI in
+
+sloopDX takes MIDI from two places at once:
+
+- **The MIDI IN jack** (3.5 mm TRS): a keyboard or a pad controller with a MIDI output, through a **TRS-to-DIN MIDI adapter**. If nothing plays, try the other adapter type (A / B).
+- **USB**, from a computer or a phone (a DAW, a MIDI routing app) or a USB MIDI host box.
+
+| MIDI channel | Plays |
+| --- | --- |
+| 1, 2, 3 | synth tracks 1, 2, 3 |
+| 10 | the drum track (the nearest of its 16 sounds; GLO → DRUMS → CH changes the channel) |
+| 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
+
+A USB keyboard plugged **straight into the FM-1** cannot work: both are USB devices, and a USB link needs a host (a computer, a phone, or a USB MIDI host box). Bluetooth MIDI is not supported: sloopDX, like Felucca, never switches the radio on.
+
+### MIDI clock in
+
+GLO → SYSTEM → **SYNC** = **USB** or **TRS** (INT: sloopDX's own tempo). START plays from the top, CONTINUE carries on, STOP stops; the tempo follows the master and the steps follow its 24 pulses a beat, so sloopDX never drifts. When the clock stops for half a second, PLAY on the FM-1 plays at its own tempo again.
+
+### USB audio: record the FM-1 on a computer
+
+On USB the FM-1 is also an **audio input named "Felucca"**: 44.1 kHz, 16-bit stereo, class compliant — no driver on Windows, macOS or Linux. Choose it in your DAW or in Audacity and record: you get the master output, exactly what the headphones play (after DUST, DUCK and FILT). MIDI, the web editor and the installer keep working on the same cable.
+
+- **The level:** HOME menu → **USB AUDIO**. **MASTER** (default): the recording follows the MASTER knob, as the headphones do — keep MASTER well up while you record. **FULL**: a fixed level, as with MASTER all the way up, kept from clipping by the limiter; MASTER then only sets the headphones (the right choice for an interface with no level control).
+- **The first time** (and after an install), the computer sets the FM-1 up again as a MIDI + audio device: unplug and plug it back in if the input does not show. The MIDI port keeps its name.
+- The audio input comes from Felucca 1.0, by way of SLOOP 2.3.
+
+## The web editor
+
+Open it from the [installer page](https://zvenson.github.io/dxsloop/) (or the [editor link](https://zvenson.github.io/dxsloop/webapp/editor/)) in Chrome or Edge, with the FM-1 on USB, and press **Connect**. It follows the device live: turn a knob on the FM-1 and the editor moves.
+
+- **Sound** — every parameter of the selected track: the voice and its macro knobs BRITE / ATK / DEC / REL / FDBK, envelope, LFO, arp, sends.
+- **Sequencer** — the steps; on the drum track a grid of 16 sounds × the steps, with levels and ratchets, and the kit.
+- **Tracks** — the four channel strips.
+- **Library** — your user presets and preset files, and your **DX7 bank**: open or drop a `.syx`, see U01–U32 by name, erase the bank.
+- **Projects** — the four projects, and **Backup**: *Save a backup* writes everything on the FM-1 to one file (the music in progress, the projects, the user presets, the settings and the DX7 bank); *Restore from a file* puts it all back (stop playback first).
+- **Settings** — global, master (DUST, DUCK, FILT, ROLL), drums.
+
+<p align="center"><img src="assets/screens/editor-backup.png" alt="SLOOP web editor: projects and backup" width="560"></p>
+
+The protocol is documented in [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) (v7: SLOOP 2.3's backup plus the bank upload).
+
+## Compatibility
+
+| | |
+| --- | --- |
+| Device | M-VAVE FM-1 (SLOOP or the official firmware can be put back at any time) |
+| Installer and editor | **Chrome or Edge** on Windows, macOS or Linux (they use Web MIDI with SysEx) |
+| Cable | a USB **data** cable, plugged directly (no hub) |
+| USB audio | any computer that takes a class-compliant USB audio input (no driver) |
+| MIDI IN jack | 3.5 mm TRS, through a TRS-to-DIN MIDI adapter (type A or B) |
+| DX7 banks | 32-voice bulk dumps (.syx, 4104 bytes); single-voice dumps go into a bank with any DX7 librarian first |
+| Not supported | Bluetooth MIDI; a USB keyboard plugged straight into the FM-1 |
+
+## Troubleshooting
+
+**The installer or the editor does not find the FM-1.** Use Chrome or Edge, a data cable, no hub, and allow MIDI access. Close every other app or tab that uses MIDI (a DAW, M-UPGRADE, another editor tab), then reload the page.
+
+**An install stopped half-way.** The FM-1 waits in update mode: press INSTALL again. If sloopDX no longer starts, hold **OCT−** alone while switching on (*USB RESCUE*) and install again.
+
+**The black keys make no sound on a synth track.** That track plays chords or the scale on the white keys: hold **SCL** (between FX and ENV) and set **KNOB 1 CHORD** to OFF and **KNOB 3 KEYS** to OFF. The drum track always uses the black keys.
+
+**Nothing plays from the MIDI IN jack.** Try the other adapter type (A / B); check the keyboard's channel (1–3 synths, 10 drums, 4–16 the selected track).
+
+**The USB audio input does not show.** Unplug the FM-1 and plug it back in (after an install the computer must find it again). In Audacity: Transport → Rescan Audio Devices. On Windows: Sound settings → Recording → show disabled devices.
+
+**The USB recording is too quiet, or follows the volume knob.** Set HOME menu → **USB AUDIO** to **FULL**, or turn MASTER up.
+
+**Recorded notes move to the grid.** sloopDX quantises what you record to the steps of the track (its **DIV**: 1/4 … 1/32, triplets). For finer timing, set DIV to 1/32; for groove, use SWING.
+
+**Notes fade out on a dense part.** The processor is at its limit: sloopDX fades one voice at a time (never the bass or the lead) rather than glitching. Fewer held notes help; 14 DX7 voices on this chip are still untested.
+
+**A .syx bank is refused.** Only a 32-voice bulk dump (4104 bytes, with a valid checksum) loads. A single-voice dump (163 bytes) goes into a bank with any DX7 librarian first.
+
+**The lights or SYNC went back to OFF / INT.** You went back to an earlier SLOOP, which does not keep them; set them again.
+
+Something else? [Open an issue](../../issues): what you did, what you expected, what happened, and the version shown in HOME menu → ABOUT.
+
+## Specifications
+
+| | |
+| --- | --- |
+| Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
+| Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa, bit-exact |
+| Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
+| Drum kits | 5 FM kits (DX KIT, TIGHT, BOOM, METAL, USER), 16 sounds each |
+| Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock (no drift) |
+| Recording | live, quantised as heard (latency-compensated), overdub; free take (the tempo follows you) or the tempo set; start on the first note or a one-bar count-in; 1, 2 or 4 bars |
+| Performance | layers: punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo, song sections |
+| Effects | 16 punch-in effects; master DUST, DUCK, DJ filter, limiter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb |
+| Memory | autosave, undo / redo, 4 projects, 32 user presets, one DX7 bank in flash, song of 4 sections × 16 steps × 1–64 bars, full backup / restore (editor) |
+| Audio | 44.1 kHz, fixed-point DSP (no floating point on the chip); USB audio input (the master output, 16-bit stereo, class compliant) |
+| MIDI | USB class-compliant in / out; TRS MIDI IN (3.5 mm); MIDI clock in (USB or TRS); DX7 bulk dumps via the editor protocol |
+| Lights | button backlight (3 levels), C keys / white keys, played notes |
+| Update | over USB from the browser (SHA-256 and CRC checked), USB rescue |
+
+## Documentation
+
+- [SLOOP.md](SLOOP.md) — the full manual (every page, layer, voice and kit)
+- [DEMARRAGE-RAPIDE-FR.md](DEMARRAGE-RAPIDE-FR.md) — guide de démarrage en français
+- [BUILDING.md](BUILDING.md) — building, build options and tests
+- [TODO.md](TODO.md) — open work
+- [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) — the editor's SysEx protocol
+- [LICENSING.md](LICENSING.md) — the licences of the code and the assets
+
+## Building and tests
+
+See [BUILDING.md](BUILDING.md): the JieLi toolchain (`tools/get_toolchain.sh`) and three files of the AC79 SDK, then `./build.sh` (Linux / macOS) or `INSTALL-SLOOPDX.bat` (Windows with WSL), which builds the firmware and serves the installer and the editor on `http://localhost:8766` (`OPEN-EDITOR.bat` opens the editor). To check the DX7 core against Dexed: `MSFA=<dexed>/Source/msfa sh tests/dx7ref/build.sh`.
+
+`tests/run_tests.sh` runs the host test suite with no hardware: audio renders against golden hashes, CPU budgets, the sequencer's timing (no drift, swing, ratchets, rolls, the REC modes and the count-in, MIDI clock), the UI pages and layers, the knobs, flash storage, the update loader, MIDI and USB audio, the .syx import and the bank upload, the FM drum kits, and the web pages (editor, backup, installer).
+
+Install the resulting `.fwsc` with `python tools/fm1_install.py build/felucca.fwsc`, or from the web installer; the installer page in `docs/` (GitHub Pages) carries the current package.
+
+## Contributing
+
+- **Bugs and ideas:** [open an issue](../../issues) — what you did, what you expected, what happened, and the version in HOME menu → ABOUT. Reports from a real FM-1 are the most useful thing right now.
+- **Pull requests** are welcome. Keep the style of the code around your change, add a host test when you can, and make sure `tests/run_tests.sh` passes. Do not submit Yamaha or M-VAVE voice data: every factory voice is designed in `tools/gen_dx7_bank.py`.
+- By contributing you agree that your code is released under GPL-3.0, like the rest of sloopDX.
+
+## Credits and thanks
+
+- **sloopDX** (the DX7 engine port, the FM drums, the fork): Sven Trogus.
+- **[SLOOP](https://github.com/isod89/sloop-fm1)** by **isod89** — the groovebox: the sequencer, UI, effects, storage, editor and installer; and in 2.3 the TRS MIDI input, the MIDI clock, the REC modes, the lights, backup and restore.
+- **[Felucca](https://github.com/hugelton/Felucca)** by **Leo Kuroshita** (@kurogedelic) / **Hügelton Instruments** — the firmware SLOOP is built on, and the USB audio input, the knob reading and many fixes of Felucca 1.0 / 1.0.1 that came in with SLOOP 2.3.
+- **DX7 core:** the msfa engine from [Dexed](https://github.com/asb2m10/dexed) (Apache-2.0; © 2012 Google, 2016–2025 Pascal Gauthier).
+- **@renebohne** — the played-note key lights (SLOOP pull request #11). **ChanceTheMaker** and **keremimo** — the TRS MIDI input fix (Felucca Salt) and contributions to the MIDI clock.
+- Font: Terminus (SIL OFL 1.1). Icons: Fukiai (MIT, Hügelton Instruments). Interface ideas after teenage engineering's pocket operators and EP-133, Elektron's step entry and Akai's MPC (swing, note repeat, erase).
 
 ## Licence
 
-GPL-3.0-only (see [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md)). No warranty. M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with either. No Yamaha or M-VAVE voice data is included.
+Code: GPL-3.0-only (see [LICENSE](LICENSE), and [LICENSING.md](LICENSING.md) for the assets). No warranty. M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with M-VAVE, Yamaha, teenage engineering, Elektron or Akai. No Yamaha or M-VAVE voice data is included.

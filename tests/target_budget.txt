@@ -5,7 +5,7 @@ dx7_render 36
 dx_compute 411
 dx_op 23
 dx_env_advance 0
-slicer_track 828
+slicer_track 825
 drums_mix 460
-mix_block 108206
-fm1_alnk0_irq 174
+mix_block 188238
+fm1_alnk0_irq 255

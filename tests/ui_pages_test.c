@@ -31,7 +31,8 @@ static int32_t encs[7];
 static uint32_t fm1_ticks(void) { return fm1_ms * 1000u * 24u; }
 #define FM1_TICKS_PER_US 24u
 static int32_t fm1_enc_take(uint32_t e) { int32_t s = encs[e]; encs[e] = 0; return s; }
-static uint8_t fm1_led[16], fm1_led_dim[16];
+static uint8_t fm1_led[16], fm1_led_dim[16], fm1_led_bg[16];
+static volatile uint16_t fm1_led_bg_ns;
 #define FM1_NCOL 16u
 static const int8_t FM1_KEYMAP[5][16];
 static void fm1_led_key(uint32_t id, int on) { (void)id; (void)on; }
@@ -328,13 +329,139 @@ int main(int argc, char **argv)
         static track_t keep[NTRK];
         memcpy(keep, trk, sizeof keep);
         for (i = 0; i < NTRK; i++) steps_clear(&trk[i]);
+        rec_tempo = 0; rec_count = 0;
         rec_wait = 1; ui.force = 1; frame(); ppm("live-rec-free");
+        /* the REC screen's dials (2.3): KNOB 1 MODE, KNOB 2 LENGTH, KNOB 3 START */
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(rec_tempo == 1u && rec_wait, "REC screen, empty project: KNOB 1 -> MODE tempo");
+        ui.force = 1; frame(); ppm("live-rec-tempo");
+        trk[song.sel].p[P_SLEN] = 16;
+        encs[panel.enc[EN_K2]] = 1; frame();
+        encs[panel.enc[EN_K2]] = 1; frame();
+        check(trk[song.sel].p[P_SLEN] == 64, "REC screen: KNOB 2 -> LENGTH 1, 2, 4 bars");
+        encs[panel.enc[EN_K2]] = -1; frame();
+        check(trk[song.sel].p[P_SLEN] == 32, "REC screen: KNOB 2 back -> 2 bars");
+        encs[panel.enc[EN_K3]] = 1; frame();
+        check(rec_count == 1u, "REC screen: KNOB 3 -> START count");
+        ui.force = 1; frame(); ppm("live-rec-count");
+        check((lights_word() >> 9 & 3u) == 3u, "REC screen: MODE and START saved with the settings");
+        ci_on = 1; ci_beat = 1; ui.force = 1; frame(); ppm("live-rec-countin");
+        encs[panel.enc[EN_K1]] = -1; frame();
+        check(rec_tempo == 1u, "REC screen: the count-in running, the dials wait");
+        ci_on = 0; ci_beat = 0;
+        trk[1].step[0].time = ST_NOTE; trk[1].step[0].n = 1; trk[1].step[0].note[0] = 60;
+        encs[panel.enc[EN_K1]] = -1; frame();
+        check(rec_tempo == 1u, "REC screen, a project with notes: no MODE (always the tempo set)");
+        ui.force = 1; frame(); ppm("live-rec-notes");
+        steps_clear(&trk[1]);
+        encs[panel.enc[EN_K3]] = -1; frame();
+        encs[panel.enc[EN_K1]] = -1; frame();
+        check(rec_tempo == 0u && rec_count == 0u, "REC screen: KNOB 3 / 1 back -> note, free");
+        rec_count = 1; encs[panel.enc[EN_K3]] = -1; frame();
+        check(rec_count == 1u, "REC screen, MODE free: no START (the take starts on the first note)");
+        rec_count = 0;
+        trk[song.sel].p[P_SLEN] = 16;
         rec_wait = 0; ft_on = 1; ft_t = (uint32_t)(5.4 * FS / CTL); ui.force = 1; ui_draw(); ppm("live-free-take");
         ft_on = 0; ft_t = 0; memcpy(trk, keep, sizeof keep);
         rec_wait = 0; frame();
     }
     for (i = 0; i < DRUM_KITS; i++) { TDRUM->p[P_E0] = (int16_t)i; ui.force = 1; drum_page = 1; frame(); }
     drum_page = 0;
+
+    {   /* menu NOTES (PR #11 by @renebohne): sounding synth voices light their keys */
+        song.sel = 0; go_home(); ui.force = 1; frame();
+        trk[0].p[P_CHORD] = 0; trk[0].p[P_QUANT] = 0; trk[0].p[P_ROOT] = 0; trk[0].p[P_TRANS] = 0;
+        song.octave = 0;
+        lights_notes = 0;
+        trk[0].v[0].active = 1; trk[0].v[0].gate = 1; trk[0].v[0].stage = 1; trk[0].v[0].note = 60;
+        frame();
+        check((keys_lit() & (1u << 7)) == 0, "NOTES off: a sounding synth voice lights no key");
+        ui.menu = 1; ui.menu_sel = MI_NOTES; ui.force = 1; frame();
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(lights_notes == 1u, "menu NOTES: KNOB 1 right: ON");
+        ui.force = 1; frame(); ppm("page-menu-notes");
+        ui.menu = 0; ui.force = 1; go_home(); frame();
+        check((keys_lit() & (1u << 7)) != 0, "NOTES on: a sounding synth voice lights key 7 (C4)");
+        {   /* every screen and layer: lit where the keys are notes, a glow under the tiles */
+            static const struct { uint32_t ly; int lit; const char *name; } L[] = {
+                {LY_ERASE, 1, "EDIT erase"}, {LY_ROLL, 1, "ARP roll"}, {LY_SCALE, 1, "SCL key"}, {LY_SONG, 1, "SAVE song"},
+                {LY_FX, 0, "FX punch"}, {LY_STEP, 0, "SEQ steps"}, {LY_MIX, 0, "GLO mix"}};
+            uint32_t k, ok = 1, ly0 = ui.layer;
+            char what[96];
+            for (k = 0; k < sizeof L / sizeof L[0]; k++) {
+                ui.layer = (uint8_t)L[k].ly;
+                if (L[k].lit)
+                    ok = (keys_lit() >> 7 & 1u) != 0;
+                else
+                    ok = (keys_notes_dim() >> 7 & 1u) != 0 && (keys_lit() >> 7 & 1u) == 0;
+                snprintf(what, sizeof what, "NOTES on, %s layer: the sounding C4 %s", L[k].name, L[k].lit ? "lit" : "glows under the tiles");
+                check(ok, what);
+            }
+            ui.layer = LY_SCALE;
+            check((keys_notes_dim() & scale_keys(0)) == scale_keys(0), "NOTES on, SCL: the scale glows");
+            lights_notes = 0;
+            ui.layer = LY_ERASE;
+            check((keys_lit() >> 7 & 1u) == 0 && keys_notes_dim() == 0u, "NOTES off, EDIT erase: as before (no note lights)");
+            ui.layer = LY_SCALE;
+            check(keys_notes_dim() == 0u, "NOTES off, SCL: as before");
+            lights_notes = 1;
+            ui.layer = (uint8_t)ly0;
+        }
+        song.octave = -1;
+        frame();
+        check((keys_lit() & (1u << 19)) != 0 && (keys_lit() & (1u << 7)) == 0, "NOTES on: the octave moves the lit key");
+        song.octave = 0;
+        trk[0].v[0].gate = 0; trk[0].v[0].stage = 3;
+        frame();
+        check((keys_lit() & (1u << 7)) == 0, "NOTES on: the release turns the key off");
+        trk[0].v[0].active = 0;
+        check((lights_word() >> 8 & 1u) == 1u, "NOTES: saved with the light settings");
+        ui.menu = 1; ui.menu_sel = MI_USB; ui.force = 1; frame(); ppm("menu-usb");
+        usb_full = 0;
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(usb_full == 1u && (lights_word() >> 11 & 1u) == 1u, "menu USB AUDIO: KNOB 1 -> FULL, saved with the settings");
+        tap(B_OCTUP);
+        check(usb_full == 0u && ui.menu == 1, "menu USB AUDIO: OCT+ toggles back to MASTER");
+        ui.menu = 0; ui.force = 1; go_home(); frame();
+        ui.menu = 1; ui.menu_sel = MI_NOTES; ui.force = 1; frame();
+        tap(B_OCTUP);
+        check(lights_notes == 0u && ui.menu == 1, "menu NOTES: OCT+ toggles it off");
+        ui.menu = 0; ui.force = 1; go_home(); frame();
+    }
+
+    {   /* menu LIGHTS / KEYS: the backlight for playing in the dark */
+        uint32_t m, nbits;
+        go_home(); ui.force = 1; frame();
+        check(lights_lvl == LIGHTS_OFF && fm1_led_bg_ns == 0u && lights_keys_mask() == 0u, "LIGHTS: off by default");
+        ui.menu = 1; ui.menu_sel = MI_LIGHTS; ui.force = 1; frame();
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(lights_lvl == LIGHTS_LOW && fm1_led_bg_ns == 500u, "LIGHTS: KNOB 1 right: LOW (a 0.5 us pulse a frame)");
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(lights_lvl == LIGHTS_MID && fm1_led_bg_ns == 1000u, "LIGHTS: MID (1 us)");
+        encs[panel.enc[EN_K1]] = 1; frame(); encs[panel.enc[EN_K1]] = 1; frame();
+        check(lights_lvl == LIGHTS_HIGH && fm1_led_bg_ns == 2000u, "LIGHTS: HIGH (2 us, under the 4 us glow), and it stops there");
+        ui.force = 1; frame(); ppm("page-menu-lights");
+        encs[panel.enc[EN_K1]] = -1; frame();
+        check(lights_lvl == LIGHTS_MID, "LIGHTS: KNOB 1 left: dimmer");
+        tap(B_OCTUP);
+        check(lights_lvl == LIGHTS_HIGH && ui.menu == 1, "LIGHTS: OCT+ steps round, the menu stays");
+        tap(B_OCTUP);
+        check(lights_lvl == LIGHTS_OFF && fm1_led_bg_ns == 0u, "LIGHTS: ... back to OFF");
+        ui.menu_sel = MI_KEYS; ui.force = 1; frame();
+        encs[panel.enc[EN_K1]] = 1; frame();
+        m = lights_keys_mask();
+        check(lights_keys == KEYS_C && lights_lvl == LIGHTS_LOW && m == (1u << 7 | 1u << 19),
+              "KEYS: C KEYS (C4, C5), LIGHTS raised to LOW");
+        encs[panel.enc[EN_K1]] = 1; frame(); encs[panel.enc[EN_K1]] = 1; frame();
+        for (m = lights_keys_mask(), nbits = 0; m; m &= m - 1u)
+            nbits++;
+        check(lights_keys == KEYS_WHITE && nbits == 16u && !(lights_keys_mask() & (1u << 1)),
+              "KEYS: WHITE KEYS (16 of 27, F#3 dark), and it stops there");
+        lights_lvl = LIGHTS_OFF; frame();
+        check(lights_keys_mask() == 0u && fm1_led_bg_ns == 0u, "KEYS: nothing lit while LIGHTS is OFF");
+        lights_keys = KEYS_OFF;
+        ui.menu = 0; ui.force = 1; go_home(); frame();
+    }
 
     {   /* fuzz: 20000 frames of random buttons (held or tapped), knobs and keys, with the audio running
          * between frames; every draw stays on the screen (lcd_blit / lcd_fill assert it) */

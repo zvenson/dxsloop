@@ -368,8 +368,194 @@ static void t_mute(void)
     check(nhits > n0 && TDRUM->att == 0, "solo off: the drums back");
 }
 
+/* overload shedding (voice.c shed_voice): a releasing voice first, then the oldest held voice that is
+ * neither a POLY part's lowest note nor a MONO part's lead; faded (stage 4), never cut */
+static void t_shed(void)
+{
+    track_t *t = &trk[0], *m = &trk[1];
+    uint32_t i, k, low_ok = 1, lead_ok = 1;
+    reset(120);
+    t->p[P_VOICE] = V_POLY;
+    m->p[P_VOICE] = V_MONO;
+    t->p[P_ATK] = 0;
+    t->p[P_REL] = 100;                                /* a long release: the released voice still rings */
+    trk_note_on(t, 48, 100);                          /* the bass, first and lowest */
+    trk_note_on(t, 64, 100);
+    trk_note_on(t, 67, 100);
+    trk_note_on(t, 72, 100);
+    trk_note_on(m, 40, 100);                          /* a MONO lead */
+    trk_note_on(t, 76, 100);
+    for (k = 0; k < 20u; k++)
+        run_block();
+    trk_note_off(t, 76);                              /* releasing */
+    run_block();
+    shed_voice();
+    for (k = 0, i = 0; i < NVOICE; i++)
+        k += t->v[i].note == 76 && t->v[i].stage == 4u;
+    check(k == 1u, "overload: the releasing voice goes first, faded (stage 4)");
+    for (k = 0; k < 6u; k++)
+        shed_voice();
+    for (i = 0; i < NVOICE; i++) {
+        if (t->v[i].note == 48 && t->v[i].active && t->v[i].stage == 4u)
+            low_ok = 0;
+        if (m->v[i].note == 40 && i == 0u && m->v[i].stage == 4u)
+            lead_ok = 0;
+    }
+    for (k = 0, i = 0; i < NVOICE; i++)
+        k += t->v[i].active && t->v[i].gate && (t->v[i].note == 64 || t->v[i].note == 67 || t->v[i].note == 72);
+    check(low_ok && lead_ok && k == 0u, "overload: the upper notes thin out, the bass and the MONO lead stay");
+}
+
+/* MIDI clock in (SYNC USB / TRS): START, 24 pulses a beat, tempo changes, STOP; the other source ignored */
+static void mclk_push(uint32_t pkt) { midi_in_q[mi_w % MQ] = pkt; mi_w++; }
+static void mclk_run(double *t, double *next, double per, double until, uint32_t src)
+{
+    while (*t < until) {
+        while (*next <= *t) {
+            mclk_push(0xF80Fu | src << 4);
+            *next += per;
+        }
+        fm1_ms = (uint32_t)*t;
+        run_block();
+        *t += (double)CTL * 1000.0 / FS;
+    }
+}
+static void t_mclk(void)
+{
+    double t = 0, next = 0, per = 60000.0 / 120 / 24;
+    reset(90);                                        /* the internal tempo: 90 */
+    mi_r = mi_w;
+    song.g[G_SYNC] = 1;                               /* USB */
+    mclk_run(&t, &next, per, 700, 0);                 /* the clock runs before START (the tempo shows) */
+    check(!song.playing && song.g[G_BPM] == 120, "MIDI clock: stopped, BPM follows the master (120)");
+    mclk_push(0xFA0Fu);                               /* START, then the downbeat pulse */
+    next = t;
+    mclk_run(&t, &next, per, t + 4000.0 + per / 2, 0);   /* two bars of 120 */
+    check(song.playing && clk_beat == 8u, "MIDI clock: START, 2 bars at 120 -> beat 8 exactly");
+    per = 60000.0 / 100 / 24;                          /* the master slows to 100 */
+    mclk_run(&t, &next, per, t + 4800.0, 0);
+    check(clk_beat == 16u && song.g[G_BPM] == 100, "MIDI clock: the master at 100 -> 2 more bars, BPM 100");
+    mclk_push(0xFC1Fu);                               /* STOP from the TRS jack: not the source */
+    mclk_run(&t, &next, per, t + 50.0, 0);
+    check(song.playing, "MIDI clock: SYNC USB ignores the TRS jack");
+    mclk_push(0xFC0Fu);
+    mclk_run(&t, &next, per, t + 10.0, 0);
+    check(!song.playing, "MIDI clock: STOP");
+    t += 1000.0;                                      /* the master is gone: PLAY on the FM-1 plays */
+    fm1_ms = (uint32_t)t;
+    transport_req = 1;
+    run_block();
+    {
+        uint32_t b0 = clk_beat, k;
+        for (k = 0; k < (uint32_t)(FS / CTL); k++)
+            run_block();
+        check(song.playing && clk_beat >= b0 + 1u, "MIDI clock: no pulse for 0.5 s -> the internal tempo plays");
+    }
+    transport_req = 2;
+    run_block();
+    song.g[G_SYNC] = 0;
+    mi_r = mi_w;
+}
+
+/* the REC screen's MODE and START (SLOOP 2.3): an empty project records at the tempo set (TEMPO) or
+ * takes it from the playing (FREE); COUNT: PLAY clicks one bar, then the loop and the recording start */
+static void t_recmode(void)
+{
+    uint32_t k, bpb = (uint32_t)((double)FS * 60.0 / 100.0 / CTL + 0.5), c0;
+    reset(100);
+    song.sel = 0;
+    song.playing = 0;
+    rec_tempo = 0, rec_count = 0;
+    rec_wait = 1;
+    input_on(TSEL, 60, 100);
+    run_block();
+    check(ft_on && !song.playing, "REC mode FREE, empty project: the first note starts a free take");
+    transport_req = 2; run_block(); ft_bars = 0;
+    for (k = 0; k < 4u; k++) trk_note_off(&trk[k % NPART], 60);
+
+    reset(100);
+    song.sel = 0;
+    rec_tempo = 1, rec_count = 0;
+    rec_wait = 1;
+    input_on(TSEL, 60, 100);
+    run_block();
+    check(!ft_on && song.playing && song.rec == 1u && song.g[G_BPM] == 100,
+          "REC mode TEMPO, empty project: the first note starts the loop at 100 BPM, recording");
+    transport_req = 2; run_block();
+
+    reset(100);
+    song.sel = 0;
+    rec_tempo = 1, rec_count = 1;
+    rec_wait = 1;
+    input_on(TSEL, 62, 100);
+    run_block();
+    check(!song.playing && !ci_on && !ft_on && rec_wait, "REC START COUNT: a note only sounds, nothing starts");
+    c0 = nhits;
+    transport_req = 1;                                /* PLAY: the count-in */
+    run_block();
+    for (k = 0; k + 2u < 4u * bpb; k++) run_block();
+    check(ci_on && !song.playing, "REC START COUNT: PLAY -> one bar of clicks, not playing yet");
+    {
+        uint32_t n = 0, i;
+        for (i = c0; i < nhits; i++) n += hits[i].note == 76 || hits[i].note == 77;
+        check(n == 4u, "REC START COUNT: 4 clicks (one bar of 4/4)");
+    }
+    for (k = 0; k < 4u; k++) run_block();
+    check(!ci_on && song.playing && song.rec == 1u && !rec_wait,
+          "REC START COUNT: after the bar the loop starts and records");
+    transport_req = 2; run_block();
+
+    reset(100);
+    song.sel = 0;
+    rec_tempo = 1, rec_count = 1;
+    rec_wait = 1;
+    transport_req = 1; run_block();
+    for (k = 0; k < bpb; k++) run_block();
+    rec_wait = 0;                                     /* REC again: cancelled */
+    for (k = 0; k < 4u * bpb; k++) run_block();
+    check(!ci_on && !song.playing && !song.rec, "REC START COUNT: REC during the count-in cancels it");
+    rec_wait = 1;
+    transport_req = 1; run_block();
+    transport_req = 1; run_block();                   /* PLAY again: back to armed */
+    check(!ci_on && rec_wait && !song.playing, "REC START COUNT: PLAY again during the count-in: back to armed");
+    rec_wait = 0;
+    rec_tempo = 0, rec_count = 0;
+}
+
+/* menu USB AUDIO = FULL (2.3): the USB input at the level of MASTER all the way up, whatever the knob;
+ * the DAC path keeps following the knob. sloopDX: a 3-note STRINGS chord (the DX7's E-piano attack has a
+ * high crest factor: 8 notes at 110 drive the limiter on both paths, which hides the knob) */
+static void t_usbfull(void)
+{
+    uint32_t k, i;
+    int32_t out[CTL * 2], pk_dac = 0, pk_usb = 0;
+    reset(120);
+    song.master_q12 = 512;                            /* MASTER low */
+    master_cur = -1;
+    usb_full_now = 1;
+    trk[0].p[P_E0] = 6;                               /* STRINGS */
+    for (k = 0; k < 3u; k++) trk_note_on(&trk[0], 48u + k * 3u, 110);
+    for (k = 0; k < 600u; k++) {
+        mix_block(out, CTL);
+        if (k > 100u)
+            for (i = 0; i < 2u * CTL; i++) {
+                int32_t a = out[i] < 0 ? -out[i] : out[i], u = usb_out[i] < 0 ? -usb_out[i] : usb_out[i];
+                if (a > pk_dac) pk_dac = a;
+                if (u > pk_usb) pk_usb = u;
+            }
+    }
+    usb_full_now = 0;
+    for (k = 0; k < 3u; k++) trk_note_off(&trk[0], 48u + k * 3u);
+    song.master_q12 = 2048;
+    check(pk_usb > pk_dac * 3 && pk_usb <= 32767, "USB AUDIO FULL: the USB level stays up when MASTER is low, no clipping");
+}
+
 int main(void)
 {
+    t_usbfull();
+    t_recmode();
+    t_mclk();
+    t_shed();
     t_drift();
     t_burst();
     t_swing_odd();

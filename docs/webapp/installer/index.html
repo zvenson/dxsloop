@@ -42,6 +42,10 @@
   pre { color: var(--dim); font-size: 11px; white-space: pre-wrap; margin-top: 12px; max-height: 160px; overflow: auto; }
   hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0 18px; }
   .ed { display: inline-block; margin: 8px 0 0; padding: 10px 14px; background: var(--tile); text-decoration: none; }
+  details { margin: 22px 0 0; } summary { cursor: pointer; font-weight: 600; }
+  button#stock-go { font: 600 14px/1 inherit; font-family: inherit; background: var(--tile); color: var(--fg); border: 1px solid var(--line);
+                    padding: 12px 16px; cursor: pointer; }
+  button#stock-go:disabled { color: var(--dim); cursor: default; }
   @media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, 1fr); } .logo svg { width: 170px; } }
 </style>
 </head>
@@ -70,6 +74,7 @@
 </div><button class="lang" id="lang"></button></div>
   <div class="strip"><i></i><i></i><i></i><i></i></div>
   
+  
   <h1>Firmware for the M-VAVE FM-1</h1>
   <p class="lead">SLOOP as a pure DX7 FM synth: four tracks — three synths and a drum machine — one engine, a six-operator DX7 voice (Dexed's msfa core, bit-exact), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, 16 punch-in effects. No factory patterns, nothing to load: everything you hear, you play.</p>
   <div class="tiles">
@@ -90,8 +95,17 @@
   <p class="small" data-t="beta"></p>
   <p class="small"><span data-t="brick"></span>
     <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
-  <p class="small" data-t="back"></p>
-  <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
+  <details>
+    <summary data-t="stockTitle"></summary>
+    <p class="small" data-t="stockHelp"></p>
+    <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
+    <p class="small" data-t="stockBackup"></p>
+    <p><a class="ed" href="../editor/" data-t="stockEditor"></a></p>
+    <p class="small"><label><input id="stock-saved" type="checkbox"> <span data-t="stockSaved"></span></label></p>
+    <p class="small"><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
+    <p><button id="stock-go" disabled data-t="stockGo"></button></p>
+    <p class="small" data-t="back"></p>
+  </details>
   <p class="small">sloopDX is a fork of SLOOP (isod89), which is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. DX7 core: the msfa engine of Dexed (Apache-2.0, © 2012 Google Inc., 2016–2025 Pascal Gauthier), ported to integer C.
     Hold OCT− alone while switching on for USB rescue.<br>
     Font: Terminus (Dimitar Toshkov Zhekov, SIL OFL 1.1).<br>
@@ -124,6 +138,24 @@ function logicalImage(fwsc) {
   for (let i = 0; i < BLOCKS; i++) out.set(fwsc.subarray(i * BLK, i * BLK + KEEP), i * KEEP);
   out.set(fwsc.subarray(BLOCKS * BLK), BLOCKS * KEEP);
   return out;
+}
+
+// The official FM-1 V15 (M-VAVE Downloads -> PC Firmware -> FM-1 V15, FM-1.fwsc), for the return to the
+// official firmware: only that exact file is accepted (its SHA-256 pins every byte: the loader, the app, the
+// layout; the name of the file proves nothing). The digest is the one Felucca 1.0 pins.
+const STOCK_V15_SHA256 = "db1642b2b6fa5c2cccb11ffd13878068bb28601678d3644049f99dc40e7edb8a";
+const STOCK_V15_SIZE = 699956;
+const STOCK_V15_PRODUCT = "FM-1_015";
+
+async function sha256hex(bytes) {
+  const d = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function validateStockPackage(bytes) {
+  if (bytes.length !== STOCK_V15_SIZE || await sha256hex(bytes) !== STOCK_V15_SHA256 || productOf(bytes) !== STOCK_V15_PRODUCT)
+    throw new Error("select the unmodified official FM-1 V15 file (FM-1.fwsc)");
+  return { product: STOCK_V15_PRODUCT, image: logicalImage(bytes) };
 }
 
 // SPDX-License-Identifier: GPL-3.0-only
@@ -338,15 +370,29 @@ class Updater {
     return s2;
   }
 
-  // resume: the device is already in update mode (loader) -> true when the write finished
-  async resume(image, onStep) {
+  // resume: the device is already in update mode (loader) -> true when the write finished. Only SLOOP's
+  // own loader is resumed, except for the return to the official firmware (opts.product: the official
+  // package, its identity checked once the FM-1 is back, after Felucca 1.0): that one is the official
+  // loader's own image, as M-UPGRADE would write it
+  async resume(image, onStep, opts = {}) {
     const ota = await this.find(IS_OTA);
     if (!ota) return false;
-    if (!OUR_LOADER(ota.id)) {
+    if (!OUR_LOADER(ota.id) && !opts.product) {
       ota.link.close();
       throw fail("foreign", `the FM-1 is in the update mode of another firmware (${ota.id.text}): finish that update with its own updater`, ota.id.text);
     }
-    return (await this.write(ota, image, onStep || (() => {}))).finished;
+    const step = onStep || (() => {});
+    if (!(await this.write(ota, image, step)).finished) return false;
+    if (opts.product) {
+      step("reboot");
+      await sleep(3000);
+      const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+      if (!back) throw fail("noreturn", "the FM-1 did not come back after the write: power-cycle it");
+      back.link.close();
+      if (back.id.text !== opts.product) throw fail("mismatch", `written, but the FM-1 reports ${back.id.text}`, back.id.text);
+      step("done", back.id.text);
+    }
+    return true;
   }
 }
 
@@ -376,6 +422,15 @@ const TEXT = {
     badpkg: "インストールするファイルが壊れています。ページを再読み込みしてください。",
     leave: "書き込み中です。ページを閉じないでください。",
     license: "GPL-3.0、無保証。ソース:",
+    stockTitle: "公式ファームウェア（V15）に戻す",
+    stockHelp: "M-VAVE のサイトから公式の FM-1 V15 をダウンロードし、中の FM-1.fwsc（変更していないもの）を選んでください。ファイルはこのブラウザの中で確認され、どこにも送られません。",
+    stockBackup: "公式ファームウェアは sloopDX の曲・プロジェクト・DX7 バンクを開けません。先にエディタでバックアップを保存してください（Projects → Backup）。sloopDX を入れ直せば、エディタから復元できます。",
+    stockEditor: "エディタを開いてバックアップする", stockSaved: "バックアップをパソコンに保存しました",
+    stockFile: "公式の FM-1.fwsc", stockGo: "公式 V15 をインストール",
+    stockValid: "公式 V15 を確認しました", stockBad: "公式 V15 ではありません: ",
+    stockConfirm: "FM-1 に公式 V15 をインストールします。sloopDX の曲は公式ファームウェアでは開けません。バックアップは保存しましたか？",
+    stockFinish: "FM-1 は sloopDX の書き込みモードです。先に「インストール」で sloopDX の書き込みを終えてから、公式 V15 に戻してください。",
+    back: "M-VAVE のアップデーター M-UPGRADE（Downloads → PC Software）でも戻せます。FM-1 が見つからない場合は、MIDI を使う他のアプリとブラウザのタブを閉じてください。",
   },
   en: {
     intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
@@ -401,6 +456,15 @@ const TEXT = {
     badpkg: "The file to install is damaged. Reload the page.",
     leave: "Writing. Do not close the page.",
     license: "GPL-3.0, no warranty. Source:",
+    stockTitle: "Return to the official firmware (V15)",
+    stockHelp: "Download the official FM-1 V15 from M-VAVE and select the FM-1.fwsc inside it, unmodified. The file is checked in this browser; it is not sent anywhere.",
+    stockBackup: "The official firmware cannot open sloopDX's music, projects or DX7 bank. Save a backup with the editor first (Projects → Backup); reinstall sloopDX and restore it from the editor whenever you want them back.",
+    stockEditor: "Open the editor to back up", stockSaved: "I saved a backup on this computer",
+    stockFile: "The official FM-1.fwsc", stockGo: "Install the official V15",
+    stockValid: "Official V15 verified", stockBad: "Not the official V15: ",
+    stockConfirm: "Install the official V15 on the FM-1? The official firmware cannot open sloopDX's music. Did you save a backup?",
+    stockFinish: "The FM-1 is in sloopDX's update mode. Press Install to finish the sloopDX update first, then return to the official V15.",
+    back: "M-VAVE's own updater, M-UPGRADE (Downloads → PC Software), works too. If it does not find the FM-1, close every other app and browser tab that uses MIDI.",
   },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
@@ -418,9 +482,15 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.0", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.0.fwsc", "sha256": "873f049079060acace01ac59fb6ce670f391f1bc97f05b447de0e8b39adb56a1"};
+const meta = {"version": "1.0", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.0.fwsc", "sha256": "74fb689a796c4e6def77c739b6eac41cb9a9e0dbc1bccb9269b77f7f8fedbd8c"};
 
-let writing = false;
+let writing = false, stock = null;
+const lockAll = (on) => {
+  writing = on;
+  $("go").disabled = on || !image;
+  $("stock-go").disabled = on || !stock || !$("stock-saved").checked;
+  $("stock-file").disabled = on;
+};
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
 (async () => {
@@ -436,28 +506,34 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
     }
     image = logicalImage(pkg);
     say(`sloopDX ${meta.version}`);
-    $("go").disabled = false;
+    lockAll(writing);
   } catch (e) { sayK("loadfail", e.message); }
 })();
 
+const total = 74 + 1179;                           /* reads: step 1, step 2 (head + app area, SLOOP 2.0 loader) */
+const step = (k, a) => {
+  log(`${k} ${a ?? ""}`);
+  if (k === "start") sayK("start");
+  if (k === "verify") { sayK("verify"); $("bar").value = Math.min(100, (a / total) * 100); }
+  if (k === "loader") sayK("loader");
+  if (k === "write") { sayK("write"); $("bar").value = Math.min(100, ((74 + a) / total) * 100); }
+  if (k === "reboot") sayK("reboot");
+  if (k === "done") { $("bar").value = 100; sayK("done"); }
+};
+const failed = (e) => {
+  if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
+  else sayK("error", e && e.message);
+  log(String(e && e.stack || e));
+};
+
 $("go").addEventListener("click", async () => {
-  $("go").disabled = true;
+  if (writing) return;
+  lockAll(true);
   let midi;
   try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
-  catch (e) { sayK("denied"); $("go").disabled = false; return; }
-  writing = true;
+  catch (e) { sayK("denied"); lockAll(false); return; }
   try {
     const up = new Updater(midi, log);
-    const total = 74 + 1179;                         /* reads: step 1, step 2 (head + app area, SLOOP 2.0 loader) */
-    const step = (k, a) => {
-      log(`${k} ${a ?? ""}`);
-      if (k === "start") sayK("start");
-      if (k === "verify") { sayK("verify"); $("bar").value = (a / total) * 100; }
-      if (k === "loader") sayK("loader");
-      if (k === "write") { sayK("write"); $("bar").value = ((74 + a) / total) * 100; }
-      if (k === "reboot") sayK("reboot");
-      if (k === "done") { $("bar").value = 100; sayK("done"); }
-    };
     const ota = await up.find((id) => /^ota-/i.test(id.model));
     if (ota) {
       ota.link.close();
@@ -465,13 +541,40 @@ $("go").addEventListener("click", async () => {
     } else {
       await up.install(image, meta.product, step);
     }
-  } catch (e) {
-    if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
-    else sayK("error", e && e.message);
-    log(String(e && e.stack || e));
-  }
-  writing = false;
-  $("go").disabled = false;
+  } catch (e) { failed(e); }
+  lockAll(false);
+});
+
+/* back to the official V15 (after Felucca 1.0): only the exact official file, a backup first (the editor),
+   through the same update path as M-UPGRADE; a device left in the official updater's mode is finished */
+$("stock-saved").addEventListener("change", () => lockAll(writing));
+$("stock-file").addEventListener("change", async () => {
+  const f = $("stock-file").files[0];
+  stock = null;
+  lockAll(writing);
+  if (!f) return;
+  try { stock = await validateStockPackage(new Uint8Array(await f.arrayBuffer())); sayK("stockValid"); }
+  catch (e) { sayK("stockBad", e.message); }
+  lockAll(writing);
+});
+$("stock-go").addEventListener("click", async () => {
+  if (writing || !stock || !$("stock-saved").checked || !confirm(t("stockConfirm"))) return;
+  lockAll(true);
+  let midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { sayK("denied"); lockAll(false); return; }
+  try {
+    const up = new Updater(midi, log);
+    const ota = await up.find((id) => /^ota-/i.test(id.model));
+    if (ota) {
+      ota.link.close();
+      if (OUR_LOADER(ota.id)) sayK("stockFinish");    /* SLOOP's loader: finish SLOOP first (Install) */
+      else sayK((await up.resume(stock.image, step, { product: stock.product })) ? "done" : "stopped");
+    } else {
+      await up.install(stock.image, stock.product, step);
+    }
+  } catch (e) { failed(e); }
+  lockAll(false);
 });
 </script>
 </body>

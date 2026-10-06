@@ -30,7 +30,7 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 ## Build and test
 
 - Firmware: `./build.sh` (needs the JieLi toolchain `tools/get_toolchain.sh` and the AC79 SDK, see
-  BUILDING.md). Builds: RAM about 81 KB of 96. Syntax-only without the toolchain:
+  BUILDING.md). Builds: RAM about 85 KB of 96. Syntax-only without the toolchain:
   `cc -fsyntax-only -w -Ibuild/gen -Ifirmware/src -Ifirmware/hal -DFELUCCA_ID='"FM-1_909"' firmware/src/felucca.c`
 - Generated headers: `python3 tools/build.py` step `generate()`, or by hand
   `python3 tools/gen_logo.py build/gen/sloopdx_logo.h` etc. (`build/gen/` is needed by the host tests).

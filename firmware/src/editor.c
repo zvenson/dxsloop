@@ -5,8 +5,9 @@
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
  * v5 = SLOOP 2.0: INFO ends with the protocol version (5), steps carry level / ratchet bytes,
  * DRUM_STEP (33) reads / writes the drum track's 16 lanes, TRACK ends with the solo mask;
- * v6 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (34-38) load a DX7 .syx bank in pieces, INFO ends
- * with 6; the sample-slot commands 11-15 answer rc 7 (no slots).
+ * v6 = SLOOP 2.3: BK_LIST / BK_GET / BK_PUT (34-36), backup and restore of the storage objects;
+ * v7 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (37-41) load a DX7 .syx bank in pieces, INFO ends
+ * with 7, backup object 8 is the bank; the sample-slot commands 11-15 answer rc 7 (no slots).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -22,8 +23,9 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_TRACK, ED_TRACK_MIX, ED_TRACK_DUMP, ED_TRACK_STEP,                    /* v3: tracks */
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
        ED_DRUM_STEP,                                                            /* v5: the 16 drum lanes */
-       ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE };  /* v6: the DX7 user bank */
-#define ED_PROTOCOL 6
+       ED_BK_LIST, ED_BK_GET, ED_BK_PUT,                                        /* v6: backup / restore (SLOOP 2.3) */
+       ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE };  /* v7: the DX7 user bank (sloopDX) */
+#define ED_PROTOCOL 7
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -311,6 +313,201 @@ static const param_desc_t *ed_desc(uint32_t scope, uint32_t id, int16_t **vp)
     return 0;
 }
 
+/* ---- v6: backup / restore (web/EDITOR_PROTOCOL.md). Objects: 0 the working project, 1 the settings
+ * (colours, calibration, the song order, the lights, SYNC), 2..5 the projects A..D, 6..7 the user preset
+ * banks, 32..34 the user sample slots USR1..3 (read only here: restored with SMP_BEGIN / WRITE / END).
+ * LIST takes a snapshot of the working project and the settings; GET reads 1..256 bytes of an object.
+ * PUT stages one object in RAM (begin: id, length, CRC-32; data; commit), checks it as a load would,
+ * then writes it through the usual A/B commit: a cut-off restore never leaves half an object. */
+#if FELUCCA_FLASH
+#define ED_BK_RAW ((uint8_t *)&proj_tmp)                  /* the staging RAM (main loop, as the project loads) */
+_Static_assert(sizeof proj_tmp >= sizeof(project_t) && sizeof proj_tmp >= sizeof(up_bank_t) &&
+               sizeof proj_tmp >= sizeof(persist_t), "backup staging");
+static uint8_t ed_smp_buf[256];                         /* a BK_PUT piece, unpacked */
+static persist_t ed_bk_set;                             /* LIST's snapshot of the settings */
+static uint8_t ed_bk_valid, ed_bk_put, ed_bk_id;
+static uint32_t ed_bk_len, ed_bk_crc, ed_bk_pos, ed_bk_ms;
+static void ed_bk_u32(uint32_t v) { uint32_t i; for (i = 0; i < 5u; i++) ed_b((v >> (7u * i)) & 127u); }
+static uint32_t ed_bk_r32(const uint8_t *a)
+{
+    return (uint32_t)a[0] | (uint32_t)a[1] << 7 | (uint32_t)a[2] << 14 | (uint32_t)a[3] << 21 | (uint32_t)a[4] << 28;
+}
+static void ed_bk_pack(const uint8_t *p, uint32_t n)    /* pack7: a top-bits byte, then up to 7 bytes */
+{
+    while (n) {
+        uint32_t k = n > 7u ? 7u : n, m = 0, i;
+        for (i = 0; i < k; i++)
+            m |= (uint32_t)(p[i] >> 7) << i;
+        ed_b(m);
+        for (i = 0; i < k; i++)
+            ed_b(p[i] & 127u);
+        p += k;
+        n -= k;
+    }
+}
+static const uint8_t *ed_bk_obj(uint32_t id, uint32_t *len)   /* 0 = no such object; *len 0 = empty */
+{
+    *len = 0;
+    if (id == 0u) {
+        *len = sizeof(project_t);
+        return ED_BK_RAW;
+    }
+    if (id == 1u) {
+        *len = sizeof ed_bk_set;
+        return (const uint8_t *)&ed_bk_set;
+    }
+    if (id >= 2u && id <= 5u) {
+        if (project_used(id - 2u))
+            *len = sizeof proj_slot[0];
+        return (const uint8_t *)&proj_slot[id - 2u];
+    }
+    if (id == 6u || id == 7u) {
+        if (up_bank[id - 6u].magic == UP_BANK_MAGIC)
+            *len = sizeof up_bank[0];
+        return (const uint8_t *)&up_bank[id - 6u];
+    }
+    if (id == 8u) {                                       /* sloopDX: the DX7 user bank (4096 bytes; 0 = none) */
+        if (dx_user_ok)
+            *len = sizeof dx_user;
+        return &dx_user[0][0];
+    }
+    return 0;
+}
+static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+
+static uint32_t ed_bk_commit(void)
+{
+    uint8_t *raw = ED_BK_RAW;
+    uint32_t id = ed_bk_id, n = ed_bk_len;
+    if (ed_bk_pos != n || st_crc32(raw, n) != ed_bk_crc)
+        return 2;
+    if (id == 1u)
+        return settings_restore(raw, n);
+    if (id <= 5u)
+        return project_restore(id == 0u ? 4u : id - 2u, raw, n);
+    if (id == 6u || id == 7u) {                           /* a user preset bank (n 0: empty) */
+        const up_bank_t *b = (const up_bank_t *)raw;
+        if (n && (n != sizeof *b || b->magic != UP_BANK_MAGIC || b->rsize != sizeof(up_rec_t) || b->nslot != UP_PER_BANK))
+            return 2;
+        if (!flash_ok || st_save(OBJ_UPRESET0 + id - 6u, raw, n))
+            return 4;
+        memset(&up_bank[id - 6u], 0, sizeof up_bank[0]);
+        if (n)
+            memcpy(&up_bank[id - 6u], raw, n);
+        up_bank_check(id - 6u, (int)n);
+        up_gen++;
+        return 0;
+    }
+    if (id == 8u) {                                       /* the DX7 user bank (n 0: none) */
+        if (n && n != sizeof dx_user)
+            return 2;
+        if (!n)
+            return dx_bank_erase() ? 4u : 0u;
+        dx_bank_begin();
+        dx_bank_write(0, raw, n);
+        if (dx_bank_end(dx_bank_sum()))
+            return 2;
+        return dx_bank_store() ? 4u : 0u;
+    }
+    return 1;
+}
+
+static int ed_backup(uint32_t cmd, const uint8_t *a, uint32_t na)   /* 1: a backup command (reply built) */
+{
+    uint32_t i, len, rc;
+    const uint8_t *p;
+    if (cmd == ED_BK_LIST) {
+        rc = !flash_ok ? 4u : 0u;
+        if (!rc) {
+            proj_capture((project_t *)ED_BK_RAW);           /* the working project, as it is now */
+            persist_fill(&ed_bk_set);
+            ed_bk_valid = 1;
+            ed_bk_put = 0;
+        }
+        ed_b(rc);
+        ed_b(rc ? 0u : (uint32_t)sizeof ED_BK_IDS);
+        for (i = 0; !rc && i < sizeof ED_BK_IDS; i++) {
+            p = ed_bk_obj(ED_BK_IDS[i], &len);
+            ed_b(ED_BK_IDS[i]);
+            ed_bk_u32(len);
+            ed_bk_u32(st_crc32(p, len));
+            fm1_wdt_feed();                               /* (a sample slot: up to 80 KiB through the CRC) */
+        }
+        return 1;
+    }
+    if (cmd == ED_BK_GET) {                               /* id, off (5), count (2) -> id, rc, off, count, data */
+        uint32_t off = na >= 6u ? ed_bk_r32(a + 1) : 0u, count = na >= 8u ? (uint32_t)a[6] | (uint32_t)a[7] << 7 : 0u;
+        p = na >= 1u ? ed_bk_obj(a[0], &len) : 0;
+        rc = na != 8u || !p || !count || count > 256u || off > len || count > len - off ? 1u
+             : !ed_bk_valid || (a[0] == 0u && ed_bk_put) ? 5u : 0u;   /* 5: LIST first (the snapshot is gone) */
+        ed_b(na ? a[0] : 127u);
+        ed_b(rc);
+        ed_bk_u32(off);
+        ed_b(rc ? 0u : count & 127u);
+        ed_b(rc ? 0u : count >> 7);
+        if (!rc)
+            ed_bk_pack(p + off, count);
+        return 1;
+    }
+    if (cmd == ED_BK_PUT) {                               /* op, id, ... -> op, id, rc */
+        uint32_t op = na >= 2u ? a[0] : 99u, id = na >= 2u ? a[1] : 127u;
+        rc = 1;
+        if (!flash_ok) {
+            rc = 4;
+        } else if (op == 0u && na == 12u && (id <= 8u)) {  /* begin: id, length (5), CRC-32 (5) */
+            len = ed_bk_r32(a + 2);
+            if (id >= 2u || len) {                        /* (the working project and the settings are never empty) */
+                if (len <= sizeof proj_tmp) {
+                    ed_bk_put = 1;
+                    ed_bk_valid = 0;                      /* (the staging RAM is the snapshot's) */
+                    ed_bk_id = (uint8_t)id;
+                    ed_bk_len = len;
+                    ed_bk_crc = ed_bk_r32(a + 7);
+                    ed_bk_pos = 0;
+                    ed_bk_ms = fm1_ms;
+                    rc = 0;
+                }
+            }
+        } else if (!ed_bk_put || ed_bk_id != id || fm1_ms - ed_bk_ms > 15000u) {
+            rc = 5;                                       /* no begin for this object (or too long ago) */
+        } else if (op == 1u && na >= 9u && ed_bk_r32(a + 2) == ed_bk_pos) {   /* data: off (5), pack7 */
+            uint32_t k = ed_unpack7(a + 7, na - 7u, ed_smp_buf, 256u);
+            if (k && k <= ed_bk_len - ed_bk_pos) {
+                memcpy(ED_BK_RAW + ed_bk_pos, ed_smp_buf, k);
+                ed_bk_pos += k;
+                ed_bk_ms = fm1_ms;
+                rc = 0;
+            }
+        } else if (op == 2u && na == 2u) {                /* commit */
+            rc = ed_bk_commit();
+            ed_bk_put = 0;
+            if (!rc) {
+                sync_reload = 1;
+                ui.force = 1;
+            }
+        } else if (op == 3u && na == 2u) {                /* abort */
+            ed_bk_put = 0;
+            rc = 0;
+        }
+        ed_b(op & 127u);
+        ed_b(id & 127u);
+        ed_b(rc);
+        return 1;
+    }
+    return 0;
+}
+#else
+static int ed_backup(uint32_t cmd, const uint8_t *a, uint32_t na)   /* no flash: nothing to back up */
+{
+    (void)a;
+    (void)na;
+    if (cmd < ED_BK_LIST || cmd > ED_BK_PUT)
+        return 0;
+    ed_b(4);
+    return 1;
+}
+#endif
+
 static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0 and F7 */
 {
     uint32_t cmd = f[3], i;
@@ -319,6 +516,10 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
     int16_t *vp;
     const param_desc_t *d;
     ed_begin(cmd);
+    if (ed_backup(cmd, a, na)) {                           /* v6: backup / restore */
+        ed_send();
+        return;
+    }
     switch (cmd) {
     case ED_INFO:
         ed_str("FELUCCA " FELUCCA_VERSION, 24);
@@ -330,7 +531,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         for (i = 0; i < NENGINES; i++)
             ed_str(ENGINES[i]->name, 8);
         ed_b(NTRK);                                       /* v3 */
-        ed_b(ED_PROTOCOL);                                /* v5: the protocol version (6: sloopDX) */
+        ed_b(ED_PROTOCOL);                                /* v5: the protocol version (6: backup, 7: sloopDX bank) */
         break;
     case ED_GET:
     case ED_SET:

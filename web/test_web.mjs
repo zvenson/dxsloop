@@ -29,9 +29,10 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const html = readFileSync(join(HERE, "editor.html"), "utf8");
 const proto = html.slice(html.indexOf("/*PROTO-BEGIN*/"), html.indexOf("/*PROTO-END*/"));
 const E = vm.runInNewContext(proto + `
-;({ frame, unframe, parse, req, Link, makeMockDevice, CMD, DX7, dx7Checksum, dx7VoiceName, dx7BankNames, dx7CheckSyx, dx7MakeSyx, dxbank,
+;({ frame, unframe, parse, req, Link, makeMockDevice, CMD, DX7, dx7Checksum, dx7VoiceName, dx7BankNames, dx7CheckSyx, dx7MakeSyx, dxbank, crc32,
    UP, bank, capturePatch, auditionPatch, startWatch, libraryFile, readLibraryFile, paramKeys, patternFromSteps, stepsFromPattern, upName,
-   mixer, GM_DRUM, drumName, parseNotes, fmtValue, F, DRUM_LANES, LV_NAMES, emptyDrum })`,
+   mixer, GM_DRUM, drumName, parseNotes, fmtValue, F, DRUM_LANES, LV_NAMES, emptyDrum,
+   backupCapture, backupRestore, backupObjects, b64enc, b64dec })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
 async function editorMock() {
@@ -42,7 +43,7 @@ async function editorMock() {
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
   ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
-    && info.ntrk === 4 && info.proto === 6 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 6)");
+    && info.ntrk === 4 && info.proto === 7 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 7)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (17 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, two unused */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
@@ -444,24 +445,80 @@ async function editorTrackParam() {
   o.done();
 }
 
+/* ------------------------------------- editor v6: backup / restore --- */
+async function editorBackup() {
+  const C = E.CMD;
+  const { m, rq, done } = attachMock({});
+  const info = E.parse[C.INFO](await rq(E.req.info()));
+  ok(info.proto === 7, "backup: INFO protocol 7 (backup since 6)");
+  const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8");
+  ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..8, no sample slots)");
+  await rq(E.req.upStore(3, "BACKUP ME"));
+  await rq(E.req.project(1, 2), { timeout: 4000, retries: 0 });
+  const syx = E.dx7CheckSyx(makeBank());
+  ok((await E.dxbank.upload(rq, syx)) === 0, "backup: a DX7 bank on the device");
+  const A = await E.backupCapture(rq, info);
+  const obj = (id) => A.objects.find((o) => o.id === id);
+  ok(A.format === "sloop-backup" && A.objects.map((o) => o.id).join() === "0,1,2,3,4,5,6,7,8" && obj(8).len === E.DX7.DATA_LEN
+    && eq(E.b64dec(obj(8).data), syx.data) && obj(4).len > 0 && obj(3).len === 0 && obj(6).len > 0,
+    "backup: LIST + GET: 9 objects (project in C, B empty, the DX7 bank as its 4096 voice bytes)");
+  await rq(E.req.upErase(3));
+  ok((await E.dxbank.erase(rq)) === 0 && m.state.dx.data === null, "backup: the bank erased, a preset erased, the project changed");
+  await rq(E.req.set(0, 3, 5));
+  await rq(E.req.project(1, 1), { timeout: 4000, retries: 0 });
+  await E.backupRestore(rq, JSON.parse(JSON.stringify(A)));   /* as written to disk and read back */
+  const B = await E.backupCapture(rq, info);
+  ok(js(B.objects) === js(A.objects) && eq(m.state.dx.data, syx.data) && (await E.dxbank.info(rq)).names[0] === syx.names[0],
+    "backup: restore -> the same bytes again (presets, projects, the DX7 bank, settings)");
+  /* an empty bank object (length 0) restores as no bank */
+  const none = JSON.parse(JSON.stringify(A));
+  none.objects.find((o) => o.id === 8).len = 0; none.objects.find((o) => o.id === 8).data = ""; none.objects.find((o) => o.id === 8).crc = 0;
+  await E.backupRestore(rq, none);
+  ok(m.state.dx.data === null && (await E.dxbank.info(rq)).ok === 0, "backup: an empty bank object restores as no bank");
+  const bad = JSON.parse(JSON.stringify(A));
+  bad.objects[2].data = E.b64enc(E.b64dec(bad.objects[2].data).map((x, i) => i === 3 ? x ^ 1 : x));
+  let caught = "";
+  try { E.backupObjects(bad); } catch (e) { caught = e.code; }
+  ok(caught === "bkBad", "backup: a damaged file is refused before anything is written");
+  /* a SLOOP 2.3 backup: its sample slots (32..34) are left out, the rest restores */
+  const sloop = JSON.parse(JSON.stringify(A));
+  sloop.objects = sloop.objects.filter((o) => o.id !== 8).concat([32, 33, 34].map((id) => ({ id, len: 0, crc: 0, data: "" })));
+  const objs = E.backupObjects(sloop);
+  ok(!objs.has(32) && !objs.has(8) && objs.has(0) && objs.has(1), "backup: a SLOOP 2.3 file (sample slots 32..34) is accepted without them");
+  let wrong = "";
+  try { E.backupObjects({ ...A, objects: [...A.objects, { id: 9, len: 0, crc: 0, data: "" }] }); } catch (e) { wrong = e.code; }
+  ok(wrong === "bkBad", "backup: an unknown object is refused");
+  done();
+  const old = attachMock({ noBackup: true });
+  const oi = E.parse[C.INFO](await old.rq(E.req.info()));
+  ok(oi.proto === 5, "backup: SLOOP 2.0-2.2 says protocol 5 (the editor hides backup and bank)");
+  old.done();
+  /* SLOOP 2.3: backup, no DX7 bank (protocol 6: the editor shows backup, no bank panel) */
+  const s23 = attachMock({ sloop23: true });
+  const si = E.parse[C.INFO](await s23.rq(E.req.info()));
+  const L = E.parse[C.BK_LIST](await s23.rq(E.req.bkList()));
+  const nb = await E.dxbank.info(s23.rq, { timeout: 60, retries: 0, quiet: true }).then(() => "reply", () => "none");
+  ok(si.proto === 6 && L.rc === 0 && L.items.length > 0 && nb === "none", "backup: SLOOP 2.3 says protocol 6: backup answered, BANK_INFO not");
+  s23.done();
+}
+
 /* ------------------------------------- editor v5 (SLOOP 2.0): lanes, levels, ratchets --- */
 async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 6 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (6: sloopDX)");
-  /* the firmware says the same: ED_DRUM_STEP is command 33, the bank commands 34..38 (once editor.c has them: then
-     INFO must send 6), P_CHORD / the master globals as the mock has them */
+  ok(info.proto === 7 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (7: sloopDX)");
+  /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
+     commands 37..41 (sloopDX, protocol 7), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
   const en = (/enum \{ ED_INFO = 1,([^}]*)\}/.exec(ec) || [])[1] || "";
   const names = ["ED_INFO", ...en.replace(/\/\*[^*]*\*\//g, "").split(",").map((x) => x.trim()).filter(Boolean)];
-  /* INFO's last byte: ed_b(5) (SLOOP 2.x) or ed_b(ED_PROTOCOL) with #define ED_PROTOCOL 6 (sloopDX) */
-  const fwProto = +((/ed_b\((\d)\);\s*\/\* v\d: the protocol version/.exec(ec) || [])[1]
-    || (/ed_b\(ED_PROTOCOL\)/.test(ec) && (/#define ED_PROTOCOL (\d)/.exec(ec) || [])[1]) || 0);
-  const fwBank = names.includes("ED_BANK_BEGIN");
-  ok(names.indexOf("ED_DRUM_STEP") + 1 === C.DRUM_STEP && names.indexOf("ED_TRACK_CHANGED") + 1 === C.TRACK_CHANGED && fwProto >= 5
-    && (!fwBank || (names.indexOf("ED_BANK_BEGIN") + 1 === C.BANK_BEGIN && names.indexOf("ED_BANK_ERASE") + 1 === C.BANK_ERASE && fwProto === 6)),
-    `v5: command numbers and INFO == editor.c (firmware protocol ${fwProto}${fwBank ? ", bank commands 34..38" : ", no bank commands yet"})`);
+  const fwProto = +((/#define ED_PROTOCOL (\d)/.exec(ec) || [])[1] || 0);
+  ok(names.indexOf("ED_DRUM_STEP") + 1 === C.DRUM_STEP && names.indexOf("ED_TRACK_CHANGED") + 1 === C.TRACK_CHANGED
+    && names.indexOf("ED_BK_LIST") + 1 === C.BK_LIST && names.indexOf("ED_BK_PUT") + 1 === C.BK_PUT
+    && names.indexOf("ED_BANK_BEGIN") + 1 === C.BANK_BEGIN && names.indexOf("ED_BANK_ERASE") + 1 === C.BANK_ERASE
+    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 7,
+    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, firmware protocol ${fwProto})`);
   const enumNames = (id) => (new RegExp(`${id}\\[\\] = \\{([^}]*)\\}`).exec(pc) || [])[1].split(",").map((x) => x.trim().replace(/"/g, ""));
   const chord = E.parse[C.DESC](await rq(E.req.desc(0, 49)));
   const gd = [];
@@ -554,7 +611,7 @@ async function editorDxBank() {
     "dx7: checksum arithmetic");
   /* the frames: BANK_WRITE 2 + 512 data bytes, all 7 bit */
   const w = E.req.bankWrite(3584, chk.data.subarray(3584));
-  ok(w[0] === 35 && w[1].length === 514 && w[1][0] === 0 && w[1][1] === 28 && w[1].every((b) => b >= 0 && b < 128)
+  ok(w[0] === C.BANK_WRITE && w[0] === 38 && w[1].length === 514 && w[1][0] === 0 && w[1][1] === 28 && w[1].every((b) => b >= 0 && b < 128)
     && E.frame(...w).length === 520 && E.req.bankEnd(chk.checksum)[1][0] === chk.checksum && E.req.bankBegin()[1].length === 0,
     "dx7: BANK_WRITE frames (offset LSB first, 512 bytes, 520-byte frame)");
 
@@ -762,6 +819,19 @@ async function updater() {
   stock.boot("ota-FM-1_015", "FM-1 Update");
   const e3 = await new Updater(stock.access).resume(image).then(() => null, (x) => x);
   ok(e3 && e3.code === "foreign" && e3.detail === "ota-FM-1_015" && stock.served === 0, "fm1ota.js: another firmware's loader is never resumed ('foreign')");
+  const back = new FakeFM1(image, { finalIdentity: "FM-1_015" });   /* the return to the official V15, interrupted */
+  back.boot("ota-FM-1_015", "FM-1 Update");
+  const st = [];
+  const r4 = await new Updater(back.access).resume(image, (k) => st.push(k), { product: "FM-1_015" });
+  ok(r4 === true && back.bad === 0 && st.at(-1) === "done", "fm1ota.js: return to official: its own loader resumed, V15 checked when back");
+  const wrong = new FakeFM1(image, { finalIdentity: "FM-1_900" });
+  wrong.boot("ota-FM-1_015", "FM-1 Update");
+  const e5 = await new Updater(wrong.access).resume(image, null, { product: "FM-1_015" }).then(() => null, (x) => x);
+  ok(e5 && e5.code === "mismatch", "fm1ota.js: return to official: another firmware coming back is not 'done'");
+  const pk = await import(join(HERE, "fm1pkg.js"));
+  const notStock = new Uint8Array(pk.STOCK_V15_SIZE);
+  const e6 = await pk.validateStockPackage(notStock).then(() => null, (x) => x);
+  ok(e6 && /official FM-1 V15/.test(e6.message), "fm1pkg.js: only the exact official V15 is accepted (SHA-256)");
 }
 
 await editorMock();
@@ -772,6 +842,7 @@ await editorMixer();
 await editorTrackParam();
 await editorV5();
 await editorDxBank();
+await editorBackup();
 editorTabs();
 editorIcons();
 await packages();

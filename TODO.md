@@ -1,17 +1,20 @@
 # sloopDX: was noch zu tun ist
 
-Stand 2026-10-06 (abends). Reihenfolge = Priorität. Host-Tests (`sh tests/run_tests.sh`) sind grün, der
-Firmware-Build läuft (`./build.sh`: RAM 81 KB von 96 KB); auf dem FM-1 lief noch nichts.
+Stand 2026-10-06 (abends, nach dem Merge von SLOOP 2.3). Reihenfolge = Priorität. Host-Tests (`sh tests/run_tests.sh`) sind grün, der
+Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noch nichts.
 
 ## 1. Gerätetest (siehe START.md)
 
-- [x] Erster Build mit der JieLi-Toolchain: RAM .data + .bss 81388 B von 98304 (die User-Bank bleibt im
-      RAM; 17 KB Luft). `tests/target_budget.txt` kennt jetzt die DX7-Schleifen (dx7_render, dx_compute,
+- [x] Erster Build mit der JieLi-Toolchain: RAM .data + .bss 84636 B von 98304 (nach dem 2.3-Merge: USB-Audio) (die User-Bank bleibt im
+      RAM; 13 KB Luft). `tests/target_budget.txt` kennt jetzt die DX7-Schleifen (dx7_render, dx_compute,
       dx_op, dx_env_advance, mix_block).
 - [ ] fm1-emulator, dann Gerät. CPU: 3 Parts + Drums gleichzeitig spielen, auf Aussetzer hören.
       14 DX7-Stimmen (8 + 6 Drums) auf dem pi32v2 sind ungetestet; Host-Kosten sind wie DIGITAL.
-- [ ] Pegel am Gerät: Drums gegen Synth-Parts, Klick (Metronom), DUCK. Der DX7-Ausgang ist 6 dB lauter
-      als zuerst (eng_dx7.c, `>> 10`), die Preset-Trims sind gemessen (siehe 4).
+- [ ] Pegel am Gerät: Drums gegen Synth-Parts, Klick (Metronom), DUCK, USB-Audio. Der DX7-Ausgang ist 6 dB
+      lauter als zuerst (eng_dx7.c, `>> 10`), die Preset-Trims sind gemessen (siehe 4). Achtung: der DX7 hat
+      einen höheren Crest-Faktor als SLOOPs Engines; 8 E-Piano-Stimmen bei Velocity 110 treiben den Master-
+      Limiter (SLOOPs USB-AUDIO-FULL-Test läuft deshalb mit 3 STRINGS-Noten). Klingt es am Gerät zu
+      gedrückt: zurück auf `>> 11`, `preset_trim.h` auf 0 und `tools/level_presets.py` zweimal laufen lassen.
 - [ ] .syx-Bank am Gerät laden (Editor oder `tools/fm1_bank_upload.py`), Neustart, Bank noch da?
 
 ## 2. .syx-Bank aufs Gerät
@@ -34,7 +37,9 @@ Firmware-Build läuft (`./build.sh`: RAM 81 KB von 96 KB); auf dem FM-1 lief noc
 - [x] GitHub Action `.github/workflows/build.yml` (Build, Tests, Artefakt, Release bei `v*`-Tag).
       Ob der Runner pkgman.jieliapp.com und gitee erreicht, zeigt der erste Lauf.
 - [x] `INSTALL-SLOOPDX.bat`, `build-sloopdx.ps1`, `OPEN-EDITOR.bat`, `tools/build_windows.py`.
-- [ ] Repo auf GitHub: github.com/zvenson/dxsloop (Fork von isod89/sloop-fm1; upstream ist inzwischen SLOOP 2.3, sloopdx basiert auf 2.2) (`zvenson/dxsloop` ist überall eingetragen: ABOUT-Seite,
+- [x] Repo auf GitHub: github.com/zvenson/dxsloop (Fork von isod89/sloop-fm1), SLOOP 2.3 ist gemergt
+      (USB-Audio, MIDI-IN-Buchse, MIDI-Clock, REC-Modi, Lichter, Backup; Backup-Objekt 8 = DX7-Bank).
+      Noch zu tun auf GitHub: Default-Branch `sloopdx`, Pages aus `docs/` (`zvenson/dxsloop` ist überall eingetragen: ABOUT-Seite,
       README, Installer), `git push`, GitHub Pages aus `docs/` einschalten. Eigene Domain
       (z. B. dxsloop.designburgapps.com): `docs/CNAME` plus DNS-CNAME auf `<account>.github.io`, oder
       `build/sloopdx-site` per FTP auf einen beliebigen HTTPS-Host (Web MIDI braucht HTTPS).

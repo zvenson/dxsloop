@@ -61,6 +61,15 @@ run "user presets (UP_PUT parser, bank round trip, versions)" "$OUT/upreset_test
 
 $CC -o "$OUT/midi_uart_test" tests/midi_uart_test.c
 run "TRS MIDI parser" "$OUT/midi_uart_test"
+$CC -Ifirmware/hal -o "$OUT/encoder_test" tests/encoder_test.c
+run "knobs: one click = one step (slow, fast, pauses, bounce)" "$OUT/encoder_test"
+HALF=$(sed -n 's/^#define HALF_FRAMES \([0-9]*\).*/\1/p' firmware/src/core.h)
+$CC -DT_CDC=1 -DHALF_FRAMES=$HALF -o "$OUT/uac_test" tests/uac_test.c
+run "USB audio input: descriptors (with CDC), ring and packets" "$OUT/uac_test"
+$CC -DT_CDC=0 -DHALF_FRAMES=$HALF -o "$OUT/uac_test_nocdc" tests/uac_test.c
+run "USB audio input: descriptors (without CDC), ring and packets" "$OUT/uac_test_nocdc"
+uac_in_app() { ${CC%% *} -E -Ibuild/gen -Ifirmware/hal -Ifirmware/src firmware/src/felucca.c 2>/dev/null | grep -q uac_service; }
+run "USB audio input: built into the firmware (FELUCCA_UAC set before usb.c)" uac_in_app
 
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry" "$OUT/ota_test" build/felucca.fwsc

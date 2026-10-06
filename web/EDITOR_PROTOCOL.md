@@ -3,15 +3,17 @@
 The firmware side is `firmware/src/editor.c` (sloopDX is based on SLOOP, which is based on Felucca: the
 frames keep its "FL" header). Commands 16-26 (user presets and live sync) form protocol v2; commands
 27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; command 33 and
-the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 34-38 (the DX7 user
-bank) form protocol v6 (sloopDX).
+the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 34-36 (backup) form protocol v6 (SLOOP 2.3); commands 37-41 (the DX7 user bank) form
+protocol v7 (sloopDX).
 
-**v6 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
+**v7 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
 (VOICE) is an enum of 49 names: the 17 factory voices, then U01..U32, the user bank. A DX7 32-voice bulk
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
-0 slots, the others rc 7). `INFO` ends with 6.
+0 slots, the others rc 7). `INFO` ends with 7. SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
+v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
+sample slots 32..34.
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -54,7 +56,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (6 on sloopDX, 5 on SLOOP 2.x); older firmware ends after the names / NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (7 on sloopDX, 6 on SLOOP 2.3, 5 on SLOOP 2.0-2.2); older firmware ends after the names / NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -101,18 +103,18 @@ An absent status byte retains the original reply format.
 | --- | --- | --- |
 | 33 DRUM_STEP | index (get), or index, on (3 bytes), lvl (5 bytes), rat (5 bytes) (set) | index, on (3 bytes), lvl (5 bytes), rat (5 bytes): the drum track's step, whichever track is selected |
 
-| cmd (v6, sloopDX) | Request args | Reply args |
+| cmd (v7, sloopDX) | Request args | Reply args |
 | --- | --- | --- |
-| 34 BANK_BEGIN | — | rc (0 ok). Starts an upload: the user bank is empty from now on (U01..U32 play INIT VOICE, the USER kit the DX KIT) until `BANK_END` accepts it |
-| 35 BANK_WRITE | offset (2 × 7 bit, LSB first, 0..4095), data (1..512 bytes: the voice bytes of the dump, bytes 6..4101 of the .syx, each 7 bit, as they are) | offset (2 bytes), rc: 0 ok, 1 arguments (no `BANK_BEGIN`, offset + length > 4096, no data) |
-| 36 BANK_END | checksum (byte 4102 of the .syx) | rc: 0 ok (the bank plays and is in flash), 1 checksum (the bank stays empty), 2 flash (the bank plays until power-off) |
-| 37 BANK_INFO | — | ok (0 = no bank, 1 = a bank), then 32 name strings (U01..U32; empty strings without a bank) |
-| 38 BANK_ERASE | — | rc: 0 ok, 2 flash. The user bank is empty again |
+| 37 BANK_BEGIN | — | rc (0 ok). Starts an upload: the user bank is empty from now on (U01..U32 play INIT VOICE, the USER kit the DX KIT) until `BANK_END` accepts it |
+| 38 BANK_WRITE | offset (2 × 7 bit, LSB first, 0..4095), data (1..512 bytes: the voice bytes of the dump, bytes 6..4101 of the .syx, each 7 bit, as they are) | offset (2 bytes), rc: 0 ok, 1 arguments (no `BANK_BEGIN`, offset + length > 4096, no data) |
+| 39 BANK_END | checksum (byte 4102 of the .syx) | rc: 0 ok (the bank plays and is in flash), 1 checksum (the bank stays empty), 2 flash (the bank plays until power-off) |
+| 40 BANK_INFO | — | ok (0 = no bank, 1 = a bank), then 32 name strings (U01..U32; empty strings without a bank) |
+| 41 BANK_ERASE | — | rc: 0 ok, 2 flash. The user bank is empty again |
 
 **pack7:** groups of up to 7 bytes, each preceded by one byte holding their top bits
 (bit j = bit 7 of byte j).
 
-**DX7 user bank** (v6): a DX7 32-voice bulk dump is `F0 43 0n 09 20 00`, 4096 voice bytes (32 × 128,
+**DX7 user bank** (v7): a DX7 32-voice bulk dump is `F0 43 0n 09 20 00`, 4096 voice bytes (32 × 128,
 the DX7's packed voice format), a checksum byte and `F7`: 4104 bytes. The checksum is
 `(128 - (sum of the 4096 voice bytes) mod 128) mod 128`. The uploader checks the header, the length and the
 checksum itself, then sends `BANK_BEGIN`, eight `BANK_WRITE` of 512 bytes (offsets 0, 512, .. 3584) and
@@ -252,6 +254,29 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
   `KIT` (sloopDX: 5 FM kits, DX KIT, TIGHT, BOOM, METAL, USER; SLOOP 2.x had 34 sample kits). `DESC` of
   `P_E1..P_E7` there still describes engine 0 (unused).
 
+## v6: backup / restore (SLOOP 2.3)
+
+`INFO` ends with 6. Objects: **0** the working project (a `project_t`, as the autosave), **1** the settings
+(`persist_t`: colours, low cut, zoom, the panel calibration, the song order, the lights and SYNC word),
+**2..5** the projects 1..4 (song sections A..D; length 0 = empty), **6..7** the user preset banks (`up_bank_t`,
+16 records each; 0 = empty), **8** the DX7 user bank (sloopDX: 4096 voice bytes as in a .syx; 0 = none; SLOOP 2.3 has the user
+sample slots as 32..34 instead). Numbers are 5 × 7 bit (u35, LSB first); data is pack7.
+
+| cmd | Request args | Reply args |
+| --- | --- | --- |
+| 34 BK_LIST | — | rc (0 ok, 4 no flash), count, then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project and the settings for GET |
+| 35 BK_GET | id, offset u35, count (2 × 7 bit, 1..256) | id, rc (0 ok, 1 arguments, 5 the snapshot is gone: LIST again), offset u35, count, pack7 data |
+| 36 BK_PUT | op 0 begin: id 0..8, length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object (CRC, magic, sizes, ranges), 3 stop the song first (projects), 4 flash, 5 no begin for this object (or more than 15 s ago) |
+
+A restore stages one object in RAM (the project load buffer), checks it at the commit as a load checks it
+(projects: magic, size and sum, older formats converted; banks: magic, record size, slot count; settings:
+magic, palette, a permutation of the buttons and knobs, a valid song order) and writes it through the usual
+A/B commit; the working project is loaded at once (the song must be stopped). Samples are restored with
+`SMP_BEGIN` / `SMP_WRITE` / `SMP_END` (the header is the first 480 bytes of the object, the data from byte
+512), an empty slot with `SMP_ERASE`. The editor's file is JSON: `{format: "sloop-backup", version: 1,
+firmware, date, objects: [{id, len, crc, data (base64)}]}`; it is checked (lengths, CRCs) before anything is
+written.
+
 ## Notes for the editor
 
 - **One request at a time.** Wait for the reply, about 10–50 ms, before sending the next.
@@ -261,6 +286,8 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 - **Port.** The device's MIDI port is named "Felucca" (USB 1209:0001; SLOOP keeps the name so editors
   and installers find it). Updates use the same
   port with other SysEx (the `F0 22 24 35 …` keys, `00 59 …` frames); never send those
-  from the editor.
-- **Safety.** Only `PROJECT` save, `BANK_END` / `BANK_ERASE` and `UP_PUT` / `UP_STORE` / `UP_ERASE` write
-  flash, and only in Felucca's own storage; never the app or the update area.
+  from the editor. Since SLOOP 2.3 (after Felucca 1.0) the same USB device also has an audio input
+  ("Felucca", 44.1 kHz stereo; bcdDevice 3.11): the MIDI port and this protocol are unchanged, and both
+  work while the computer records.
+- **Safety.** Only `PROJECT` save, `BANK_END` / `BANK_ERASE`, `BK_PUT` and `UP_PUT` / `UP_STORE` / `UP_ERASE` write flash, and only in
+  Felucca's own storage; never the app or the update area.

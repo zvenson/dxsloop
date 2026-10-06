@@ -49,6 +49,54 @@ static int play_led(void)
 }
 
 /* the keys' lights: what the layer held does, else the keys down and the drum hits */
+/* what sounds on track t, as keys: the drum hits (each lights its key a few frames) or, on a synth
+ * track, the voices still held, mapped back through the keyboard (octave, scale, chords; by
+ * @renebohne, PR #11). Shown at once with menu NOTES on, on every screen and layer (keys_notes_dim) */
+static uint32_t keys_sounding(const track_t *t)
+{
+    uint32_t i, m = 0;
+    if (is_drum(t)) {
+        for (i = 0; i < DRUM_LANES; i++)
+            if (pad_lit[i])
+                m |= 1u << key_of_white(i);
+        return m;
+    }
+    for (i = 0; i < NVOICE; i++) {
+        const voice_t *v = &t->v[i];
+        if (v->active && v->gate && v->stage <= 2) {
+            uint32_t k, note = v->note;
+            for (k = 0; k < 27u; k++)
+                if (kb_map(t, k) == note)
+                    m |= 1u << k;
+        }
+    }
+    return m;
+}
+
+static uint32_t scale_keys(uint32_t root_only)   /* SCL: the keys in the scale (or its roots only) */
+{
+    uint32_t i, m = 0, root = (uint32_t)trk[0].p[P_ROOT] % 12u, mask = SCALE_MASK[clamp(trk[0].p[P_SCALE], 0, NSCALES - 1)];
+    for (i = 0; i < 27u; i++) {
+        uint32_t d = (53u + i - root + 120u) % 12u;
+        if ((mask >> d) & 1u && (!root_only || !d))
+            m |= 1u << i;
+    }
+    return m;
+}
+
+static uint32_t erase_lanes(const track_t *t)   /* EDIT erase, drum track: the sounds the pattern holds */
+{
+    uint32_t i, m = 0;
+    if (is_drum(t))
+        for (i = 0; i < trk_len(t); i++) {
+            uint32_t l, d = dstep_mask(&t->dstep[i]);
+            for (l = 0; d; l++, d >>= 1)
+                if (d & 1u)
+                    m |= 1u << key_of_white(l);
+        }
+    return m;
+}
+
 static uint32_t keys_lit(void)
 {
     uint32_t m = 0, i, blink = (fm1_ms / 125u) & 1u;
@@ -70,15 +118,10 @@ static uint32_t keys_lit(void)
         }
         return m | fm1_in.notes;
     }
-    case LY_SCALE: {                               /* the keys in the scale; the root blinks */
-        uint32_t root = (uint32_t)trk[0].p[P_ROOT] % 12u, mask = SCALE_MASK[clamp(trk[0].p[P_SCALE], 0, NSCALES - 1)];
-        for (i = 0; i < 27u; i++) {
-            uint32_t d = (53u + i - root + 120u) % 12u;
-            if ((mask >> d) & 1u && (d || blink))
-                m |= 1u << i;
-        }
-        return m;
-    }
+    case LY_SCALE:                                 /* the keys in the scale; the root blinks */
+        if (lights_notes)                          /* NOTES: the scale goes dim (keys_notes_dim), what sounds lit */
+            return (blink ? scale_keys(1) : 0u) | keys_sounding(t) | fm1_in.notes;
+        return scale_keys(0) & ~(blink ? 0u : scale_keys(1));
     case LY_MIX:                                   /* tracks heard: 1..4; soloed: 5..8; tap: the beat */
         for (i = 0; i < 4u; i++) {
             if (!trk_silent(&trk[i]))
@@ -89,24 +132,36 @@ static uint32_t keys_lit(void)
         if (play_led())
             m |= 1u << key_of_white(15);
         return m;
-    case LY_ERASE:                                 /* the sounds the pattern holds */
-        if (is_drum(t))
-            for (i = 0; i < trk_len(t); i++) {
-                uint32_t l, d = dstep_mask(&t->dstep[i]);
-                for (l = 0; d; l++, d >>= 1)
-                    if (d & 1u)
-                        m |= 1u << key_of_white(l);
-            }
-        return m | fm1_in.notes;
-    default:
+    case LY_ERASE:                                 /* the sounds the pattern holds (NOTES: dim, the hits lit) */
+        return (lights_notes ? 0u : erase_lanes(t)) | fm1_in.notes | (lights_notes ? keys_sounding(t) : 0u);
+    default:                                       /* playing, ARP roll, SAVE song, every page and the menu */
         break;
     }
     m = fm1_in.notes;
-    if (is_drum(t))                                /* the drum track: each hit lights its key */
-        for (i = 0; i < DRUM_LANES; i++)
-            if (pad_lit[i])
-                m |= 1u << key_of_white(i);
+    if (is_drum(t) || lights_notes)                /* the drum track: each hit lights its key; NOTES: the synths too */
+        m |= keys_sounding(t);
     return m;
+}
+
+/* menu NOTES, on the layers whose keys are tiles (FX effects, SEQ steps, GLO mute / solo): what
+ * sounds glows dimly under the tiles, which keep their full light. SCL (the scale) and EDIT on the
+ * drum track (the sounds of the pattern): those glow, and what sounds is lit (keys_lit) */
+static uint32_t keys_notes_dim(void)
+{
+    if (!lights_notes)
+        return 0u;
+    switch (ui.layer) {
+    case LY_FX:
+    case LY_STEP:
+    case LY_MIX:
+        return keys_sounding(TSEL);
+    case LY_SCALE:
+        return scale_keys(0);
+    case LY_ERASE:
+        return erase_lanes(TSEL);
+    default:
+        return 0u;
+    }
 }
 
 /* the keys' landmarks, dim: the first key of each row of the 4 x 4 grid on screen (white keys
@@ -118,10 +173,24 @@ static uint32_t keys_guide(void)
     return 1u << key_of_white(0) | 1u << key_of_white(4) | 1u << key_of_white(8) | 1u << key_of_white(12);
 }
 
+/* the keys the backlight lights (menu KEYS): the Cs, or every white key; bit k = key k (0 = F3) */
+static uint32_t lights_keys_mask(void)
+{
+    uint32_t k, m = 0;
+    if (!lights_lvl || !lights_keys)
+        return 0u;
+    for (k = 0; k < 27u; k++) {
+        uint32_t pc = (53u + k) % 12u;             /* key 0 = F3 (53) */
+        if (lights_keys == KEYS_C ? pc == 0u : ((0xAB5u >> pc) & 1u) != 0u)   /* 0xAB5: C D E F G A B */
+            m |= 1u << k;
+    }
+    return m;
+}
+
 static void ui_leds(void)
 {
-    uint8_t nl[FM1_NCOL] = {0}, dl[FM1_NCOL] = {0};
-    uint32_t k, c, keys, guide;
+    uint8_t nl[FM1_NCOL] = {0}, dl[FM1_NCOL] = {0}, bl[FM1_NCOL] = {0};
+    uint32_t k, c, keys, guide, back;
     static uint8_t ready;
     if (!ready) {
         led_pos_init();
@@ -129,7 +198,8 @@ static void ui_leds(void)
     }
     led_put(nl, panel.btn[ui.layer != LY_PLAY ? LAYER_BTN[ui.layer] : cur_btn()],
             ly_lock == LY_PLAY || ((fm1_ms / 300u) & 1u) != 0u || (fm1_in.buttons & ly_bit[ly_lock % LY_COUNT]) != 0u);   /* locked: blinks */
-    led_put(nl, panel.btn[B_PLAY], play_led() || (song.playing && !song.rec && ft_on));
+    led_put(nl, panel.btn[B_PLAY], play_led() || (song.playing && !song.rec && ft_on) ||
+                                      (ci_on && ci_u % BEAT_U < BEAT_U / 4u));   /* (the count-in's beats) */
     led_put(nl, panel.btn[B_REC], song.rec != 0u || ft_on || (rec_wait && ((fm1_ms / 125u) & 1u)) ||
                                      (ui.hold_kind == 1u && ((fm1_ms / 60u) & 1u)));   /* blinks: armed; fast: clearing */
     if (is_drum(TSEL)) {                           /* the drum track: OCT- / OCT+ lit while ghost / hard */
@@ -140,15 +210,22 @@ static void ui_leds(void)
         led_put(nl, panel.btn[B_OCTUP], song.octave > 0);
     }
     keys = keys_lit();
-    guide = keys_guide() & ~keys;
+    guide = (keys_guide() | keys_notes_dim()) & ~keys;
+    back = lights_keys_mask() & ~keys & ~guide;
     for (k = 0; k < 27u; k++) {
         led_put(nl, 14u + k, (int)((keys >> k) & 1u));
         led_put(dl, 14u + k, (int)((guide >> k) & 1u));
+        led_put(bl, 14u + k, (int)((back >> k) & 1u));
     }
+    if (lights_lvl)                                /* menu LIGHTS: every button glows, the lit ones stay full */
+        for (k = 0; k < NB; k++)
+            led_put(bl, panel.btn[k], 1);
     for (c = 0; c < FM1_NCOL; c++) {
         fm1_led[c] = nl[c];
         fm1_led_dim[c] = dl[c];
+        fm1_led_bg[c] = (uint8_t)(bl[c] & ~nl[c]);
     }
+    fm1_led_bg_ns = LIGHTS_NS[lights_lvl % LIGHTS_N];
 }
 
 /* ---------------------------------------------------------- input --- */
@@ -247,7 +324,7 @@ static void project_new(void)
     }
     TDRUM->p[P_E0] = DRUM_DEFAULT_KIT;
     for (i = 0; i < G_COUNT; i++)
-        if (i != G_SLOT && i != G_DRCH)
+        if (i != G_SLOT && i != G_DRCH && i != G_SYNC)
             song.g[i] = GP[i].def;
     song.solo = 0;
     song.octave = 0;
@@ -577,6 +654,38 @@ static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
     return 1;
 }
 
+/* the REC screen while armed (ui_studio.c rec_screen_draw): KNOB 1 MODE free / tempo (an empty
+ * project), KNOB 2 the length of the selected track (1, 2 or 4 bars), KNOB 3 START note / count;
+ * MODE and START are settings of the FM-1 (panel.c lights_word: saved once stopped) */
+static void rec_knobs(void)
+{
+    static const uint8_t LENS[3] = {16u, 32u, 64u};
+    int32_t s;
+    uint32_t empty = (uint32_t)project_empty(), tempo = !empty || rec_tempo;
+    if ((s = panel_enc(EN_K1)) != 0 && empty) {
+        rec_tempo = (uint8_t)(s > 0);
+        settings_later = 1;
+        ui.hot_col = 0, ui.hot_t = 40;
+    }
+    if ((s = panel_enc(EN_K2)) != 0 && tempo) {
+        track_t *t = TSEL;
+        int32_t len = t->p[P_SLEN], i, to = len;
+        if (s > 0) {
+            for (i = 0; i < 3; i++) if (LENS[i] > len) { to = LENS[i]; break; }
+        } else {
+            for (i = 2; i >= 0; i--) if (LENS[i] < len) { to = LENS[i]; break; }
+        }
+        t->p[P_SLEN] = (int16_t)to;
+        ui.hot_col = 1, ui.hot_t = 40;
+    }
+    if ((s = panel_enc(EN_K3)) != 0 && tempo) {
+        rec_count = (uint8_t)(s > 0);
+        settings_later = 1;
+        ui.hot_col = 2, ui.hot_t = 40;
+    }
+    panel_enc(EN_K4);
+}
+
 /* REC: acts on the press (no lag). Held 0.7 s the press is undone and a ring fills: held on to the
  * end, the selected track is cleared (EDIT + OCT- brings it back); let go before, nothing happens.
  * (SAVE is the SONG layer: ui_layers.c; tapped, layer_tap) */
@@ -682,9 +791,11 @@ static void ui_input(void)
             return;
         pressed &= 1u << panel.btn[B_PLAY];             /* PLAY still plays */
     }
-    if (rec_wait || ft_on) {                            /* the REC screen is up: KNOB 1..4 edit nothing */
-        for (k = 0; k < 4u; k++)                        /* hidden (tempo and sound still work; the track */
-            panel_enc(EN_K1 + k);                       /* too, while armed: the arm follows) */
+    if (rec_wait && !ft_on && !ci_on) {                 /* the REC screen, armed: how it records */
+        rec_knobs();                                    /* (tempo and sound still work; the track too: */
+    } else if (rec_wait || ft_on) {                     /* the arm follows) */
+        for (k = 0; k < 4u; k++)                        /* a take / the count-in: KNOB 1..4 edit nothing */
+            panel_enc(EN_K1 + k);
     }
 #if FELUCCA_ARRANGER
     if (on_song_page()) {

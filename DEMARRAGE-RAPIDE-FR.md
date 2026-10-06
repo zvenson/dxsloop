@@ -4,7 +4,7 @@
 
 **sloopDX** transforme le M-VAVE FM-1 en vrai synthé FM : trois synthés et une batterie de 16 sons sur les touches blanches, un seul moteur — une voix DX7 à six opérateurs (le cœur msfa de Dexed, porté en entier et identique au bit près), 17 sons d'usine et tes propres banques DX7 (.syx, 32 sons), cinq kits de batterie FM faits avec le même moteur, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues. Le reste — pistes, calques, séquenceur, mode chanson, effets — est celui de SLOOP.
 
-Le manuel complet (en anglais) : [SLOOP.md](SLOOP.md).
+sloopDX est basé sur SLOOP 2.3 : audio USB, clavier MIDI sur le jack, horloge MIDI, lumières, sauvegarde complète. Il n'a pas encore tourné sur un FM-1. Le manuel complet (en anglais) : [SLOOP.md](SLOOP.md).
 
 ---
 
@@ -66,7 +66,7 @@ Chaque bouton de fonction a deux vies. **Tapé** (appuyé puis relâché sans ri
 | **PRESETS** | le son de la piste, ou le kit de batterie |
 | **SELECT** | tempo (toujours, même dans un calque) |
 | **OCT− / OCT+** | synthés : octave (les deux : retour à 0) · batterie, maintenus : ghost / fort |
-| **HOME** | l'écran TRACKS · maintenu : menu (couleur, coupe-bas, zoom, calibration, à propos) · tapé pendant qu'un calque est maintenu : le verrouille |
+| **HOME** | l'écran TRACKS · maintenu : menu (couleur, coupe-bas, zoom, lumières, touches, notes, audio USB, calibration, à propos) · tapé pendant qu'un calque est maintenu : le verrouille |
 
 ## Le synthé DX7
 
@@ -104,7 +104,15 @@ Chaque son est une voix DX7 (6 voix pour la batterie, 8 pour les synthés). Une 
 | --- | --- | --- |
 | **En lecture** | enregistre la piste **tout de suite** | REC à nouveau arrête l'enregistrement, la boucle continue |
 | **À l'arrêt, projet avec des notes** | arme (*rec ready*) | **ta première note démarre la boucle et devient le pas 1** |
-| **À l'arrêt, projet vide** | arme (*play freely*) | une **prise libre** : la boucle suit ton jeu |
+| **À l'arrêt, projet vide** | arme (*play freely*) | une **prise libre** : la boucle suit ton jeu (ou, en mode *tempo*, comme avec des notes) |
+
+**L'écran REC règle la façon d'enregistrer** (armé, avant la première note) :
+
+- **KNOB 1 — mode** (projet vide seulement) : **free** = prise libre, le tempo suit ton jeu · **tempo** = enregistre au tempo réglé (SELECT).
+- **KNOB 2 — length** : la boucle de la piste, **1, 2 ou 4 mesures**.
+- **KNOB 3 — start** : **note** = ta première note démarre la boucle · **count** = appuie sur **PLAY** : une mesure de clics (4, 3, 2, 1 à l'écran), puis la boucle démarre et enregistre.
+
+Le mode et le départ restent comme tu les as laissés (réglages de la FM-1). Avec des notes déjà dans le projet, pas de mode : on enregistre toujours au tempo réglé. Pendant le décompte, REC l'annule et PLAY revient à *rec ready*.
 
 **Prise libre :** joue librement ; l'écran montre les secondes et la boucle que ça donnerait (*2 bars · 92 bpm*). **REC sur le « 1 » qui suit ta dernière mesure** : sloopDX choisit 1, 2 ou 4 mesures au tempo le plus proche, cale tes notes et lance la boucle. **PLAY** abandonne la prise.
 
@@ -164,10 +172,36 @@ Chrome ou Edge, FM-1 en USB, **Connect**. Il suit l'appareil en direct.
 - **Sequencer** sur la piste batterie : une grille 16 sons × pas, avec le **kit**. Choisis un **niveau** (GHOST, SOFT, NORM, HARD) et un **roll** (x1–x4), puis clique : une frappe ; reclique (même niveau et roll) : effacée ; Maj+clic : un niveau plus fort.
 - **Library** : les presets utilisateur et ta **banque DX7** (.syx). **Settings → MASTER** : DUST, DUCK, FILT, ROLL. **Tracks** : les quatre tranches (volume, pan, mute ; SOLO et REC affichés).
 
+## Clavier MIDI
+
+- **Prise MIDI IN** (jack 3,5 mm TRS du FM-1) : un clavier ou des pads avec une sortie MIDI, via un adaptateur TRS ↔ DIN MIDI. Si rien ne joue, essaie l'autre type d'adaptateur (type A / type B).
+- **USB** : depuis un ordinateur ou un téléphone (DAW, appli de routage MIDI) ou un boîtier « USB MIDI host ». Un clavier USB branché directement sur le FM-1 ne peut pas marcher : ce sont deux appareils USB, il faut un hôte.
+- **Canaux :** 1, 2, 3 = pistes synth 1, 2, 3 · 10 = la batterie · 4 à 16 = **la piste sélectionnée** (règle ton clavier sur le canal 4 et il suit ALGORITHM).
+- **Horloge MIDI :** GLO → SYSTEM → **SYNC** = **USB** ou **TRS**. sloopDX suit le tempo, START, CONTINUE et STOP du maître, sans jamais dériver. Sans horloge pendant une demi-seconde, PLAY rejoue au tempo du FM-1. SYNC est un réglage de la FM-1 : il reste quand tu charges un projet.
+- Le MIDI Bluetooth n'est pas pris en charge (la radio reste éteinte).
+
+## Lumières (jouer dans le noir)
+
+Maintiens **HOME** pour le menu : **LIGHTS**, **KEYS** et **NOTES** y sont ensemble. PRESETS déplace, **KNOB 1** règle, OCT+ fait défiler, OCT− ferme. C'est sauvegardé avec les réglages de la FM-1, pas avec un projet : charger un projet ou NEW PROJECT n'y change rien.
+
+- **LIGHTS** — OFF, LOW, MID, HIGH : tous les boutons s'éclairent à ce niveau, on lit les étiquettes dans le noir (illisibles sur un FM-1 noir quand ils sont éteints). Ce qui est actif (la page, PLAY, REC, l'octave) reste en pleine lumière et clignote comme avant.
+- **KEYS** — OFF, C KEYS, WHITE KEYS : les touches Do, ou toutes les touches blanches, s'éclairent aussi.
+- **NOTES** — ON : sur une piste synth, les notes qui sonnent allument leur touche, jouées au clavier ou par le séquenceur (par @renebohne). Ça marche sur toutes les pages et dans tous les calques : là où les touches jouent ou effacent des notes (EDIT, ARP, SAVE, SCL), les notes sont allumées ; là où les touches sont des tuiles (effets FX, pas SEQ, mute / solo GLO), les notes brillent faiblement et les tuiles gardent leur pleine lumière.
+
+L'éclairage faible est une impulsion très courte à chaque balayage du panneau : pas de scintillement.
+
+## Enregistrer la FM-1 sur l'ordinateur (audio USB)
+
+Branchée en USB, la FM-1 est aussi une **entrée audio** nommée **Felucca** (44,1 kHz, stéréo, sans pilote). Dans ta DAW ou dans Audacity, choisis cette entrée et enregistre : tu as la sortie master, exactement ce qu'on entend au casque (avec DUST, DUCK et FILT). **Le niveau : menu HOME → USB AUDIO.** **MASTER** (par défaut) : l'enregistrement suit le bouton MASTER, comme le casque. **FULL** : niveau fixe, comme MASTER à fond, protégé de la saturation par le limiteur, quel que soit le bouton ; MASTER ne règle alors que le casque (le bon choix pour une carte son sans réglage de niveau). Le MIDI, l'éditeur et l'installateur marchent toujours sur le même câble. La première fois, l'ordinateur reconfigure l'appareil (MIDI + audio) ; le port MIDI garde son nom. Cette entrée vient de Felucca 1.0, par SLOOP 2.3.
+
+## Sauvegarde complète
+
+Dans l'éditeur, onglet **Projects** → **Backup** : **Save a backup** enregistre tout le contenu de la FM-1 dans un seul fichier (le morceau en cours, les projets 1 à 4, les presets utilisateur, les réglages et ta banque DX7). **Restore from a file** remet tout comme dans le fichier (ce qui est sur la FM-1 est remplacé). Arrête la lecture (PLAY) avant de restaurer.
+
 ## Secours
 
 - **Secours USB :** maintiens **OCT−** seul à l'allumage (*USB RESCUE*), puis réinstalle.
 - **Installation interrompue :** le FM-1 reste en mode mise à jour ; relance INSTALL et il termine. Un paquet abîmé est refusé et le FM-1 attend un paquet correct.
-- **Retour au firmware officiel :** M-UPGRADE de M-VAVE et le firmware FM-1 de m-vave.com.
+- **Retour au firmware officiel :** fais d'abord une sauvegarde avec l'éditeur. Puis M-UPGRADE de M-VAVE avec le firmware FM-1 V15 de m-vave.com (ferme les autres applis qui utilisent le MIDI), ou, sur la page d'installation, **Return to the official firmware (V15)** : choisis le fichier FM-1.fwsc officiel (seul ce fichier exact est accepté) et installe-le. Pour revenir à sloopDX, réinstalle-le et restaure ta sauvegarde.
 
 sloopDX est libre (GPL-3.0) : un fork de SLOOP (isod89), basé sur Felucca de Leo Kuroshita (Hügelton Instruments) ; le cœur DX7 est le moteur msfa de Dexed (Apache-2.0). M-VAVE et FM-1 sont des marques de leurs propriétaires, DX7 est une marque de Yamaha ; sloopDX n'est affilié à aucun d'eux et ne contient aucune donnée de sons Yamaha ou M-VAVE.

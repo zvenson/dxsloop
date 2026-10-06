@@ -93,6 +93,40 @@ static inline int32_t knee(int32_t x)
     return x < 0 ? -a : a;
 }
 
+/* the USB audio input at full level (menu USB AUDIO = FULL): the same output stage with its own state,
+ * fed as if MASTER were all the way up, so the recording level does not follow the knob. The DAC path
+ * (master_out) is untouched. audio.c sets usb_full_now for a render while the computer records. */
+static uint8_t usb_full;                 /* menu USB AUDIO: 0 MASTER (follows the knob), 1 FULL (panel.c lights_word) */
+static uint8_t usb_full_now;             /* this render fills usb_out (audio.c) */
+static int32_t usb_out[2u * CTL];
+static struct { int32_t lim, dc[2], dce[2], lc[4], lce[4]; } uo = {LIM_T, {0, 0}, {0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+static void master_out_usb(int32_t *l, int32_t *r)
+{
+    int32_t al, ar, a;
+    *l = dc_block(*l, &uo.dc[0], &uo.dce[0]);
+    *r = dc_block(*r, &uo.dc[1], &uo.dce[1]);
+    if (fx_lowcut) {
+        *l = lowcut1(*l, &uo.lc[0], &uo.lce[0]);
+        *l = lowcut1(*l, &uo.lc[1], &uo.lce[1]);
+        *r = lowcut1(*r, &uo.lc[2], &uo.lce[2]);
+        *r = lowcut1(*r, &uo.lc[3], &uo.lce[3]);
+    }
+    al = *l < 0 ? -*l : *l;
+    ar = *r < 0 ? -*r : *r;
+    a = al > ar ? al : ar;
+    if (a > uo.lim)
+        uo.lim += (a - uo.lim) >> 2;
+    else if (uo.lim > LIM_T)
+        uo.lim -= ((uo.lim - LIM_T) >> 12) + 1;
+    if (uo.lim > LIM_T) {
+        int32_t g = (int32_t)(((uint32_t)LIM_T << 15) / (uint32_t)uo.lim);
+        *l = ((*l >> 4) * g) >> 11;
+        *r = ((*r >> 4) * g) >> 11;
+    }
+    *l = knee(*l);
+    *r = knee(*r);
+}
+
 static inline void master_out(int32_t *l, int32_t *r)
 {
     int32_t al, ar, a;
@@ -436,5 +470,11 @@ static void mix_block(int32_t *out, uint32_t n)
         master_out(&l, &r);
         out[2u * i] = l;
         out[2u * i + 1u] = r;
+        if (usb_full_now && i < CTL) {                  /* USB AUDIO = FULL: MASTER all the way up (4096) */
+            int32_t ul = (mix_l[i] >> 2) << 2, ur = (mix_r[i] >> 2) << 2;
+            master_out_usb(&ul, &ur);
+            usb_out[2u * i] = ul;
+            usb_out[2u * i + 1u] = ur;
+        }
     }
 }

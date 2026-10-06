@@ -255,7 +255,7 @@ static void proj_apply(const project_t *p, int all)
 {
     uint32_t i, k;
     for (i = 0; i < G_COUNT; i++)
-        if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE : i == G_DRLVL || i == G_DRREV)
+        if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE && i != G_SYNC : i == G_DRLVL || i == G_DRREV)
             song.g[i] = (int16_t)clamp(p->g[i], GP[i].min, GP[i].max);
     for (k = 0; k < NTRK; k++) {
         track_t *t = &trk[k];
@@ -424,7 +424,11 @@ typedef struct {
 #if FELUCCA_ARRANGER
     arr_config_t arrangement;
 #endif
+    uint32_t lights;                               /* SLOOP 2.3: the backlight (panel.c lights_word); appended,
+                                                    * so 2.2 still reads its part (st_load cuts at its size) */
 } persist_t;
+#define PERSIST_SIZE_V22 __builtin_offsetof(persist_t, lights)   /* the settings as 2.2 wrote them (no lights) */
+_Static_assert(sizeof(persist_t) == PERSIST_SIZE_V22 + 4u, "lights: the last word, no padding before it");
 #if FELUCCA_ARRANGER
 #define PERSIST_MAGIC 0x50455233u                  /* "PER3": includes the song order */
 #else
@@ -490,7 +494,9 @@ static void persist_boot(void)                    /* before settings_init / pane
                                                     * (user sample sets are played from there) */
     {
         int n = st_load(OBJ_SETTINGS, &p, sizeof p);
-        if ((n == (int)sizeof p && p.magic == PERSIST_MAGIC)
+        if (n == (int)PERSIST_SIZE_V22 && p.magic == PERSIST_MAGIC)
+            p.lights = 0;                          /* from 2.2: backlight off */
+        if (((n == (int)sizeof p || n == (int)PERSIST_SIZE_V22) && p.magic == PERSIST_MAGIC)
 #if FELUCCA_ARRANGER
             || (n == (int)(16u + sizeof(panel_t)) && p.magic == 0x50455232u)
 #endif
@@ -501,6 +507,10 @@ static void persist_boot(void)                    /* before settings_init / pane
             settings.zoom = p.zoom;
             if (p.panel.magic == PANEL_MAGIC)
                 panel = p.panel;
+            if (p.magic == PERSIST_MAGIC)
+                lights_from_word(p.lights);
+            else
+                p.lights = 0;
 #if FELUCCA_ARRANGER
             if (p.magic == PERSIST_MAGIC && arr_valid(&p.arrangement, 15u))
                 arrangement = p.arrangement;
@@ -540,21 +550,27 @@ static void persist_boot(void)                    /* before settings_init / pane
 
 static int project_used(uint32_t slot) { return proj_ok(&proj_slot[slot & 3u]); }
 
+static void persist_fill(persist_t *p)              /* the settings as they are now */
+{
+    memset(p, 0, sizeof *p);
+    p->magic = PERSIST_MAGIC;
+    p->palette = settings.palette;
+    p->lowcut = settings.lowcut;
+    p->zoom = settings.zoom;
+    p->panel = panel;
+    p->lights = lights_word();
+#if FELUCCA_ARRANGER
+    p->arrangement = arrangement;
+#endif
+}
+
 static void settings_save(void)
 {
 #if FELUCCA_FLASH
     persist_t p;
     if (!flash_ok)
         return;
-    memset(&p, 0, sizeof p);
-    p.magic = PERSIST_MAGIC;
-    p.palette = settings.palette;
-    p.lowcut = settings.lowcut;
-    p.zoom = settings.zoom;
-    p.panel = panel;
-#if FELUCCA_ARRANGER
-    p.arrangement = arrangement;
-#endif
+    persist_fill(&p);
     if (!memcmp(&p, &persist_saved, sizeof p))
         return;                                    /* unchanged: no erase cycle */
     if (st_save(OBJ_SETTINGS, &p, sizeof p) == 0)
@@ -564,6 +580,82 @@ static void settings_save(void)
 
 #if FELUCCA_FLASH
 _Static_assert(sizeof(project_t) <= ST_PAYLOAD_MAX, "project does not fit one flash sector");
+
+/* ---- backup restore (editor.c BK_PUT): each object checked as a load checks it, then written through the
+ * same A/B commit as a save. rc: 0 ok, 2 not a valid object, 3 stop the song first, 4 flash */
+static int panel_valid(const panel_t *q)           /* a permutation of the buttons and of the knobs */
+{
+    uint32_t i, b = 0, e = 0;
+    if (q->magic != PANEL_MAGIC)
+        return 0;
+    for (i = 0; i < NB; i++) {
+        if (q->btn[i] >= 14u || (b >> q->btn[i]) & 1u)
+            return 0;
+        b |= 1u << q->btn[i];
+    }
+    for (i = 0; i < NE; i++) {
+        if (q->enc[i] >= 7u || (e >> q->enc[i]) & 1u || (q->dir[i] != 1 && q->dir[i] != -1))
+            return 0;
+        e |= 1u << q->enc[i];
+    }
+    return 1;
+}
+
+static uint32_t settings_restore(const void *raw, uint32_t n)
+{
+    persist_t p;
+    if (n != sizeof p && n != PERSIST_SIZE_V22)
+        return 2;
+    memset(&p, 0, sizeof p);
+    memcpy(&p, raw, n);
+    if (p.magic != PERSIST_MAGIC || p.palette >= NPALETTES || p.lowcut > 1u || p.zoom > 1u || !panel_valid(&p.panel))
+        return 2;
+#if FELUCCA_ARRANGER
+    if (!arr_valid(&p.arrangement, 15u))
+        return 2;
+#endif
+    if (!flash_ok || st_save(OBJ_SETTINGS, &p, sizeof p))
+        return 4;
+    persist_saved = p;
+    settings.palette = p.palette;
+    settings.lowcut = p.lowcut;
+    settings.zoom = p.zoom;
+    panel = p.panel;
+#if FELUCCA_ARRANGER
+    arrangement = p.arrangement;
+#endif
+    lights_from_word(p.lights);
+    song.g[G_SYNC] = (int16_t)lights_sync;
+    palette_set(settings.palette);
+    fx_lowcut = (uint8_t)(settings.lowcut != 0);
+    ui.force = 1;
+    return 0;
+}
+
+/* slot 0..3 (n 0: empty), or 4: the working project (loaded now) */
+static uint32_t project_restore(uint32_t slot, const void *raw, uint32_t n)
+{
+    if (song.playing || transport_req)
+        return 3;
+    if (slot < 4u && !n) {
+        if (!flash_ok || st_save(OBJ_PROJECT0 + slot, raw, 0))
+            return 4;
+        memset(&proj_slot[slot], 0, sizeof proj_slot[slot]);
+        sec_dirty &= (uint8_t)~(1u << slot);
+        return 0;
+    }
+    if (!proj_import(&autosave_buf, raw, (int)n))
+        return 2;
+    if (slot == 4u) {
+        project_apply(&autosave_buf);
+        return 0;
+    }
+    if (!flash_ok || st_save(OBJ_PROJECT0 + slot, &autosave_buf, sizeof autosave_buf))
+        return 4;
+    memcpy(&proj_slot[slot], &autosave_buf, sizeof proj_slot[slot]);
+    sec_dirty &= (uint8_t)~(1u << slot);
+    return 0;
+}
 #endif
 #if FELUCCA_ARRANGER
 static void arrangement_save(void)
@@ -640,6 +732,10 @@ static void sections_flush(void)                        /* main loop */
             ui_message("NO SONG");
         }
         srec_done = 0;
+    }
+    if ((uint32_t)song.g[G_SYNC] != lights_sync) {      /* GLO > SYSTEM > SYNC: kept with the settings */
+        lights_sync = (uint8_t)song.g[G_SYNC];
+        settings_later = 1;
     }
     if (settings_later) {                               /* the menu closed while playing */
         settings_later = 0;

@@ -65,7 +65,8 @@ Build options (environment, `0` or `1`; defaults in `firmware/src/felucca.c`):
 | `FELUCCA_FLASH` | 1 | settings, presets, projects and the DX7 user bank in flash |
 | `FELUCCA_OTA` | 1 | update entry (needs `FELUCCA_FLASH`) |
 | `FELUCCA_CDC` | 1 | USB serial console |
-| `FELUCCA_UART` | 0 | TRS MIDI IN (not tested on hardware) |
+| `FELUCCA_UAC` | 1 | USB audio input: the master output, 44.1 kHz stereo (after Felucca 1.0) |
+| `FELUCCA_UART` | 1 | TRS MIDI IN (the 3.5 mm jack) |
 
 ## Tests
 

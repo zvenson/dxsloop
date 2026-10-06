@@ -371,8 +371,19 @@ static void rec_release(track_t *t, uint32_t note)
  *   - an empty project: a FREE TAKE (ft_on). Play freely, as long as you like: no tempo, no
  *     grid. REC on the next downbeat closes the loop: its length sets the tempo (1, 2 or 4
  *     bars, the nearest the current tempo; within 3 % of it the tempo is kept), the notes are
- *     quantised to 1/16 into it with their lengths, and the loop plays on. PLAY drops the take. */
+ *     quantised to 1/16 into it with their lengths, and the loop plays on. PLAY drops the take.
+ *  The REC screen (ui_studio.c) sets how (settings of the FM-1, panel.c lights_word):
+ *   KNOB 1 MODE (an empty project): FREE (the free take above) or TEMPO (record at the tempo set,
+ *          as in a project with notes);
+ *   KNOB 3 START (TEMPO, or a project with notes): NOTE (the first note starts the loop, as above)
+ *          or COUNT (PLAY clicks one bar, 4 beats, then the loop and the recording start; notes
+ *          played meanwhile only sound). */
 static volatile uint8_t rec_wait;             /* 1: armed, waits for a note */
+static uint8_t rec_tempo;                     /* REC screen MODE: 0 FREE, 1 TEMPO (an empty project) */
+static uint8_t rec_count;                     /* REC screen START: 0 NOTE, 1 COUNT (one bar of clicks) */
+static volatile uint8_t ci_on;                /* the count-in runs (armed, COUNT, PLAY) */
+static volatile uint8_t ci_beat;              /* its beats clicked so far - 1 (the UI shows 4 - ci_beat) */
+static uint32_t ci_u;                         /* clock units since it started */
 static volatile uint8_t rec_go;               /* recording just started (the UI says so) */
 static void seq_start(void);
 static void rec_begin(void)
@@ -743,10 +754,12 @@ static void arp_tick(track_t *t, uint32_t adv)
  * note is the downbeat (the transport starts, recording on) */
 static void arm_start(track_t *t)
 {
-    if (!rec_wait || t != TSEL || song.playing)
+    if (!rec_wait || t != TSEL || song.playing || ci_on)
         return;
-    if (project_empty()) {
+    if (project_empty() && !rec_tempo) {
         ft_start(t);                              /* the first take sets the loop and the tempo */
+    } else if (rec_count) {
+        return;                                   /* COUNT: PLAY counts in; a note only sounds */
     } else {
 #if FELUCCA_ARRANGER
         arrangement_enabled = 0;
@@ -1464,15 +1477,107 @@ static track_t *midi_route(uint32_t ch, uint32_t note, int on)
     return t;
 }
 
+/* MIDI clock in (GLO > SYSTEM > SYNC = USB or TRS; after Felucca 1.0's midi_clock.c, from contributions by
+ * ChanceTheMaker and keremimo): 24 pulses a beat. While the clock runs, the sequencer advances by the
+ * pulses (a pulse = BEAT_U / 24 units), interpolated up to the next one from the last interval but never
+ * past it, so it follows the master's tempo changes and cannot drift; BPM shows the master's tempo
+ * (the slicer, delay and arp follow it). START restarts from the top, CONTINUE carries on where it
+ * stopped, STOP stops. With no pulse for 0.5 s, the internal tempo takes over (PLAY works as ever). */
+#define MCLK_PULSE_U (BEAT_U / 24u)
+static struct {
+    uint32_t pos, done;          /* units: the master's position (pulses since START), ours */
+    uint32_t last_ms, iv_ms;     /* the last pulse, the interval between pulses (smoothed) */
+    uint32_t beat_ms;            /* when pulse 0 of the last 24 came: the tempo */
+    uint8_t have, n24;           /* a pulse since START; pulses towards the next tempo reading */
+    uint8_t alive;               /* pulses are coming (from the SYNC source) */
+} mclk;
+
+static int mclk_on(void)                          /* the clock drives the sequencer */
+{
+    return song.g[G_SYNC] && mclk.alive && fm1_ms - mclk.last_ms < 500u;
+}
+
+static void mclk_event(uint32_t st, uint32_t src)  /* a realtime message; src 1 USB, 2 TRS */
+{
+    uint32_t now = fm1_ms;
+    if (!song.g[G_SYNC] || src != (uint32_t)song.g[G_SYNC])
+        return;
+    if (st == 0xFAu || st == 0xFBu) {              /* START: from the top; CONTINUE: on from where it stopped */
+        mclk.pos = mclk.done = 0;
+        mclk.have = 0;
+        if (st == 0xFAu)
+            transport_req = 1;
+        else if (!song.playing)
+            song.playing = 1;
+        return;
+    }
+    if (st == 0xFCu) {                             /* STOP */
+        transport_req = 2;
+        return;
+    }
+    if (st != 0xF8u)
+        return;
+    if (mclk.alive && now - mclk.last_ms < 200u) { /* the interval, smoothed (a gap is not a tempo) */
+        uint32_t iv = now - mclk.last_ms;
+        mclk.iv_ms = mclk.iv_ms ? (mclk.iv_ms * 3u + iv + 2u) / 4u : iv;
+    }
+    if (!mclk.alive || now - mclk.last_ms >= 500u) {   /* (re)started: count a fresh beat */
+        mclk.n24 = 0;
+        mclk.beat_ms = now;
+    } else if (++mclk.n24 == 24u) {                /* a beat: the tempo */
+        uint32_t dt = now - mclk.beat_ms;
+        mclk.n24 = 0;
+        mclk.beat_ms = now;
+        if (dt >= 250u && dt <= 1500u)             /* 40..240 BPM */
+            song.g[G_BPM] = (int16_t)clamp((int32_t)((60000u + dt / 2u) / dt), 40, 240);
+    }
+    mclk.alive = 1;
+    mclk.last_ms = now;
+    if (song.playing || transport_req == 1u) {     /* (a START queued with it: the next block starts) */
+        if (mclk.have)
+            mclk.pos += MCLK_PULSE_U;
+        mclk.have = 1;                             /* the first pulse after START is the downbeat */
+    }
+}
+
+static uint32_t mclk_adv(uint32_t n)               /* units to advance this block (mclk_on) */
+{
+    uint32_t el, off = 0, tgt, adv, cap = n * 2u * (uint32_t)song.g[G_BPM];
+    if (!mclk.have)
+        return 0;                                  /* START seen: wait for the downbeat */
+    el = fm1_ms - mclk.last_ms;
+    if (mclk.iv_ms) {
+        if (el > mclk.iv_ms)
+            el = mclk.iv_ms;
+        off = el * MCLK_PULSE_U / mclk.iv_ms;      /* (<= 200 x 110250: fits 32 bits) */
+        if (off >= MCLK_PULSE_U)
+            off = MCLK_PULSE_U - 1u;
+    }
+    tgt = mclk.pos + off;
+    adv = (int32_t)(tgt - mclk.done) > 0 ? tgt - mclk.done : 0u;
+    if (adv > cap)
+        adv = cap;                                 /* behind: catch up at twice the tempo, no burst */
+    mclk.done += adv;
+    return adv;
+}
+
 /* everything that happens between two rendered blocks: transport, input, the steps of every
  * track at the clock, the click, the rolls and the arps; then the clock moves on by n samples */
 static void events_block(uint32_t n)
 {
-    uint32_t i, pr, adv = n * (uint32_t)song.g[G_BPM];
+    uint32_t i, pr, adv;
     if (transport_req == 1u) {
         transport_req = 0;
         if (ft_on) {
             ft_close();                             /* (PLAY from elsewhere: the editor) */
+        } else if (ci_on) {
+            ci_on = 0;                              /* PLAY again during the count-in: back to armed */
+        } else if (rec_wait && rec_count && !song.playing && !mclk_on() &&
+                   !(project_empty() && !rec_tempo)) {
+            ci_on = 1;                              /* COUNT: one bar of clicks first (below) */
+            ci_u = 0;
+            ci_beat = 0;
+            drum_on(77u, 120u);
         } else {
             seq_start();
             if (rec_wait && song.playing)
@@ -1488,8 +1593,27 @@ static void events_block(uint32_t n)
             ft_bars = 0xFF;
         }
     }
+    if (ci_on) {                                    /* the count-in: 4 beats at the tempo, then go */
+        if (!rec_wait || song.playing) {
+            ci_on = 0;                              /* (REC cancelled it, or it started some other way) */
+        } else {
+            uint32_t b;
+            ci_u += n * (uint32_t)song.g[G_BPM];
+            b = ci_u / BEAT_U;
+            if (b >= 4u) {
+                ci_on = 0;
+                seq_start();
+                if (song.playing)
+                    rec_begin();
+            } else if (b != ci_beat) {
+                ci_beat = (uint8_t)b;
+                drum_on(76u, 72u);
+            }
+        }
+    }
     if (rec_wait && song.playing)
         rec_begin();                                /* started some other way: record now */
+    adv = mclk_on() && song.playing ? mclk_adv(n) : n * (uint32_t)song.g[G_BPM];   /* (after a START) */
     ft_block();
 #if FELUCCA_ARRANGER
     if (song.playing && arrangement_clock.running) {
@@ -1537,6 +1661,10 @@ static void events_block(uint32_t n)
         uint32_t d1 = (pkt >> 16) & 0x7Fu, d2 = (pkt >> 24) & 0x7Fu;
         track_t *t;
         mi_r++;
+        if ((pkt & 15u) == 0xFu) {                    /* clock / transport: cable 0 USB, 1 TRS */
+            mclk_event((pkt >> 8) & 0xFFu, ((pkt >> 4) & 15u) ? 2u : 1u);
+            continue;
+        }
         if (st != 0x90u && st != 0x80u)
             continue;
         t = midi_route(ch, d1, st == 0x90u && d2);
@@ -1563,7 +1691,7 @@ static void events_block(uint32_t n)
             clk_beat++;
         }
 #if FELUCCA_ARRANGER
-        arr_elapse(&arrangement_clock, n, (uint32_t)song.g[G_BPM]);
+        arr_elapse(&arrangement_clock, adv, 1u);   /* (units: n x BPM, or the MIDI clock) */
 #endif
     }
 }

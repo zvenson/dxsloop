@@ -35,9 +35,15 @@
 #ifndef FELUCCA_CDC
 #define FELUCCA_CDC 1            /* USB CDC-ACM serial console */
 #endif
+#ifndef FELUCCA_UAC                      /* (before usb.c: it defaults to 0) */
+#define FELUCCA_UAC 1            /* USB audio input: the master output, 16-bit stereo 44.1 kHz (usb.c, after Felucca 1.0) */
+#endif
+#ifndef FELUCCA_UAC_TONE
+#define FELUCCA_UAC_TONE 0       /* bench: the USB input sends test triangles instead of the music */
+#endif
 #include "usb.c"
 #ifndef FELUCCA_UART
-#define FELUCCA_UART 0           /* 1 = TRS MIDI IN on UART1 (untested) */
+#define FELUCCA_UART 1           /* TRS MIDI IN on UART1 (3.5 mm jack) */
 #endif
 #if FELUCCA_UART
 #include "midi_uart.c"

@@ -9,7 +9,8 @@
   webapp/editor/index.html    editor.html (+ fukiai.ttf, FUKIAI-LICENSE.txt)
   src/                        not touched
 
-  web/make_site.py build/felucca-X.Y.fwsc X.Y OUT_DIR
+  web/make_site.py build/felucca-X.Y.fwsc X.Y OUT_DIR [--beta]
+  (--beta: web/beta_banner.html at the top of the installer: the beta channel, docs/beta)
 
 The package identity (FM-1_9xx) is read from the package; the device reports it
 after the install.
@@ -64,6 +65,11 @@ def main(pkg, version, out):
         shutil.copy(guide, out / guide.name)
         guide_link = '<p lang="fr"><a href="../../' + guide.name + '">Guide rapide illustré (PDF, 4 pages)</a></p>'
     html = html.replace("<!--STUDIO_GUIDE-->", guide_link)
+    banner = ""
+    if "--beta" in sys.argv:                       # the beta channel (docs/beta): what it is, what it implies
+        notes = HERE / "beta_banner.html"
+        banner = notes.read_text(encoding="utf-8") if notes.exists() else "<p><b>BETA</b></p>"
+    html = html.replace("<!--BANNER-->", banner)
     for old in list(fw.glob("felucca-*.fwsc")) + list(fw.glob("sloop-*.fwsc")) + list(fw.glob("sloopdx-*.fwsc")):   # one package: the current one
         old.unlink()
     (inst / "index.html").write_text(html, encoding="utf-8")
@@ -80,7 +86,7 @@ def main(pkg, version, out):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--studio-guide"]
+    args = [a for a in sys.argv[1:] if a not in ("--studio-guide", "--beta")]
     if len(args) != 3:
         sys.exit(__doc__)
     main(*args)
