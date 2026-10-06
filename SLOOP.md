@@ -6,7 +6,7 @@
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.9 (8 DX7 banks, 256 voices; four FM drum kits; quieter, with headroom; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.9, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
