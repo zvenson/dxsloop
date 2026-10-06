@@ -28,9 +28,9 @@ python tools/fm1_install.py build/felucca.fwsc     # FM-1 per USB, kein Hub
 Wenn `./build.sh` wegen RAM abbricht: Meldung kopieren; dann wandert die User-Bank (4,4 KB)
 in den Flash. Mehr in README.md und BUILDING.md.
 
-Eigenes Remote setzen und hochladen:
+Remotes: `upstream` zeigt auf SLOOP (isod89/sloop-fm1, nur lesen). Eigenes Repo anlegen und hochladen:
 
 ```sh
-git remote set-url origin https://github.com/<account>/sloopdx.git
+git remote add origin https://github.com/<account>/sloopdx.git
 git push -u origin sloopdx
 ```
