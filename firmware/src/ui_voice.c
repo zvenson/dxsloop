@@ -9,6 +9,17 @@
  * dx_user_param_set, so the next note plays them. */
 static int dx_bank_store(void);                          /* project.c: the user bank to flash, 0 ok */
 
+/* the DX7's panel: dark warm grey, mint membrane keys, light blue for the operators, salmon and orange for
+ * the functions, the red LED, the green LCD */
+#define DX_PANEL RGB(46, 42, 43)
+#define DX_TRACK RGB(70, 64, 65)
+#define DX_LABEL RGB(206, 200, 194)
+#define DX_MINT RGB(72, 206, 186)
+#define DX_BLUE RGB(152, 190, 232)
+#define DX_PINK RGB(238, 140, 138)
+#define DX_ORANGE RGB(246, 170, 110)
+#define DX_LCD RGB(186, 222, 112)
+#define DX_LED RGB(255, 46, 34)
 enum { VL_TOP, VL_OP, VL_PEG, VL_LFO, VL_NAME };
 enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE, VK_OPON };
 enum { VF_INT, VF_ONOFF, VF_DET, VF_CURVE, VF_MODE, VF_COARSE, VF_NOTE, VF_TRANS, VF_WAVE, VF_ALG, VF_CHAR, VF_PEG };
@@ -489,11 +500,11 @@ static void ve_draw_alg(uint32_t alg, uint16_t col)
     for (i = 0; i < 6u; i++) {                            /* links: modulator -> every op it feeds */
         for (j = 0; j < 6u; j++)
             if ((mods[j] >> i) & 1u)
-                cv_line(x2[i], y[i] + 10, x2[j], y[j] - 10, TE_G3);
+                cv_line(x2[i], y[i] + 10, x2[j], y[j] - 10, DX_LABEL);
         if ((carriers >> i) & 1u)
-            cv_line(x2[i], y[i] + 10, x2[i], 162, TE_G3);
+            cv_line(x2[i], y[i] + 10, x2[i], 162, DX_LABEL);
     }
-    cv_rect(10, 162, 220, 2, TE_G3);                      /* the output */
+    cv_rect(10, 162, 220, 2, DX_LABEL);                   /* the output */
     if (fbin >= 0 && fbout >= 0) {                        /* feedback: out of fbout, back into fbin */
         int32_t xr = (x2[fbin] > x2[fbout] ? x2[fbin] : x2[fbout]) + 18;
         cv_line(x2[fbout] + 12, y[fbout], xr, y[fbout], col);
@@ -504,11 +515,21 @@ static void ve_draw_alg(uint32_t alg, uint16_t col)
     for (i = 0; i < 6u; i++) {
         char b[2] = {(char)('6' - (int32_t)i), 0};
         int carrier = (carriers >> i) & 1u, off = ve_muted(5u - i);
-        cv_rect(x2[i] - 12, y[i] - 10, 24, 20, off ? TE_G1 : carrier ? col : TE_G2);
-        cv_text(x2[i] - 4, y[i] - 8, &FONT_S, b, off ? TE_G3 : carrier ? C_BLACK : C_WHITE);
+        cv_rect(x2[i] - 12, y[i] - 10, 24, 20, off ? DX_TRACK : carrier ? DX_MINT : DX_BLUE);
+        cv_text(x2[i] - 4, y[i] - 8, &FONT_S, b, off ? DX_LABEL : C_BLACK);
     }
 }
 
+static uint16_t ve_kind_col(const vrow_t *r)              /* the colour of a row's key, as on the panel */
+{
+    switch (r->kind) {
+    case VK_GROUP: return r->idx >= 6u ? DX_BLUE : DX_MINT;
+    case VK_OPON: return DX_BLUE;
+    case VK_COPY: case VK_INIT: return DX_PINK;
+    case VK_STORE: case VK_MORE: return DX_ORANGE;
+    default: return DX_MINT;
+    }
+}
 /* the list (or the algorithm), 240 x 180, drawn through cv_oy in two passes */
 static void ve_body(const vrow_t *rows, uint32_t n, uint16_t col)
 {
@@ -517,32 +538,33 @@ static void ve_body(const vrow_t *rows, uint32_t n, uint16_t col)
     if (ve.diag) {
         uint32_t a = ve_get(134);
         fmt_int(b, (int32_t)a + 1);
-        cv_text(4, 0, &FONT_S, "algorithm", TE_G3);
-        cv_text(4, 16, &FONT_L, b, C_WHITE);
-        cv_text(176, 0, &FONT_S, "fb", TE_G3);
+        cv_text(4, 0, &FONT_S, "algorithm", DX_LABEL);
+        cv_text(4, 16, &FONT_L, b, DX_LED);              /* the DX7's red LED */
+        cv_text(176, 0, &FONT_S, "fb", DX_LABEL);
         fmt_int(b, (int32_t)ve_get(135));
-        cv_text(200, 0, &FONT_S, b, C_WHITE);
-        ve_draw_alg(a, col);
+        cv_text(200, 0, &FONT_S, b, DX_LCD);
+        ve_draw_alg(a, DX_ORANGE);                       /* (the feedback loop) */
         return;
     }
     for (i = ve.top; i < ve.top + VE_ROWS && i < n; i++) {
         int32_t y0 = (int32_t)(i - ve.top) * 30, pct = ve_row_value(&rows[i], b);
         int hl = i == ve.row;
-        if (hl) {
-            cv_rect(0, y0, 236, 29, TE_G1);
-            cv_rect(0, y0, 3, 29, col);
-        }
-        cv_text(8, y0 + 4, &FONT_S, rows[i].name, hl ? C_WHITE : TE_G4);
-        cv_text(230 - text_w(&FONT_S, b), y0 + 4, &FONT_S, b, hl ? C_WHITE : TE_G4);
+        uint16_t kc = ve_kind_col(&rows[i]);
+        if (hl)                                           /* the highlight: a lit membrane key */
+            cv_rect(0, y0 + 1, 236, 27, kc);
+        else
+            cv_rect(0, y0 + 4, 4, 20, kc);                /* the key's colour at the edge */
+        cv_text(10, y0 + 4, &FONT_S, rows[i].name, hl ? C_BLACK : DX_LABEL);
+        cv_text(230 - text_w(&FONT_S, b), y0 + 4, &FONT_S, b, hl ? C_BLACK : DX_LCD);
         if (pct >= 0) {                                   /* the range */
-            cv_rect(8, y0 + 23, 100, 2, TE_G2);
-            cv_rect(8, y0 + 23, pct, 2, hl ? col : TE_G3);
+            cv_rect(10, y0 + 23, 100, 2, hl ? DX_PANEL : DX_TRACK);
+            cv_rect(10, y0 + 23, pct, 2, hl ? C_BLACK : kc);
         }
     }
     if (n > VE_ROWS) {                                    /* the scroll bar */
         int32_t h = 180 * (int32_t)VE_ROWS / (int32_t)n, y = 180 * (int32_t)ve.top / (int32_t)n;
-        cv_rect(237, 0, 3, 180, TE_G1);
-        cv_rect(237, y, 3, h, TE_G3);
+        cv_rect(237, 0, 3, 180, DX_TRACK);
+        cv_rect(237, y, 3, h, DX_LABEL);
     }
 }
 
@@ -561,7 +583,7 @@ static void voice_screen_draw(void)
         static const char *const T[5] = {"dx7 voice", "", "pitch env", "lfo", "name"};
         str_cpy(title, T[ve.lvl], 12);
     }
-    te_header(title, col, &head);
+    te_header(title, DX_MINT, &head);
     if (ve.row >= n) ve.row = 0;
     sig = ve.lvl * 7919u + ve.op * 131u + ve.row * 31u + ve.top * 17u + ve.diag * 3u + ve.arm * 5u + ve_voice() * 104729u;
     for (i = ve.top; i < ve.top + VE_ROWS && i < n; i++) {
@@ -574,7 +596,7 @@ static void voice_screen_draw(void)
         uint32_t pass;
         body_sig = sig;
         for (pass = 0; pass < 2u; pass++) {               /* the canvas holds 124 rows: two halves */
-            cv_begin(240, 90, C_BLACK);
+            cv_begin(240, 90, DX_PANEL);
             cv_oy = -90 * (int32_t)pass;
             ve_body(rows, n, col);
             cv_oy = 0;
@@ -592,14 +614,13 @@ static void voice_screen_draw(void)
     sig = studio_hash(ve.dirty * 7u + 1u, ui.msg_t ? ui.msg : b);
     if (ui.force || sig != foot_sig) {
         foot_sig = sig;
-        cv_begin(240, 20, C_BLACK);
-        cv_rect(0, 0, 240, 1, TE_G1);
+        cv_begin(240, 20, C_BLACK);                       /* the LCD line */
         if (ui.msg_t) {
-            cv_text(4, 3, &FONT_S, ui.msg, C_WHITE);
+            cv_text(4, 3, &FONT_S, ui.msg, DX_LCD);
         } else {
-            int32_t x = cv_text(4, 3, &FONT_S, b, TE_G4);
+            int32_t x = cv_text(4, 3, &FONT_S, b, DX_LCD);
             if (ve.dirty)
-                te_disc(x + 6, 11, 3, col);              /* not stored */
+                te_disc(x + 6, 11, 3, DX_LED);           /* not stored */
         }
         cv_blit(0, 220);
     }
