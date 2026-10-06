@@ -7,10 +7,10 @@ name: build
 
 on:
   push:
-    branches: [sloopdx]
+    branches: [main, sloopdx]
     tags: ['v*']
   pull_request:
-    branches: [sloopdx]
+    branches: [main, sloopdx]
 
 jobs:
   firmware:

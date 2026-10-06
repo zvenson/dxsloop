@@ -1,7 +1,7 @@
 # sloopDX: erster Build auf dem eigenen Rechner
 
-Das Repo ist github.com/zvenson/dxsloop, ein Fork von isod89/sloop-fm1 mit dessen Historie. Branch
-`sloopdx` (basiert auf SLOOP 2.2); `main` ist SLOOPs main (inzwischen 2.3).
+Das Repo ist github.com/zvenson/dxsloop, ein Fork von isod89/sloop-fm1 mit dessen Historie. Gearbeitet
+wird auf `sloopdx`; `main` wird per Fast-Forward nachgezogen (SLOOP 2.3 ist gemergt).
 Vorher noch nie auf dem FM-1 gelaufen; RAM und CPU auf dem Chip sind offen.
 
 Voraussetzung: Linux x86-64 oder WSL2 (die JieLi-Toolchain gibt es nur dafür), Python 3, gcc.
