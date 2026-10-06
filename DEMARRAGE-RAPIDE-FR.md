@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="360"></p>
 
-# sloopDX 1.2 — démarrage rapide
+# sloopDX 1.3 — démarrage rapide
 
 **sloopDX** transforme le M-VAVE FM-1 en vrai synthé FM : trois synthés et une batterie de 16 sons sur les touches blanches, un seul moteur — une voix DX7 à six opérateurs (le cœur msfa de Dexed, porté en entier et identique au bit près), 17 sons d'usine et tes propres banques DX7 (.syx, 32 sons), cinq kits de batterie FM faits avec le même moteur, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues. Le reste — pistes, calques, séquenceur, mode chanson, effets — est celui de SLOOP.
 
@@ -96,7 +96,7 @@ Chaque piste synthé est un DX7 : six opérateurs, 32 algorithmes, enveloppes, L
 
 Chaque son est une voix DX7 (6 voix pour la batterie, 8 pour les synthés). Une touche noire joue le son de la touche blanche à sa gauche (deux doigts sur un son pour les roulements rapides). Chaque frappe a un **niveau** — GHOST, SOFT, NORM (comme jouée), HARD — et un **ratchet** x1–x4 (la frappe répétée dans son pas). Les charleys fermé et pédale coupent l'ouvert ; les kicks et les toms ont une chute de hauteur à la frappe ; le clap est quatre coups.
 
-**Cinq kits** (PRESETS sur la piste batterie) : **DX KIT** (classique), **TIGHT** (court, sec), **BOOM** (long, grave, chute plus profonde), **METAL** (plus haut, plus brillant), **USER** (les 16 premiers sons de ta banque .syx ; sans banque, le DX KIT).
+**Cinq kits** (PRESETS sur la piste batterie) : **DX KIT** (classique), **808 FM** (une boîte à rythmes analogique en FM : kicks ronds, charleys métalliques), **ELECTRO** (court, claquant), **METAL** (inharmonique, industriel : enclume, cloches, gong) — chaque kit a ses propres sons, **USER** (les 16 premiers sons de ta banque .syx ; sans banque, le DX KIT).
 
 ## Enregistrer
 

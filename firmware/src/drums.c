@@ -7,8 +7,9 @@
  * Played by its step pattern, the keys when track 4 is selected, and its own MIDI channel (GLO ->
  * DRUMS, default 10); its own voices (outside the parts' voice budget). LEVEL / REV: GLO > DRUMS
  * (G_DRLVL, G_DRREV); PAN and MUTE: the drum track's P_PAN / P_MUTE. Rendered from the audio ISR.
- * P_E0 is the kit: four treatments of the FM kit, and USER (the first 16 voices of the DX7 user bank,
- * eng_dx7.c, one per lane). */
+ * P_E0 is the kit: DX KIT (dx7_bank.h DX_DRUM_VOICE), 808 FM, ELECTRO and METAL (DX_KIT_VOICE: each its own
+ * voices, algorithms and sweeps), and USER (the first 16 voices of the DX7 user bank, eng_dx7.c, one per lane;
+ * the DX KIT's sweeps and chokes). */
 #define NDRUM 6
 
 typedef struct {                  /* a kit: a treatment of the FM voices */
@@ -16,17 +17,17 @@ typedef struct {                  /* a kit: a treatment of the FM voices */
     int8_t dec, tune, bright;     /* rate offset (+: shorter), semitones, modulator level offset */
     uint8_t sweep;                /* sweep depth, Q7 (128 = as the voice) */
 } fm_kit_t;
-static const fm_kit_t FM_KITS[] = {
+static const fm_kit_t FM_KITS[] = {             /* (the treatments: room for variants of a kit; all neutral) */
     {"DX KIT", "CLASSIC", 0, 0, 0, 128},
-    {"TIGHT", "PUNCHY", 8, 2, 0, 100},
-    {"BOOM", "DEEP", -6, -3, -6, 160},
-    {"METAL", "BRIGHT", 0, 5, 10, 128},
+    {"808 FM", "ROUND", 0, 0, 0, 128},
+    {"ELECTRO", "PUNCHY", 0, 0, 0, 128},
+    {"METAL", "INDUSTRIAL", 0, 0, 0, 128},
     {"USER", "DX7 BANK", 0, 0, 0, 128},
 };
 #define DRUM_KITS (sizeof FM_KITS / sizeof FM_KITS[0])
 #define DRUM_KIT_USER (DRUM_KITS - 1u)
-static const char *const DRUM_KIT_NAMES[] = {"DX KIT", "TIGHT", "BOOM", "METAL", "USER"};
-static const char *const DRUM_KIT_STYLES[] = {"CLASSIC", "PUNCHY", "DEEP", "BRIGHT", "DX7 BANK"};
+static const char *const DRUM_KIT_NAMES[] = {"DX KIT", "808 FM", "ELECTRO", "METAL", "USER"};
+static const char *const DRUM_KIT_STYLES[] = {"CLASSIC", "ROUND", "PUNCHY", "INDUSTRIAL", "DX7 BANK"};
 static uint32_t drum_kit(void) { return (uint32_t)clamp(TDRUM->p[P_E0], 0, DRUM_KITS - 1); }
 #define DRUM_DEFAULT_KIT 0
 
@@ -38,6 +39,7 @@ static struct {
     dxv_t dx[NDRUM];
     uint8_t patch[NDRUM][156];   /* the voice as started (bursts start it again) */
     uint8_t drum[NDRUM];         /* DX_DRUM index */
+    uint8_t kit[NDRUM];          /* the kit it was hit in (its sweep, burst, choke) */
     uint8_t burst[NDRUM], quiet[NDRUM];
     int32_t sweep[NDRUM];        /* pitch sweep left, Q24 log2 */
     uint32_t t[NDRUM], next[NDRUM];   /* samples since the hit, next burst hit */
@@ -118,6 +120,16 @@ static uint32_t vel_lvl(uint32_t vel)
     return vel < 56u ? LV_GHOST : vel < 88u ? LV_SOFT : vel < 116u ? LV_NORM : LV_HARD;
 }
 
+/* drum d of a kit: its voice bytes and its playing data (USER: the DX KIT's) */
+static const uint8_t *drum_vbytes(uint32_t kit, uint32_t d)
+{
+    return kit >= 1u && kit <= DX_NKITS ? DX_KIT_VOICE[kit - 1u][d] : DX_DRUM_VOICE[d];
+}
+static const dx_drum_t *drum_dd(uint32_t kit, uint32_t d)
+{
+    return kit >= 1u && kit <= DX_NKITS ? &DX_KIT[kit - 1u][d] : &DX_DRUM[d];
+}
+
 /* the voice of drum d in the current kit (kit treatments applied) */
 static void drum_voice(uint32_t d, uint32_t kit, uint8_t *p)
 {
@@ -128,26 +140,29 @@ static void drum_voice(uint32_t d, uint32_t kit, uint8_t *p)
         dx_sanitize(p);
         return;
     }
-    for (i = 0; i < 156u; i++)
-        p[i] = DX_DRUM_VOICE[d][i];
+    {
+        const uint8_t *src = drum_vbytes(kit, d);
+        for (i = 0; i < 156u; i++)
+            p[i] = src[i];
+    }
     alg = p[134] & 31u;
     for (op = 0; op < 6u; op++) {
         uint8_t *o = p + op * 21u;
         if (k->dec)
             o[1] = (uint8_t)dx_clampi(o[1] + k->dec, 1, 99);
-        if (k->bright && !(DX_ALG[alg][op] & 4) && o[16])
+        if (k->bright && (DX_ALG[alg][op] & 3) && o[16])   /* (a modulator: writes a bus) */
             o[16] = (uint8_t)dx_clampi(o[16] + k->bright, 0, 99);
     }
 }
 
 static void drum_start(uint32_t i)               /* (re)start voice i: a hit, or the next hit of a burst */
 {
-    const dx_drum_t *dd = &DX_DRUM[drums.drum[i]];
-    int32_t note = dd->note + FM_KITS[drum_kit()].tune;
+    const dx_drum_t *dd = drum_dd(drums.kit[i], drums.drum[i]);
+    int32_t note = dd->note + FM_KITS[drums.kit[i]].tune;
     if (drums.drum[i] == DX_NDRUM - 1u && drums.v[i].note == 77u)
         note += 7;                                   /* the click's accent: a fifth up */
     dx_init(&drums.dx[i], drums.patch[i], clamp(note, 0, 127), drums.v[i].vel);
-    drums.sweep[i] = dd->sweep * (int32_t)(((1 << 24) / 12) * FM_KITS[drum_kit()].sweep >> 7);
+    drums.sweep[i] = dd->sweep * (int32_t)(((1 << 24) / 12) * FM_KITS[drums.kit[i]].sweep >> 7);
 }
 
 static void drum_on(uint32_t note, uint32_t vel)
@@ -162,9 +177,10 @@ static void drum_on(uint32_t note, uint32_t vel)
     }
     if (lane <= 1u && d == lane)
         drums.kick = 1;                             /* (DUCK) */
-    if (DX_DRUM[d].choke)                           /* the others of its choke group stop (declicked) */
+    if (drum_dd(kit, d)->choke)                     /* the others of its choke group stop (declicked) */
         for (i = 0; i < NDRUM; i++)
-            if (drums.v[i].active && drums.drum[i] != d && DX_DRUM[drums.drum[i]].choke == DX_DRUM[d].choke) {
+            if (drums.v[i].active && drums.drum[i] != d &&
+                drum_dd(drums.kit[i], drums.drum[i])->choke == drum_dd(kit, d)->choke) {
                 drums.v[i].active = 0;
                 drums.tail += drums.v[i].s[7];
             }
@@ -189,11 +205,12 @@ static void drum_on(uint32_t note, uint32_t vel)
     v->s[7] = 0;
     v->age = ++drums.age;
     drums.drum[i] = (uint8_t)d;
-    drums.burst[i] = DX_DRUM[d].burst > 1u ? (uint8_t)(DX_DRUM[d].burst - 1u) : 0;
+    drums.kit[i] = (uint8_t)kit;
+    drums.burst[i] = drum_dd(kit, d)->burst > 1u ? (uint8_t)(drum_dd(kit, d)->burst - 1u) : 0;
     drums.t[i] = 0;
-    drums.next[i] = DX_DRUM[d].burst_n;
+    drums.next[i] = drum_dd(kit, d)->burst_n;
     drums.quiet[i] = 0;
-    drums.gain[i] = DX_DRUM[d].level * 258;
+    drums.gain[i] = drum_dd(kit, d)->level * 258;
     drum_voice(d, kit, drums.patch[i]);
     drum_start(i);
 }
@@ -224,14 +241,14 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
             continue;
         if (drums.burst[k] && drums.t[k] >= drums.next[k]) {   /* the next hit of a burst */
             drums.burst[k]--;
-            drums.next[k] += DX_DRUM[drums.drum[k]].burst_n;
+            drums.next[k] += drum_dd(drums.kit[k], drums.drum[k])->burst_n;
             drum_start(k);
         }
         for (i = 0; i < DX_N; i++)
             buf[i] = 0;
         dx_compute(&drums.dx[k], buf, drums.sweep[k]);
         if (drums.sweep[k])
-            drums.sweep[k] = mulq16(drums.sweep[k], DX_DRUM[drums.drum[k]].sweep_k);
+            drums.sweep[k] = mulq16(drums.sweep[k], drum_dd(drums.kit[k], drums.drum[k])->sweep_k);
         for (i = 0; i < DX_N; i++) {
             int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 (as the synth parts) */
             rp = s > rp ? s : -s > rp ? -s : rp;

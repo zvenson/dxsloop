@@ -564,7 +564,7 @@ async function editorV5() {
   const kit = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const dd = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const fwKits = ((/DRUM_KIT_NAMES\[\] = \{([^}]*)\}/.exec(dc) || [])[1] || "").split(",").map((x) => x.trim().replace(/"/g, ""));
-  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,TIGHT,BOOM,METAL,USER" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
+  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,808 FM,ELECTRO,METAL,USER" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
     && dd.p[info.pe0] === 0, `v5: the drum track's KIT (${kit.names.length} FM kits, == drums.c; DX KIT at power-on)`);
   /* TRACK ends with the solo mask */
   m.state.solo = 0b0101;

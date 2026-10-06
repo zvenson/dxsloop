@@ -6,6 +6,6 @@ dx_compute 428
 dx_op 23
 dx_env_advance 0
 slicer_track 825
-drums_mix 460
+drums_mix 473
 mix_block 187520
 fm1_alnk0_irq 255

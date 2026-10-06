@@ -1319,7 +1319,7 @@ function makeMockDevice(opt = {}) {
   ];
   /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
      first 16 voices of the DX7 user bank) */
-  const KIT = E("KIT", ["DX KIT", "TIGHT", "BOOM", "METAL", "USER"], 0);
+  const KIT = E("KIT", ["DX KIT", "808 FM", "ELECTRO", "METAL", "USER"], 0);
   /* a GM note -> its drum lane (drums.c LANE_OF_GM: 35..81) */
   const LANE_OF_GM = [1, 0, 7, 2, 3, 8, 9, 4, 9, 6, 9, 5, 10, 10, 11, 10, 12, 11, 12, 13, 11, 15, 11, 13, 12, 14, 14, 14, 14, 14,
     14, 14, 15, 15, 13, 13, 15, 15, 13, 13, 7, 7, 7, 14, 14, 15, 15];
@@ -1553,7 +1553,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.2 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.3 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */

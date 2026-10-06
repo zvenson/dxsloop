@@ -29,7 +29,7 @@ static void sloopdx_splash(void)
     sloopdx_logo_draw(4);
     const char *v = FELUCCA_VERSION;
     if (v[0] == 's' && v[1] == 'l' && v[7] == ' ')
-        v += 8;                                         /* "sloopDX 1.2" -> "1.2" under the wordmark */
+        v += 8;                                         /* "sloopDX 1.3" -> "1.3" under the wordmark */
     cv_begin(240, 44, SPLASH_PANEL);
     cv_text(120 - text_w(&FONT_S, v) / 2, 4, &FONT_S, v, RGB(255, 46, 34));
     cv_text(120 - text_w(&FONT_S, "dx7 synth - based on felucca") / 2, 22, &FONT_S, "dx7 synth - based on felucca", RGB(186, 222, 112));

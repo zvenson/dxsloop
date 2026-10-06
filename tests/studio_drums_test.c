@@ -23,7 +23,7 @@ int main(int argc,char **argv)
     for(i=35;i<=81;i++)assert(lane_of_note(i)<DRUM_LANES);
     for(i=0;i<DRUM_LANES;i++)assert(lane_of_note(LANE_NOTE[i])==i);
     /* Render the same hits through every FM kit; each must be distinct (USER without a loaded bank
-     * plays the factory voices), finite and silent after its one-shots have finished (3 s: BOOM's
+     * plays the factory voices), finite and silent after its one-shots have finished (3 s: the long
      * open hat rings past 2 s). */
     for(i=0;i<DRUM_KITS;i++) {
         memset(&drums,0,sizeof drums);

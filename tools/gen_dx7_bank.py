@@ -233,6 +233,120 @@ DRUMS = [_D[n] for n in ("KICK 808", "KICK PUNCH", "SNARE", "CLAP", "HAT CLOSED"
 assert len(DRUMS) == 17
 
 
+# ---------------------------------------------------------------- more kits
+# Each kit its own 16 voices (and the click), not a treatment of the DX KIT: other algorithms, other
+# frequencies, envelopes and sweeps. (name, voice, note, level, sweep semitones, sweep ms, burst, burst ms, choke)
+def car(r, out, **kw):                       # a single-decay carrier / modulator (dec under another name)
+    return dec(r, out, **kw)
+
+
+def pairs(hz_c, hz_m, r, outs=(88, 92, 90), mods=(90, 94, 99), fb=7, alg=5, name="HAT", r2=None):
+    """three carrier / modulator pairs (alg 5) at fixed frequencies: metal, cymbals, cowbells"""
+    ops = {}
+    for k in range(3):
+        rr = r if r2 is None else r2
+        ops[2 * k + 1] = Op(r=(99, r, 99, 99), l=(99, 0, 0, 0), out=outs[k], hz=hz_c[k], vel=3) if r2 is None else \
+            Op(r=(99, r, rr, 99), l=(99, 70, 0, 0), out=outs[k], hz=hz_c[k], vel=3)
+        ops[2 * k + 2] = Op(r=(99, r, 99, 99), l=(99, 0, 0, 0), out=mods[k], hz=hz_m[k]) if r2 is None else \
+            Op(r=(99, r, rr, 99), l=(99, 70, 0, 0), out=mods[k], hz=hz_m[k])
+    return voice(name, alg, ops, fb=fb)
+
+
+def noise(hz, r, out=99, att=99):            # OP6 with full feedback (alg 32): FM noise
+    return Op(r=(att, r, 99, 99), l=(99, 0, 0, 0), out=out, hz=hz)
+
+
+CLICK = _D["CLAVE"]
+KIT_808 = [
+    ("KICK", voice("KICK 808", 32, {1: car(46, 99, vel=2)}), 28, 110, 24, 70, 1, 0, 0),
+    ("KICK 2", voice("KICK 808 S", 32, {1: car(56, 99, vel=2), 2: car(97, 40, hz=2000)}), 31, 105, 16, 35, 1, 0, 0),
+    ("SNARE", voice("SNARE 808", 32, {1: car(64, 90, vel=3), 2: car(66, 82, ratio=1.47, vel=3), 6: noise(7000, 62, 92)}, fb=7),
+     50, 100, 4, 10, 1, 0, 0),
+    ("CLAP", voice("CLAP 808", 32, {5: car(68, 85, hz=2400, vel=3), 6: noise(1500, 68)}, fb=7), 60, 100, 0, 0, 4, 10, 0),
+    ("HAT", pairs((3300, 4700, 6100), (5200, 7400, 8800), 80, fb=6, name="HAT 808"), 60, 100, 0, 0, 1, 0, 1),
+    ("OPEN HAT", pairs((3300, 4700, 6100), (5200, 7400, 8800), 55, fb=6, name="OHAT 808"), 60, 100, 0, 0, 1, 0, 1),
+    ("PEDAL", pairs((3300, 4700, 6100), (5200, 7400, 8800), 86, fb=6, name="PHAT 808"), 60, 110, 0, 0, 1, 0, 1),
+    ("RIM", voice("RIM 808", 32, {1: car(91, 92, hz=1750, vel=3), 2: car(88, 80, hz=480, vel=3)}), 60, 100, 0, 0, 1, 0, 0),
+    ("SNARE 2", voice("SNR 808 HI", 32, {1: car(72, 90, vel=3), 2: car(74, 78, ratio=1.62), 6: noise(8200, 70, 95)}, fb=7),
+     55, 100, 5, 8, 1, 0, 0),
+    ("LOW TOM", voice("TOM 808 L", 32, {1: car(52, 99, vel=2)}), 41, 105, 7, 60, 1, 0, 0),
+    ("HI TOM", voice("TOM 808 H", 32, {1: car(55, 99, vel=2)}), 48, 105, 7, 60, 1, 0, 0),
+    ("CRASH", pairs((4100, 5700, 8300), (6300, 9100, 9700), 42, r2=40, name="CYM 808"), 60, 100, 0, 0, 1, 0, 0),
+    ("RIDE", pairs((3500, 5200, 7600), (5600, 7900, 9300), 50, r2=48, outs=(84, 70, 66), name="RIDE 808"), 60, 120, 0, 0, 1, 0, 0),
+    ("SHAKER", voice("MARACA", 32, {6: noise(8000, 72, att=82)}, fb=7), 60, 110, 0, 0, 1, 0, 0),
+    ("CONGA", voice("CONGA 808", 32, {1: car(60, 99, vel=2), 2: car(80, 40, ratio=2)}), 60, 100, 5, 15, 1, 0, 0),
+    ("COWBELL", voice("COWB 808", 5, {1: dec2(90, 60, 58, 92, hz=540, vel=3), 2: dec2(90, 60, 58, 72, hz=540),
+                                      3: dec2(90, 60, 58, 90, hz=800, vel=3), 4: dec2(90, 60, 58, 70, hz=800)}),
+     60, 115, 0, 0, 1, 0, 0),
+    CLICK,
+]
+KIT_ELECTRO = [
+    ("KICK", voice("KICK EL", 5, {1: car(60, 99, vel=2), 2: car(88, 72), 3: car(97, 70, hz=3000, vel=4), 4: car(98, 80, hz=6000)}),
+     33, 105, 30, 18, 1, 0, 0),
+    ("KICK 2", voice("KICK HARD", 1, {1: car(66, 99, vel=2), 2: car(80, 80, ratio=0.5)}, fb=5), 34, 100, 36, 12, 1, 0, 0),
+    ("SNARE", voice("SNARE EL", 5, {1: car(70, 85, vel=3), 2: car(85, 60, ratio=1.62), 5: car(66, 95, hz=4500, vel=3),
+                                    6: car(66, 99, hz=9700)}, fb=7), 55, 100, 6, 8, 1, 0, 0),
+    ("CLAP", voice("CLAP EL", 5, {3: car(64, 88, hz=1800, vel=3), 4: car(64, 99, hz=3600), 5: car(64, 92, hz=2600, vel=3),
+                                  6: car(64, 99, hz=5200)}, fb=7), 60, 100, 0, 0, 3, 8, 0),
+    ("HAT", pairs((8200, 9300, 9900), (9700, 9700, 9700), 84, name="HAT EL"), 60, 100, 0, 0, 1, 0, 1),
+    ("OPEN HAT", pairs((8200, 9300, 9900), (9700, 9700, 9700), 58, name="OHAT EL"), 60, 100, 0, 0, 1, 0, 1),
+    ("PEDAL", pairs((8200, 9300, 9900), (9700, 9700, 9700), 88, name="PHAT EL"), 60, 110, 0, 0, 1, 0, 1),
+    ("RIM", voice("RIM EL", 32, {1: car(92, 92, hz=2200, vel=3), 2: car(90, 80, hz=650, vel=3)}), 60, 100, 0, 0, 1, 0, 0),
+    ("SNARE 2", voice("SNAP EL", 32, {1: car(82, 80, hz=250, vel=3), 5: car(76, 90, hz=6400), 6: noise(9300, 76)}, fb=7),
+     60, 100, 0, 0, 1, 0, 0),
+    ("LOW TOM", voice("TOM EL L", 1, {1: car(58, 99, vel=2), 2: car(85, 55)}, fb=3), 40, 105, 14, 40, 1, 0, 0),
+    ("HI TOM", voice("TOM EL H", 1, {1: car(60, 99, vel=2), 2: car(85, 55)}, fb=3), 47, 105, 14, 40, 1, 0, 0),
+    ("CRASH", voice("CRASH EL", 32, {4: dec2(60, 75, 40, 80, hz=6400), 5: dec2(60, 75, 40, 85, hz=4800), 6: noise(9000, 40)}, fb=7),
+     60, 100, 0, 0, 1, 0, 0),
+    ("RIDE", pairs((4400, 6600, 8800), (5900, 8800, 9900), 55, r2=52, outs=(86, 72, 64), name="RIDE EL"), 60, 120, 0, 0, 1, 0, 0),
+    ("SHAKER", voice("SHAKE EL", 32, {6: noise(9500, 78, att=85)}, fb=7), 60, 110, 0, 0, 1, 0, 0),
+    ("CONGA", voice("ZAP", 32, {1: car(72, 99, vel=2)}), 72, 100, 36, 25, 1, 0, 0),
+    ("COWBELL", voice("BLIP", 5, {1: car(80, 92, hz=700, vel=3), 2: car(80, 66, hz=700), 3: car(80, 88, hz=1050, vel=3),
+                                  4: car(80, 64, hz=1050)}), 60, 110, 0, 0, 1, 0, 0),
+    CLICK,
+]
+KIT_METAL = [
+    ("KICK", voice("KICK MTL", 1, {1: car(55, 99, vel=2), 2: car(70, 78, ratio=1.41)}, fb=5), 30, 105, 18, 30, 1, 0, 0),
+    ("KICK 2", voice("KICK MTL 2", 1, {1: car(62, 99, vel=2), 2: car(78, 80, ratio=3.5)}), 32, 100, 12, 20, 1, 0, 0),
+    ("SNARE", voice("CLANG", 5, {1: car(68, 88, vel=3), 2: car(70, 85, ratio=3.14), 3: car(66, 80, ratio=2.76, vel=3),
+                                 5: car(64, 92, hz=5400, vel=3), 6: car(64, 99, hz=8700)}, fb=7), 52, 100, 3, 10, 1, 0, 0),
+    ("CLAP", voice("CLAP MTL", 5, {3: car(66, 90, hz=1330, vel=3), 4: car(66, 95, hz=2210), 5: car(66, 90, hz=1870, vel=3),
+                                   6: car(66, 99, hz=3070)}, fb=7), 60, 100, 0, 0, 3, 12, 0),
+    ("HAT", pairs((5870, 7330, 9440), (9970, 8110, 6650), 79, outs=(86, 90, 88), mods=(99, 99, 99), name="HAT MTL"),
+     60, 100, 0, 0, 1, 0, 1),
+    ("OPEN HAT", pairs((5870, 7330, 9440), (9970, 8110, 6650), 50, outs=(86, 90, 88), mods=(99, 99, 99), name="OHAT MTL"),
+     60, 100, 0, 0, 1, 0, 1),
+    ("PEDAL", pairs((5870, 7330, 9440), (9970, 8110, 6650), 85, outs=(86, 90, 88), mods=(99, 99, 99), name="PHAT MTL"),
+     60, 110, 0, 0, 1, 0, 1),
+    ("RIM", voice("ANVIL", 1, {1: car(85, 94, hz=2950, vel=3), 2: car(85, 80, hz=4170)}), 60, 100, 0, 0, 1, 0, 0),
+    ("SNARE 2", voice("ANVIL SNR", 5, {1: car(70, 90, hz=1700, vel=3), 2: car(72, 78, hz=2470), 5: car(70, 88, hz=6200, vel=3),
+                                       6: car(70, 99, hz=9100)}, fb=7), 60, 100, 0, 0, 1, 0, 0),
+    ("LOW TOM", voice("BELL TOM L", 1, {1: car(54, 99, vel=2), 2: car(70, 70, ratio=1.41)}), 43, 105, 5, 40, 1, 0, 0),
+    ("HI TOM", voice("BELL TOM H", 1, {1: car(56, 99, vel=2), 2: car(72, 66, ratio=2.73)}), 50, 105, 5, 40, 1, 0, 0),
+    ("CRASH", pairs((1120, 1870, 2930), (1610, 3310, 4470), 42, r2=40, outs=(90, 86, 82), mods=(88, 84, 90), fb=6, name="GONG"),
+     60, 100, 0, 0, 1, 0, 0),
+    ("RIDE", voice("BELL RIDE", 5, {1: dec2(60, 80, 45, 92, hz=2300, vel=2), 2: dec2(60, 80, 45, 80, hz=3240),
+                                    3: dec2(60, 80, 45, 80, hz=3700, vel=2), 4: dec2(60, 80, 45, 72, hz=5210)}),
+     60, 120, 0, 0, 1, 0, 0),
+    ("SHAKER", voice("CHAIN", 32, {5: car(70, 80, hz=4300), 6: noise(6200, 70, att=80)}, fb=7), 60, 110, 0, 0, 1, 0, 0),
+    ("CONGA", voice("PIPE", 1, {1: car(66, 99, vel=2), 2: car(76, 75, ratio=2.76)}), 62, 100, 3, 12, 1, 0, 0),
+    ("COWBELL", voice("BELL", 1, {1: dec2(80, 60, 50, 95, hz=1580, vel=3), 2: dec2(80, 60, 50, 75, hz=2230)}),
+     60, 115, 0, 0, 1, 0, 0),
+    CLICK,
+]
+MORE_KITS = [("808 FM", KIT_808), ("ELECTRO", KIT_ELECTRO), ("METAL", KIT_METAL)]
+for _n, _k in MORE_KITS:
+    assert len(_k) == 17, (_n, len(_k))
+
+
+def drum_rows(kit):
+    out = []
+    for d in kit:
+        k = int(round(65536 * math.exp(-32 / (d[5] * 44.1)))) if d[5] else 0
+        out.append(f'{{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}}}')
+    return out
+
+
 def c_bytes(b):
     return "{" + ", ".join(str(x) for x in b) + "}"
 
@@ -256,6 +370,21 @@ def main(path):
     for d in DRUMS:
         k = int(round(65536 * math.exp(-32 / (d[5] * 44.1)))) if d[5] else 0
         L.append(f'    {{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}}},')
+    L.append("};")
+    L.append(f"/* the other kits: their own voices (808 FM, ELECTRO, METAL), lanes as above, the click last */")
+    L.append(f"#define DX_NKITS {len(MORE_KITS)}")
+    L.append("static const uint8_t DX_KIT_VOICE[DX_NKITS][DX_NDRUM][156] = {")
+    for n, kit in MORE_KITS:
+        L.append(f"    {{   /* {n} */")
+        for d in kit:
+            L.append(f"        {c_bytes(d[1][1])},   /* {d[0]}: {d[1][0]} */")
+        L.append("    },")
+    L.append("};")
+    L.append("static const dx_drum_t DX_KIT[DX_NKITS][DX_NDRUM] = {")
+    for n, kit in MORE_KITS:
+        L.append(f"    {{   /* {n} */")
+        L.append("        " + ",\n        ".join(drum_rows(kit)) + ",")
+        L.append("    },")
     L.append("};")
     open(path, "w").write("\n".join(L) + "\n")
     print(f"dx7 bank: {len(SYNTH)} synth voices, {len(DRUMS)} drums -> {path}")

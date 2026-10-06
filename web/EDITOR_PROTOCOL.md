@@ -258,7 +258,7 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 - **`TRACK`** ends with the solo mask (bit per track; GLO + key on the device). A soloed track plays,
   the others are faded out unless soloed too; mute and solo do not change `P_MUTE` of other tracks.
 - **The kit** is the drum track's `P_E0`: `DESC` of `P_E0` with the drum track selected is the enum
-  `KIT` (sloopDX: 5 FM kits, DX KIT, TIGHT, BOOM, METAL, USER; SLOOP 2.x had 34 sample kits). `DESC` of
+  `KIT` (sloopDX: 5 FM kits, DX KIT, 808 FM, ELECTRO, METAL, USER; SLOOP 2.x had 34 sample kits). `DESC` of
   `P_E1..P_E7` there still describes engine 0 (unused).
 
 ## v6: backup / restore (SLOOP 2.3)

@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.2
+# sloopDX 1.3
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and bit-exact against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.2 (DX7 voice editing on the FM-1 and in the editor; the ENV page and the knobs act on sounding notes; quieter, shorter tails), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.3 (DX7 voice editing on the FM-1 and in the editor, in the DX7's colours; four drum kits with their own voices; the ENV page and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
 ### From SLOOP 2.3
 
@@ -25,7 +25,7 @@ sloopDX carries what SLOOP 2.3 added to the FM-1 itself (none of it tried on a d
 - **One engine: DX7.** Six operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch. See [The DX7 engine](#the-dx7-engine).
 - **17 factory voices** in the DX7 tradition — designed here, not copied — and **your own banks**: a standard 32-voice bulk dump (.syx) loads as U01–U32. See [Your own DX7 bank](#your-own-dx7-bank-syx).
 - **Macro knobs on every voice:** BRITE, ATK, DEC, REL, FDBK — the knobs a DX7 never had.
-- **FM drums.** The drum track plays 16 FM drums built with the same engine, in five kits: DX KIT, TIGHT, BOOM, METAL and USER (the first 16 voices of your bank as the lanes). See [Drum kits](#drum-kits).
+- **FM drums.** The drum track plays 16 FM drums built with the same engine, in five kits: DX KIT, 808 FM, ELECTRO, METAL and USER (the first 16 voices of your bank as the lanes). See [Drum kits](#drum-kits).
 - **Gone:** the sample engines, the sample sets, the user sample slots, the other eight engines and the 37 sample and drum-synth kits. Everything else of SLOOP — layers, free takes, swing, song mode, DUST, DUCK, undo, projects, user presets — is as it was.
 
 ---
@@ -342,14 +342,14 @@ While a bank uploads, U01–U32 play INIT VOICE and the USER kit plays the DX KI
 
 ## Drum kits
 
-Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the editor. Each kit is the same 16 FM drum voices with a treatment: envelope rates, tuning, modulator level and the depth of the pitch sweep. The USER kit is yours.
+Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the editor. Each kit has its own 16 FM voices (other algorithms, frequencies, envelopes and pitch sweeps), all made for sloopDX. The USER kit is yours.
 
 | # | Kit | Style | What it does |
 | --- | --- | --- | --- |
 | 1 | DX KIT | classic | the voices as designed: an 808-style kick, a punch kick, snare, a four-hit clap, closed / open / pedal hat, rim, tight snare, two toms, crash, ride, shaker, conga, cowbell |
-| 2 | TIGHT | punchy | shorter decays, a little higher, less sweep |
-| 3 | BOOM | deep | longer, lower, darker, with a deeper pitch drop on the kicks and toms |
-| 4 | METAL | bright | higher and with more modulation: a brighter, more metallic kit |
+| 2 | 808 FM | round | an analogue drum machine in FM: sine kicks and toms with long pitch drops, a tonal snare, metallic hats from six detuned partials, a two-tone cowbell |
+| 3 | ELECTRO | punchy | short and clicky: kicks with a fast sweep and a click, a bright snare, tight hats, a snap, a zap on the conga key, a blip on the cowbell key |
+| 4 | METAL | industrial | inharmonic: a clanging snare, anvil rim and snare, bell toms, a gong on the crash key, a bell ride, a chain shaker, a pipe, a bell |
 | 5 | USER | DX7 bank | the first 16 voices of your loaded .syx bank, one per lane in the order above (F3 = voice 1 … G5 = voice 16); without a bank it plays the DX KIT |
 
 The drum track has **6 voices** of its own, so a busy pattern never steals from the synths. The kit is saved with projects and song sections. MIDI notes in on the drum channel (10) play the nearest of the 16 sounds (GM drum map).
@@ -432,7 +432,7 @@ The glow is a short pulse on every scan of the panel (about 900 times a second):
 | Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |
-| Drum kits | 5 FM kits (DX KIT, TIGHT, BOOM, METAL, USER), 16 sounds each |
+| Drum kits | 5 FM kits (DX KIT, 808 FM, ELECTRO, METAL, USER), 16 sounds each |
 | Effects | 16 punch-in effects; master DUST, DUCK, DJ filter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb; master limiter |
 | Recording | live, quantised as heard (latency-compensated), overdub; records at once while playing; free take sets loop length and tempo, or the tempo set, from the first note or a one-bar count-in |
 | Memory | undo / redo, 4 projects, 32 user presets, one DX7 bank, autosave of the working project, song of 4 sections × 16 steps × 1–64 bars; full backup / restore from the editor |

@@ -16,7 +16,7 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
 
-> **Status:** 1.2 (DX7 voice editing on the FM-1 and in the editor; the ENV page and the knobs act on sounding notes; quieter, shorter tails), based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status:** 1.3 (DX7 voice editing on the FM-1 and in the editor, in the DX7's colours; four drum kits with their own voices; the ENV page and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Contents
 
@@ -71,9 +71,9 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 - **Three synth parts plus a drum track**, sharing an 8-voice budget. Each part plays the whole keyboard (no split), and each track has its own pattern length.
 - **FM drums:** 16 lanes on the white keys (kick, kick 2, snare, clap, closed / open / pedal hat, rim, tight snare, low / high tom, crash, ride, shaker, conga, cowbell). Five kits:
   - **DX KIT**, the factory kit
-  - **TIGHT**, short and punchy
-  - **BOOM**, long and deep
-  - **METAL**, bright
+  - **808 FM**, an analogue drum machine in FM: round kicks, metallic hats
+  - **ELECTRO**, short and clicky
+  - **METAL**, inharmonic and industrial: anvils, bells, a gong
   - **USER**, which plays the first 16 voices of your loaded .syx bank as the lanes
 - **Drum details:** a pitch sweep on kicks and toms, a real multi-hit clap, and hat choke.
 - **From SLOOP:** the layers (FX punch-in, edit, arp, steps, scale and chords, mix, song), free takes, swing, chorus / delay / reverb sends, DUST and DUCK, undo / redo, projects and user presets.
@@ -105,7 +105,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.2.fwsc`) with `python tools/fm1_install.py sloopdx-1.2.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.3.fwsc`) with `python tools/fm1_install.py sloopdx-1.3.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -123,7 +123,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ## Your first beat in 60 seconds
 
-1. **ALGORITHM** to track **4** (orange, drums). The white keys are 16 FM drums; **PRESETS** picks a kit (try *TIGHT* or *BOOM*).
+1. **ALGORITHM** to track **4** (orange, drums). The white keys are 16 FM drums; **PRESETS** picks a kit (try *808 FM* or *METAL*).
 2. Press **REC** and play a beat freely, at your own tempo. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard ones.
 3. **Press REC on the "1" after your last bar.** The loop closes, its length sets the tempo, the hits snap to the grid and it plays at once. (Prefer a set tempo, or a count-in? Turn KNOB 1 and KNOB 3 on the REC screen before you start.)
 4. **REC** again while it plays: you record on top. Hold **ARP** and hold the hat key for a hat roll.
@@ -166,7 +166,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 1.2*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 1.3*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 
@@ -257,7 +257,7 @@ Something else? [Open an issue](../../issues): what you did, what you expected, 
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa, bit-exact |
 | Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
-| Drum kits | 5 FM kits (DX KIT, TIGHT, BOOM, METAL, USER), 16 sounds each |
+| Drum kits | 5 FM kits (DX KIT, 808 FM, ELECTRO, METAL, USER), 16 sounds each |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock (no drift) |
 | Recording | live, quantised as heard (latency-compensated), overdub; free take (the tempo follows you) or the tempo set; start on the first note or a one-bar count-in; 1, 2 or 4 bars |
 | Performance | layers: punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo, song sections |

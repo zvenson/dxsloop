@@ -116,7 +116,7 @@ int main(int argc, char **argv)
         static int32_t blk[CTL * 2u];
         wav_hdr(f, total * CTL);
         beat_setup();
-        TDRUM->p[P_E0] = 1u;                         /* TIGHT */
+        TDRUM->p[P_E0] = 1u;                         /* 808 FM */
         for (b = 0; b < total; b++) {
             uint32_t q;
             int32_t e = b < beat ? -1 : (int32_t)((b - beat) / beat);
