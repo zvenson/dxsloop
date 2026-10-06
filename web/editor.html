@@ -63,6 +63,20 @@
     #steps th, #steps td { padding-right: 3px; }
   }
   footer { margin-top: 24px; font-size: 11px; color: var(--dim); }
+  /* DX7 voice page: the algorithm, pitch EG and LFO on top, the six operators below */
+  .vtop { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px 24px; }
+  .vops { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 8px 24px; margin-top: 8px; }
+  .vrow { display: grid; grid-template-columns: 96px 1fr 56px; gap: 6px; align-items: center; min-height: 20px; }
+  .vrow .v { text-align: right; white-space: nowrap; }
+  .vop h2 .tag { font-weight: 400; color: var(--dim); margin-left: 6px; }
+  .vop.carrier h2 { border-bottom-width: 3px; }
+  #valg rect.c { fill: var(--fg); } #valg rect.m { fill: none; stroke: var(--fg); }
+  #valg text { font: 11px sans-serif; text-anchor: middle; dominant-baseline: central; }
+  #valg text.c { fill: var(--bg); } #valg text.m { fill: var(--fg); }
+  #valg line, #valg polyline { stroke: var(--dim); fill: none; }
+  #valg .fb { stroke: var(--fg); stroke-dasharray: 3 2; }
+  svg.env { width: 100%; height: 36px; display: block; margin: 2px 0 4px; }
+  svg.env polyline { fill: none; stroke: var(--fg); stroke-width: 1.5; }
   .row.pushed .v { font-weight: 600; }
   /* librarian: local library and the device's user bank side by side, stacked on a phone */
   .libcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 8px 24px; margin-top: 6px; }
@@ -171,6 +185,7 @@
     <div id="status"></div>
     <nav class="tabs" id="tabs" role="tablist">
       <button role="tab" data-tab="sound" data-t="sound" data-ic="symbol_audio"></button>
+      <button role="tab" data-tab="voice" data-t="tabVoice" data-ic="ui_knob"></button>
       <button role="tab" data-tab="sequencer" data-t="tabSeq" data-ic="symbol_grid"></button>
       <button role="tab" data-tab="tracks" data-t="tabTracks" data-ic="ui_slider_vertical"></button>
       <button role="tab" data-tab="library" data-t="library" data-ic="symbol_books"></button>
@@ -196,6 +211,33 @@
     <p class="dim" id="drumnote" data-t="drumNote" hidden></p>
     <p class="dim" id="ctlhelp" data-t="ctlHelp"></p>
     <div class="groups" id="groups"></div>
+  </section>
+
+  <section class="panel" id="p-voice" data-tab="voice" data-dev hidden>
+    <p class="dim" id="vnote" hidden></p>
+    <div id="vbody" hidden>
+      <p class="bar">
+        <label><span data-t="vSlot"></span> <select id="vslot"></select></label>
+        <label><span data-t="vName"></span> <input type="text" id="vname" maxlength="10" size="11"></label>
+        <button id="vplay" data-t="vPlay"></button>
+        <button id="vstore" data-t="vStore" data-ic="symbol_download"></button>
+      </p>
+      <p class="bar">
+        <button id="vfromtrk" data-t="vFromTrack"></button>
+        <label><span data-t="vFactory"></span> <select id="vfact"></select></label>
+        <button id="vinit" data-t="vInit"></button>
+        <button id="vimport" data-t="vImport" data-ic="symbol_upload"></button>
+        <button id="vexport" data-t="vExport" data-ic="symbol_download"></button>
+        <input type="file" id="vfile" accept=".syx,application/octet-stream" hidden>
+      </p>
+      <p class="dim" id="vstate"></p>
+      <div class="vtop">
+        <div class="group"><h2 data-t="vAlgorithm"></h2><svg id="valg" viewBox="0 0 240 170" width="240" height="170"></svg><div id="vglob0"></div></div>
+        <div class="group"><h2 data-t="vPitchEnv"></h2><div id="vpeg"></div></div>
+        <div class="group"><h2>LFO</h2><div id="vlfo"></div></div>
+      </div>
+      <div class="vops" id="vops"></div>
+    </div>
   </section>
 
   <section class="panel" id="p-sequencer" data-tab="sequencer" data-dev hidden>
@@ -321,7 +363,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   TRACK_PARAM: 31, TRACK_CHANGED: 32,
   DRUM_STEP: 33,
   BK_LIST: 34, BK_GET: 35, BK_PUT: 36,              /* v6: backup / restore (SLOOP 2.3) */
-  BANK_BEGIN: 37, BANK_WRITE: 38, BANK_END: 39, BANK_INFO: 40, BANK_ERASE: 41 };   /* v7: the DX7 user bank (sloopDX) */
+  BANK_BEGIN: 37, BANK_WRITE: 38, BANK_END: 39, BANK_INFO: 40, BANK_ERASE: 41,     /* v7: the DX7 user bank (sloopDX) */
+  VOICE_GET: 42, VOICE_PUT: 43, VOICE_PARAM: 44, BANK_SAVE: 45 };                   /* v8: voice editing (sloopDX) */
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -493,6 +536,11 @@ const parse = {
     return o;
   },
   [CMD.BANK_ERASE](a) { return { rc: new Reader(a).b() }; },
+  /* v8: voice editing. VOICE_GET: index, 128 packed bytes; VOICE_PARAM: slot, idx, value */
+  [CMD.VOICE_GET](a) { return { index: a[0], data: Uint8Array.from(a.slice(1, 1 + DX7.VOICE_LEN)) }; },
+  [CMD.VOICE_PUT](a) { return { slot: a[0], rc: a[1] }; },
+  [CMD.VOICE_PARAM](a) { return { slot: a[0], idx: a[1] | (a[2] << 7), value: a[3] }; },
+  [CMD.BANK_SAVE](a) { return { rc: a[0] }; },
 };
 
 /* a name the device accepts: printable ASCII, 1..12 characters */
@@ -554,6 +602,11 @@ const req = {
   bankEnd: (checksum) => [CMD.BANK_END, [checksum & 0x7F]],
   bankInfo: () => [CMD.BANK_INFO, []],
   bankErase: () => [CMD.BANK_ERASE, []],
+  /* v8: voice editing. index 0..48 (17 factory, then U01..U32); slot 0..31; idx 0..154 (VCED order) */
+  voiceGet: (index) => [CMD.VOICE_GET, [index & 0x7F]],
+  voicePut: (slot, packed) => [CMD.VOICE_PUT, [slot & 0x7F, ...Array.from(packed, (x) => x & 0x7F)]],
+  voiceParam: (slot, idx, v) => [CMD.VOICE_PARAM, [slot & 0x7F, idx & 0x7F, (idx >> 7) & 0x7F, ...(v == null ? [] : [v & 0x7F])]],
+  bankSave: () => [CMD.BANK_SAVE, []],
 };
 
 /* ----------------------------------------------------------- DX7 bank --- */
@@ -597,6 +650,108 @@ function dx7MakeSyx(voices) {
   return out;
 }
 
+/* --------------------------------------------------------- DX7 voice --- */
+/* A voice unpacked is 155 bytes in VCED order (eng_dx7.c dx_unpack): six operator blocks of 21 bytes, OP6
+   first (R1-R4 L1-L4 BP LD RD LC RC RS AMS KVS OL MODE COARSE FINE DET), then pitch EG R1-R4 L1-L4 (126),
+   ALG (134), FB, OSC SYNC, LFO SPEED, DELAY, PMD, AMD, SYNC, WAVE, PMS (143), TRANSPOSE (144), NAME (145..154).
+   Packed is the 128 bytes of a bulk dump. The same mapping as the firmware: test_web.mjs checks the round trip
+   on the factory voices of dx7_bank.h. */
+const DX7_ALG = [[0xc1, 0x11, 0x11, 0x14, 0x01, 0x14], [0x01, 0x11, 0x11, 0x14, 0xc1, 0x14], [0xc1, 0x11, 0x14, 0x01, 0x11, 0x14], [0xc1, 0x11, 0x94, 0x01, 0x11, 0x14], [0xc1, 0x14, 0x01, 0x14, 0x01, 0x14], [0xc1, 0x94, 0x01, 0x14, 0x01, 0x14], [0xc1, 0x11, 0x05, 0x14, 0x01, 0x14], [0x01, 0x11, 0xc5, 0x14, 0x01, 0x14], [0x01, 0x11, 0x05, 0x14, 0xc1, 0x14], [0x01, 0x05, 0x14, 0xc1, 0x11, 0x14], [0xc1, 0x05, 0x14, 0x01, 0x11, 0x14], [0x01, 0x05, 0x05, 0x14, 0xc1, 0x14], [0xc1, 0x05, 0x05, 0x14, 0x01, 0x14], [0xc1, 0x05, 0x11, 0x14, 0x01, 0x14], [0x01, 0x05, 0x11, 0x14, 0xc1, 0x14], [0xc1, 0x11, 0x02, 0x25, 0x05, 0x14], [0x01, 0x11, 0x02, 0x25, 0xc5, 0x14], [0x01, 0x11, 0x11, 0xc5, 0x05, 0x14], [0xc1, 0x14, 0x14, 0x01, 0x11, 0x14], [0x01, 0x05, 0x14, 0xc1, 0x14, 0x14], [0x01, 0x14, 0x14, 0xc1, 0x14, 0x14], [0xc1, 0x14, 0x14, 0x14, 0x01, 0x14], [0xc1, 0x14, 0x14, 0x01, 0x14, 0x04], [0xc1, 0x14, 0x14, 0x14, 0x04, 0x04], [0xc1, 0x14, 0x14, 0x04, 0x04, 0x04], [0xc1, 0x05, 0x14, 0x01, 0x14, 0x04], [0x01, 0x05, 0x14, 0xc1, 0x14, 0x04], [0x04, 0xc1, 0x11, 0x14, 0x01, 0x14], [0xc1, 0x14, 0x01, 0x14, 0x04, 0x04], [0x04, 0xc1, 0x11, 0x14, 0x04, 0x04], [0xc1, 0x14, 0x04, 0x04, 0x04, 0x04], [0xc4, 0x04, 0x04, 0x04, 0x04, 0x04]];   /* dx7_core.c DX_ALG (Dexed FmCore::algorithms): op 0 = OP6 */
+const DX7_OPMAX = [99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 3, 3, 7, 3, 7, 99, 1, 31, 99, 14];
+const DX7_GMAX = [99, 99, 99, 99, 99, 99, 99, 99, 31, 7, 1, 99, 99, 99, 99, 1, 5, 7, 48];
+const DX7_NPARAM = 155;
+const dx7ParamMax = (i) => (i < 126 ? DX7_OPMAX[i % 21] : i < 145 ? DX7_GMAX[i - 126] : i < DX7_NPARAM ? 127 : 0);
+function dx7Unpack(b) {
+  const u = new Uint8Array(156);
+  for (let op = 0; op < 6; op++) {
+    const s = op * 17, o = op * 21;
+    for (let i = 0; i < 11; i++) u[o + i] = b[s + i];
+    u[o + 11] = b[s + 11] & 3; u[o + 12] = (b[s + 11] >> 2) & 3;
+    u[o + 13] = b[s + 12] & 7; u[o + 20] = (b[s + 12] >> 3) & 15;
+    u[o + 14] = b[s + 13] & 3; u[o + 15] = (b[s + 13] >> 2) & 7;
+    u[o + 16] = b[s + 14];
+    u[o + 17] = b[s + 15] & 1; u[o + 18] = (b[s + 15] >> 1) & 31;
+    u[o + 19] = b[s + 16];
+  }
+  for (let i = 0; i < 8; i++) u[126 + i] = b[102 + i];
+  u[134] = b[110] & 31; u[135] = b[111] & 7; u[136] = (b[111] >> 3) & 1;
+  for (let i = 0; i < 4; i++) u[137 + i] = b[112 + i];
+  u[141] = b[116] & 1; u[142] = (b[116] >> 1) & 7; u[143] = (b[116] >> 4) & 7;
+  u[144] = b[117];
+  for (let i = 0; i < 10; i++) u[145 + i] = b[118 + i];
+  return u;
+}
+function dx7Pack(u) {
+  const b = new Uint8Array(128);
+  for (let op = 0; op < 6; op++) {
+    const o = op * 21, q = op * 17;
+    for (let i = 0; i < 11; i++) b[q + i] = u[o + i];
+    b[q + 11] = u[o + 11] | (u[o + 12] << 2);
+    b[q + 12] = u[o + 13] | (u[o + 20] << 3);
+    b[q + 13] = u[o + 14] | (u[o + 15] << 2);
+    b[q + 14] = u[o + 16];
+    b[q + 15] = u[o + 17] | (u[o + 18] << 1);
+    b[q + 16] = u[o + 19];
+  }
+  for (let i = 0; i < 8; i++) b[102 + i] = u[126 + i];
+  b[110] = u[134]; b[111] = u[135] | (u[136] << 3);
+  for (let i = 0; i < 4; i++) b[112 + i] = u[137 + i];
+  b[116] = u[141] | (u[142] << 1) | (u[143] << 4);
+  b[117] = u[144];
+  for (let i = 0; i < 10; i++) b[118 + i] = u[145 + i];
+  return b;
+}
+/* the DX7's INIT VOICE: OP1 sounding a sine, everything else at its start value */
+function dx7InitVoice(name = "INIT VOICE") {
+  const u = new Uint8Array(156);
+  for (let op = 0; op < 6; op++) {
+    const o = op * 21;
+    u.set([99, 99, 99, 99, 99, 99, 99, 0, 39, 0, 0, 0, 0, 0, 0, 0, op === 5 ? 99 : 0, 0, 1, 0, 7], o);
+  }
+  u.set([99, 99, 99, 99, 50, 50, 50, 50, 0, 0, 1, 35, 0, 0, 0, 1, 0, 3, 24], 126);
+  for (let i = 0; i < 10; i++) u[145 + i] = (name.charCodeAt(i) || 32) & 0x7F;
+  return u;
+}
+/* the algorithm as a graph: carriers (bit i = op i, 0 = OP6), the modulators of each op, the feedback ops */
+function dx7AlgGraph(alg) {
+  const bus = [0, 0, 0], mods = [0, 0, 0, 0, 0, 0];
+  let carriers = 0, fbin = -1, fbout = -1;
+  DX7_ALG[alg & 31].forEach((fl, i) => {
+    const inb = (fl >> 4) & 3, outb = fl & 3;
+    if (inb) mods[i] = bus[inb];
+    if (!outb) carriers |= 1 << i; else if (fl & 4) bus[outb] |= 1 << i; else bus[outb] = 1 << i;
+    if (fl & 0x40) fbin = i;
+    if (fl & 0x80) fbout = i;
+  });
+  return { carriers, mods, fbin, fbout };
+}
+/* a single voice as a .syx (VCED: F0 43 0n 00 01 1B, 155 bytes, checksum, F7: 163 bytes), and back */
+function dx7VcedMake(u) {
+  const out = new Uint8Array(163);
+  out.set([0xF0, 0x43, 0x00, 0x00, 0x01, 0x1B]);
+  for (let i = 0; i < DX7_NPARAM; i++) out[6 + i] = u[i] & 0x7F;
+  out[161] = dx7Checksum(out.subarray(6, 161));
+  out[162] = 0xF7;
+  return out;
+}
+function dx7VcedCheck(buf) {
+  const d = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  const fail = (code) => { const e = new Error(code); e.code = code; throw e; };
+  if (d.length !== 163) fail("length");
+  if (d[0] !== 0xF0 || d[1] !== 0x43 || (d[2] & 0xF0) !== 0 || d[3] !== 0 || d[4] !== 1 || d[5] !== 0x1B || d[162] !== 0xF7) fail("header");
+  if (dx7Checksum(d.subarray(6, 161)) !== d[161]) fail("checksum");
+  const u = new Uint8Array(156);
+  for (let i = 0; i < DX7_NPARAM; i++) u[i] = Math.min(d[6 + i], dx7ParamMax(i));
+  return u;
+}
+/* the device side: a voice read / written / one parameter set live / the bank stored */
+const dxvoice = {
+  async get(rq, index) { return dx7Unpack(parse[CMD.VOICE_GET](await rq(req.voiceGet(index))).data); },
+  async put(rq, slot, u) { return parse[CMD.VOICE_PUT](await rq(req.voicePut(slot, dx7Pack(u)))).rc; },
+  async param(rq, slot, idx, v, opt) { return parse[CMD.VOICE_PARAM](await rq(req.voiceParam(slot, idx, v), opt)).value; },
+  async save(rq) { return parse[CMD.BANK_SAVE](await rq(req.bankSave(), { timeout: 3000, retries: 0 })).rc; },
+};
+
 /* which reply belongs to which request (the device echoes these) */
 function replyMatches(cmd, args, a) {
   switch (cmd) {
@@ -610,6 +765,8 @@ function replyMatches(cmd, args, a) {
     case CMD.TRACK_STEP: case CMD.TRACK_PARAM: return a[0] === args[0] && a[1] === args[1];
     case CMD.BK_GET: return a[0] === args[0] && [0, 1, 2, 3, 4].every((k) => a[2 + k] === args[1 + k]);
     case CMD.BK_PUT: return a[0] === args[0] && a[1] === args[1];
+    case CMD.VOICE_GET: case CMD.VOICE_PUT: return a[0] === args[0];
+    case CMD.VOICE_PARAM: return a[0] === args[0] && a[1] === args[1] && a[2] === args[2];
     default: return true;
   }
 }
@@ -1283,6 +1440,12 @@ function makeMockDevice(opt = {}) {
   const project = () => JSON.parse(JSON.stringify({ tracks: st.tracks, sel: st.sel, g: st.g }));
   st.slots[0] = project();
   /* the user bank -> U01..U32 of VOICE (eng_dx7.c dx_user_name; empty names stay Unn) */
+  function dxBankMake() {                          /* no bank: 32 x INIT VOICE (eng_dx7.c dx_bank_init_all) */
+    if (st.dx.data) return;
+    st.dx.data = new Uint8Array(DX7.DATA_LEN);
+    for (let k = 0; k < DX7.VOICES; k++) st.dx.data.set(dx7Pack(dx7InitVoice()), k * 128);
+    dxNames();
+  }
   function dxNames() {
     const names = st.dx.data ? dx7BankNames(st.dx.data) : [];
     for (let i = 0; i < DX7.VOICES; i++) VOICE_NAMES[DX_SYNTH.length + i] = names[i] || uName(i);
@@ -1294,6 +1457,7 @@ function makeMockDevice(opt = {}) {
     if (opt.legacy && cmd >= CMD.UP_LIST) return null;
     if (opt.v3 && cmd >= CMD.TRACK_PARAM) return null;
     if ((opt.noBackup || opt.sloop23) && cmd >= CMD.BANK_BEGIN) return null;   /* SLOOP firmware: no DX7 bank */
+    if (opt.proto7 && cmd >= CMD.VOICE_GET) return null;                       /* sloopDX 1.0: no voice editing */
     const NB = st.bank.length;
     switch (cmd) {
       case CMD.UP_LIST: {
@@ -1368,7 +1532,7 @@ function makeMockDevice(opt = {}) {
         s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : 7);   /* the protocol version: 6 backup (SLOOP 2.3), 7 the DX7 bank (sloopDX) */
+        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1514,10 +1678,49 @@ function makeMockDevice(opt = {}) {
         for (let i = 0; i < DX7.VOICES; i++) s(names[i] || "");
         break;
       }
+      /* v8: voice editing, as eng_dx7.c: a factory voice reads as itself (the mock has INIT VOICE with its name),
+         a user slot from the bank; the first write without a bank makes one of INIT VOICE */
+      case CMD.VOICE_GET: {
+        if (a.length < 1 || a[0] >= VOICE_NAMES.length) return null;
+        const k = a[0] - DX_SYNTH.length;
+        const pk = k < 0 ? dx7Pack(dx7InitVoice(DX_SYNTH[a[0]])) : st.dx.data ? st.dx.data.subarray(k * 128, k * 128 + 128) : dx7Pack(dx7InitVoice());
+        b(a[0]); pk.forEach((x) => b(x));
+        break;
+      }
+      case CMD.VOICE_PUT: {
+        if (a.length < 1) return null;
+        if (a[0] >= DX7.VOICES || a.length < 129) { b(a[0]); b(1); break; }
+        dxBankMake();
+        st.dx.data.set(a.slice(1, 129).map((x) => x & 0x7F), a[0] * 128);
+        dxNames();
+        b(a[0]); b(0);
+        break;
+      }
+      case CMD.VOICE_PARAM: {
+        if (a.length < 3) return null;
+        const idx = a[1] | (a[2] << 7);
+        if (a[0] >= DX7.VOICES || idx >= DX7_NPARAM) return null;
+        const at = a[0] * 128;
+        let u = dx7Unpack(st.dx.data ? st.dx.data.subarray(at, at + 128) : dx7Pack(dx7InitVoice()));
+        if (a.length >= 4) {
+          dxBankMake();
+          u = dx7Unpack(st.dx.data.subarray(at, at + 128));
+          u[idx] = Math.min(a[3], dx7ParamMax(idx));
+          st.dx.data.set(dx7Pack(u), at);
+          if (idx >= 145) dxNames();
+        }
+        b(a[0]); b(idx); b(idx >> 7); b(Math.min(u[idx], dx7ParamMax(idx)));
+        break;
+      }
+      case CMD.BANK_SAVE:
+        b(st.dx.data ? 0 : 1);
+        st.dx.saved = st.dx.data ? st.dx.data.slice() : null;
+        break;
       case CMD.BANK_ERASE:
         st.dx.data = null; st.dx.pending = null;
         dxNames();
         b(0);
+        break;
       /* v6 backup: the mock's objects are JSON bytes (projects, banks), the settings and the raw DX7 bank (8) */
       case CMD.BK_LIST: {
         if (opt.noBackup) return null;
@@ -1726,6 +1929,12 @@ const TEXT = {
   ja: {
     other: "English", connect: "接続", disconnect: "切断", mock: "モック（実機なし）",
     sound: "音色", engine: "エンジン", presets: "プリセット", initSound: "音色を初期化",
+    tabVoice: "ボイス", vSlot: "スロット", vName: "名前", vPlay: "トラックで鳴らす", vStore: "バンクを保存", vFromTrack: "トラックのボイスを読む",
+    vFactory: "ファクトリーからコピー", vInit: "初期化", vImport: ".syx を読む", vExport: ".syx に書き出す", vAlgorithm: "アルゴリズム", vPitchEnv: "ピッチ EG",
+    vNoProto: "このファームウェアはボイス編集に対応していません（sloopDX 1.1 以降）。", vDrum: "ドラムトラックにはボイス編集はありません。トラック 1〜3 を選んでください。",
+    vEditing: "編集中: ", vNotInSlot: "（まだスロットにありません。最初の変更で書き込みます）", vStored: "バンクを保存しました", vStoreFail: "保存できません: rc ",
+    vLoaded: "ボイスを読み込みました: ", vCarrier: "キャリア", vModulator: "モジュレーター", vBadSyx: ".syx を読めません: ", vWhich: "バンクのどのボイス（1〜32）？",
+    vConfirmInit: "このスロットを INIT VOICE にしますか？",
     track: "トラック", drum: "ドラム",
     saveFile: "ファイルに保存", loadFile: "ファイルを読み込む", projects: "プロジェクト",
     load: "読込", save: "保存", used: "使用中", empty: "空", unknown: "—",
@@ -1797,6 +2006,12 @@ const TEXT = {
   en: {
     other: "日本語", connect: "Connect", disconnect: "Disconnect", mock: "Mock device (no hardware)",
     sound: "Sound", engine: "Engine", presets: "Presets", initSound: "Init sound",
+    tabVoice: "Voice", vSlot: "Slot", vName: "Name", vPlay: "Play on track", vStore: "Store bank", vFromTrack: "Load the track's voice",
+    vFactory: "Copy a factory voice", vInit: "Init voice", vImport: "Import .syx", vExport: "Export .syx", vAlgorithm: "Algorithm", vPitchEnv: "Pitch envelope",
+    vNoProto: "This firmware has no voice editing (sloopDX 1.1 or later).", vDrum: "The drum track has no voice to edit: select track 1, 2 or 3.",
+    vEditing: "Editing ", vNotInSlot: " (not in the slot yet: the first change writes it)", vStored: "Bank stored", vStoreFail: "Could not store: rc ",
+    vLoaded: "Voice loaded: ", vCarrier: "carrier", vModulator: "modulator", vBadSyx: "Cannot read the .syx: ", vWhich: "Which voice of the bank (1-32)?",
+    vConfirmInit: "Make this slot an INIT VOICE?",
     track: "Track", drum: "Drums",
     saveFile: "Save to file", loadFile: "Load file", projects: "Projects",
     load: "Load", save: "Save", used: "used", empty: "empty", unknown: "—",
@@ -1888,9 +2103,9 @@ $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; 
 
 /* ---------------------------------------------------------------- tabs --- */
 /* one panel at a time; the last one is remembered (localStorage) and in the URL hash (#sound ...) */
-const TABS = ["sound", "sequencer", "tracks", "library", "projects", "settings"];
+const TABS = ["sound", "voice", "sequencer", "tracks", "library", "projects", "settings"];
 const TAB_KEY = "felucca-editor-tab";
-const TRACK_TABS = new Set(["sound", "sequencer", "tracks"]);
+const TRACK_TABS = new Set(["sound", "voice", "sequencer", "tracks"]);
 let tab = (() => {
   const h = location.hash.slice(1);
   if (TABS.includes(h)) return h;
@@ -1906,6 +2121,7 @@ function showTab(name) {
   if (location.hash !== "#" + name) history.replaceState(null, "", location.pathname + location.search + "#" + name);
   renderPanels();
   if (name === "tracks" && prev !== "tracks" && hasTracks() && dev.dump) op(readMixer);
+  if (name === "voice" && prev !== "voice" && dev && dev.dump) op(voiceEnter);
 }
 function renderPanels() {
   /* the Tracks tab only with a four-track firmware */
@@ -2120,6 +2336,7 @@ async function load(d) {
     buildUI();
     renderPanels();
     await loadSteps();
+    if (tab === "voice") await voiceEnter();
     if (d.info.ntrk) await readMixer();
     /* protocol v2: live pushes and the user bank; older firmware: DUMP polling, no bank */
     const rqd = (r, o) => d.link.request(r, o);
@@ -3535,6 +3752,263 @@ $("dxerase").addEventListener("click", () => {
     refreshAll();
     sayK("dxErased");
   });
+});
+
+/* ========================================================== DX7 voice === */
+/* The voice page: every parameter of a DX7 voice, written live into a user slot (protocol v8: VOICE_PARAM
+   per change, the latest value of a parameter wins while one is in flight). The buffer VX.u (155 bytes,
+   VCED order) is the editor's truth; VX.inSlot says the slot already holds it (a factory voice, an import
+   or Init are put into the slot whole on the first change). Store = BANK_SAVE. The FM-1's own voice list
+   (EDIT) edits the same slots. */
+const VX = { slot: 0, u: null, inSlot: false, src: "" };
+const V_OP = [["Output Level", 16], ["Coarse", 18, "coarse"], ["Fine", 19], ["Detune", 20, "det"], ["Osc Mode", 17, "mode"],
+  ["Rate 1", 0], ["Rate 2", 1], ["Rate 3", 2], ["Rate 4", 3], ["Level 1", 4], ["Level 2", 5], ["Level 3", 6], ["Level 4", 7],
+  ["Key Velocity", 15], ["Amp Mod Sens", 14], ["Break Point", 8, "note"], ["Left Depth", 9], ["Right Depth", 10],
+  ["Left Curve", 11, "curve"], ["Right Curve", 12, "curve"], ["Rate Scaling", 13]];
+const V_GLOB = [["Algorithm", 134, "alg"], ["Feedback", 135], ["Osc Sync", 136, "onoff"], ["Transpose", 144, "trans"]];
+const V_PEG = [["Rate 1", 126], ["Rate 2", 127], ["Rate 3", 128], ["Rate 4", 129],
+  ["Level 1", 130, "peg"], ["Level 2", 131, "peg"], ["Level 3", 132, "peg"], ["Level 4", 133, "peg"]];
+const V_LFO = [["Wave", 142, "wave"], ["Speed", 137], ["Delay", 138], ["Pitch Mod Depth", 139], ["Amp Mod Depth", 140],
+  ["Pitch Mod Sens", 143], ["Key Sync", 141, "onoff"]];
+const V_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const vSigned = (v, z) => (v > z ? "+" : "") + (v - z);
+function vFmt(kind, v, idx) {
+  switch (kind) {
+    case "coarse": {
+      const base = idx - 18;
+      if (VX.u[base + 17]) return ["1", "10", "100", "1000"][v & 3] + " Hz";
+      const r = (v ? v : 0.5) * (1 + VX.u[base + 19] / 100);
+      return "×" + r.toFixed(2);
+    }
+    case "det": return vSigned(v, 7);
+    case "mode": return v ? "FIXED" : "RATIO";
+    case "note": { const n = v + 9; return V_NOTES[n % 12] + (Math.floor(n / 12) - 1); }   /* as the DX7: 0 = A-1, 39 = C3 */
+    case "curve": return ["-LIN", "-EXP", "+EXP", "+LIN"][v & 3];
+    case "alg": return String(v + 1);
+    case "onoff": return v ? "ON" : "OFF";
+    case "trans": return vSigned(v, 24);
+    case "peg": return vSigned(v, 50);
+    case "wave": return ["TRI", "SAW DN", "SAW UP", "SQUARE", "SINE", "S&HOLD"][v] || "?";
+    default: return String(v);
+  }
+}
+const vOk = () => !!dev && !!dev.info && dev.info.proto >= 8 && !isDrum();
+const vRq = (r, o) => rq(r, o);
+
+/* the slot gets the whole buffer before the first single change (a factory voice, an import, Init) */
+async function vEnsureSlot() {
+  if (VX.inSlot) return;
+  const rc = await dxvoice.put(vRq, VX.slot, VX.u);
+  if (rc) throw new Error("VOICE_PUT rc " + rc);
+  VX.inSlot = true;
+  await vPlayOnTrack();
+}
+async function vPlayOnTrack() {
+  const pe0 = dev.info.pe0, v = DX_NFACT + VX.slot;
+  dev.dump.p[pe0] = parse[CMD.SET](await rq(req.set(0, pe0, v))).value;
+  await rereadEngineDesc();
+}
+const DX_NFACT = 17;
+let vSendChain = Promise.resolve();
+function vSet(idx, v) {
+  VX.u[idx] = v;
+  vSendChain = vSendChain.then(async () => {
+    if (!dev) return;
+    await vEnsureSlot();
+    await dxvoice.param(vRq, VX.slot, idx, VX.u[idx], { key: "vp" + idx });
+  }).catch(report);
+  vStateText();
+}
+
+function vRow(label, idx, kind, onChange) {
+  const mx = dx7ParamMax(idx);
+  const val = el("span", { class: "v", text: vFmt(kind, VX.u[idx], idx) });
+  const inp = el("input", { type: "range", min: 0, max: mx, value: VX.u[idx], "aria-label": label });
+  inp.addEventListener("input", () => {
+    vSet(idx, +inp.value);
+    val.textContent = vFmt(kind, VX.u[idx], idx);
+    if (onChange) onChange(idx);
+  });
+  return el("div", { class: "vrow", "data-idx": idx }, el("span", { text: label }), inp, val);
+}
+/* one operator's envelope, rates as time, levels as height (a sketch, not to scale) */
+function vEnvSvg(rates, levels, mid) {
+  const w = (r) => 4 + (99 - r) * 0.55;
+  let x = 0;
+  const y = (l) => 34 - (l / 99) * 32;
+  const pts = [[0, y(levels[3])]];
+  for (let i = 0; i < 3; i++) { x += w(rates[i]); pts.push([x, y(levels[i])]); }
+  x += 30; pts.push([x, y(levels[2])]);
+  x += w(rates[3]); pts.push([x, y(levels[3])]);
+  const sx = 200 / Math.max(x, 1);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "env"); svg.setAttribute("viewBox", "0 0 200 36"); svg.setAttribute("preserveAspectRatio", "none");
+  const pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  pl.setAttribute("points", pts.map(([a, b]) => `${(a * sx).toFixed(1)},${b.toFixed(1)}`).join(" "));
+  svg.append(pl);
+  if (mid != null) {
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("x1", 0); ln.setAttribute("x2", 200); ln.setAttribute("y1", y(mid)); ln.setAttribute("y2", y(mid));
+    ln.setAttribute("stroke", "currentColor"); ln.setAttribute("stroke-opacity", ".25");
+    svg.append(ln);
+  }
+  return svg;
+}
+/* the algorithm, as on the FM-1's screen (ui_voice.c): carriers on the bottom row, modulators above the op
+   they feed, feedback dashed */
+function vDrawAlg() {
+  const svg = $("valg"), NS = "http://www.w3.org/2000/svg", g = dx7AlgGraph(VX.u[134]);
+  const tgt = [0, 1, 2, 3, 4, 5].map((i) => { for (let j = i + 1; j < 6; j++) if ((g.mods[j] >> i) & 1) return j; return -1; });
+  const depth = [0, 0, 0, 0, 0, 0];
+  for (let i = 5; i >= 0; i--) depth[i] = tgt[i] < 0 ? 0 : depth[tgt[i]] + 1;
+  const x2 = []; let ncol = 0;
+  const place = (c) => { let sum = 0, n = 0; for (let j = 5; j >= 0; j--) if (tgt[j] === c) { sum += place(j); n++; } x2[c] = n ? sum / n : 2 * ncol++ + 1; return x2[c]; };
+  for (let i = 5; i >= 0; i--) if ((g.carriers >> i) & 1) place(i);
+  const colw = Math.min(40, 220 / Math.max(ncol, 1)), maxd = Math.max(...depth), rowh = Math.min(34, 130 / (maxd + 1));
+  const X = (i) => 120 - (ncol * colw) / 2 + (x2[i] * colw) / 2, Y = (i) => 140 - depth[i] * rowh;
+  svg.textContent = "";
+  const add = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); svg.append(e); return e; };
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < 6; j++) if ((g.mods[j] >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(j), y2: Y(j) - 10 });
+    if ((g.carriers >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(i), y2: 162 });
+  }
+  add("line", { x1: 10, y1: 163, x2: 230, y2: 163 });
+  if (g.fbin >= 0 && g.fbout >= 0) {
+    const xr = Math.max(X(g.fbin), X(g.fbout)) + 18;
+    add("polyline", { class: "fb", points: `${X(g.fbout) + 12},${Y(g.fbout)} ${xr},${Y(g.fbout)} ${xr},${Y(g.fbin) - 14} ${X(g.fbin)},${Y(g.fbin) - 14} ${X(g.fbin)},${Y(g.fbin) - 10}` });
+  }
+  for (let i = 0; i < 6; i++) {
+    const c = (g.carriers >> i) & 1 ? "c" : "m";
+    add("rect", { class: c, x: X(i) - 12, y: Y(i) - 10, width: 24, height: 20 });
+    add("text", { class: c, x: X(i), y: Y(i) }).textContent = String(6 - i);
+  }
+  for (let d = 0; d < 6; d++) {                        /* the operator cards say what they are */
+    const card = $("vops").children[d];
+    if (!card) continue;
+    const car = (g.carriers >> (5 - d)) & 1;
+    card.classList.toggle("carrier", !!car);
+    card.querySelector(".tag").textContent = t(car ? "vCarrier" : "vModulator");
+  }
+}
+function vStateText() {
+  const lab = "U" + String(VX.slot + 1).padStart(2, "0");
+  $("vstate").textContent = t("vEditing") + lab + (VX.src ? " ← " + VX.src : "") + (VX.inSlot ? "" : t("vNotInSlot"));
+}
+function vName() { let s = ""; for (let i = 0; i < 10; i++) { const c = VX.u[145 + i]; s += c >= 32 && c < 127 ? String.fromCharCode(c) : " "; } return s.replace(/ +$/, ""); }
+function renderVoice() {
+  const ok = vOk();
+  $("vnote").hidden = ok;
+  $("vbody").hidden = !ok || !VX.u;
+  if (!ok) { $("vnote").textContent = t(dev && dev.info && dev.info.proto >= 8 ? "vDrum" : "vNoProto"); return; }
+  if (!VX.u) return;
+  const slots = $("vslot"), names = (dev.dxbank && dev.dxbank.ok ? dev.dxbank.names : []);
+  slots.textContent = "";
+  for (let k = 0; k < 32; k++) slots.append(el("option", { value: k, text: "U" + String(k + 1).padStart(2, "0") + " " + (names[k] || "") }));
+  slots.value = VX.slot;
+  const fact = $("vfact");
+  if (!fact.options.length) {
+    fact.append(el("option", { value: "", text: "—" }));
+    (dev.pdesc && dev.pdesc[dev.info.pe0] && dev.pdesc[dev.info.pe0].names || []).slice(0, DX_NFACT)
+      .forEach((n, i) => fact.append(el("option", { value: i, text: n })));
+  }
+  $("vname").value = vName();
+  const glob = $("vglob0"), peg = $("vpeg"), lfo = $("vlfo"), ops = $("vops");
+  glob.textContent = ""; peg.textContent = ""; lfo.textContent = ""; ops.textContent = "";
+  V_GLOB.forEach(([l, i, k]) => glob.append(vRow(l, i, k, i === 134 ? vDrawAlg : null)));
+  const pegEnv = el("div");
+  const drawPeg = () => { pegEnv.textContent = ""; pegEnv.append(vEnvSvg(VX.u.slice(126, 130), VX.u.slice(130, 134), 50)); };
+  drawPeg();
+  peg.append(pegEnv);
+  V_PEG.forEach(([l, i, k]) => peg.append(vRow(l, i, k, drawPeg)));
+  V_LFO.forEach(([l, i, k]) => lfo.append(vRow(l, i, k)));
+  for (let d = 0; d < 6; d++) {                        /* OP1 first: block 5 */
+    const base = (5 - d) * 21;
+    const env = el("div");
+    const drawEnv = () => { env.textContent = ""; env.append(vEnvSvg(VX.u.slice(base, base + 4), VX.u.slice(base + 4, base + 8))); };
+    drawEnv();
+    const card = el("div", { class: "group vop" }, el("h2", { text: "OP" + (d + 1) }, el("span", { class: "tag" })), env);
+    const coarseRows = [];
+    V_OP.forEach(([l, off, k]) => {
+      const row = vRow(l, base + off, k, (idx) => {
+        if (idx - base < 8) drawEnv();
+        if (off === 17 || off === 19) coarseRows.forEach((r) => { r.querySelector(".v").textContent = vFmt("coarse", VX.u[base + 18], base + 18); });
+      });
+      if (off === 18) coarseRows.push(row);
+      card.append(row);
+    });
+    ops.append(card);
+  }
+  vDrawAlg();
+  vStateText();
+}
+/* the track's voice into the editor: a user slot is edited in place; a factory voice goes to the slot shown */
+async function voiceEnter() {
+  if (!vOk()) { renderVoice(); return; }
+  const v = dev.dump.p[dev.info.pe0] | 0;
+  if (v >= DX_NFACT) { VX.slot = v - DX_NFACT; VX.inSlot = true; VX.src = ""; }
+  else { VX.inSlot = false; VX.src = (dev.pdesc[dev.info.pe0].names || [])[v] || ""; }
+  VX.u = await dxvoice.get(vRq, v);
+  renderVoice();
+  sayK("vLoaded", vName());
+}
+$("vslot").addEventListener("change", () => op(async () => {
+  VX.slot = +$("vslot").value;
+  VX.u = await dxvoice.get(vRq, DX_NFACT + VX.slot);
+  VX.inSlot = true; VX.src = "";
+  await vPlayOnTrack();
+  renderVoice();
+}));
+$("vfromtrk").addEventListener("click", () => op(voiceEnter));
+$("vfact").addEventListener("change", () => op(async () => {
+  const i = $("vfact").value;
+  if (i === "") return;
+  VX.u = await dxvoice.get(vRq, +i);
+  VX.inSlot = false; VX.src = $("vfact").selectedOptions[0].text;
+  $("vfact").value = "";
+  renderVoice();
+}));
+$("vplay").addEventListener("click", () => op(async () => { await vEnsureSlot(); await vPlayOnTrack(); }));
+$("vinit").addEventListener("click", () => {
+  if (!confirm(t("vConfirmInit"))) return;
+  op(async () => { VX.u = dx7InitVoice(); VX.inSlot = false; VX.src = "INIT VOICE"; await vEnsureSlot(); renderVoice(); });
+});
+$("vname").addEventListener("change", () => op(async () => {
+  const s = $("vname").value.replace(/[^\x20-\x7E]/g, " ").slice(0, 10).padEnd(10, " ");
+  for (let i = 0; i < 10; i++) VX.u[145 + i] = s.charCodeAt(i);
+  if (VX.inSlot) await dxvoice.put(vRq, VX.slot, VX.u); else await vEnsureSlot();
+  await rereadEngineDesc();
+  if (dev.dxbank) dev.dxbank = await dxbank.info(vRq);
+  renderVoice();
+}));
+$("vstore").addEventListener("click", () => op(async () => {
+  await vSendChain;
+  const rc = await dxvoice.save(vRq);
+  if (rc) sayK("vStoreFail", rc); else sayK("vStored");
+}));
+$("vexport").addEventListener("click", () => {
+  if (!VX.u) return;
+  const a = el("a", { href: URL.createObjectURL(new Blob([dx7VcedMake(VX.u)], { type: "application/octet-stream" })),
+    download: (vName() || "voice").replace(/[^A-Za-z0-9 _-]/g, "_") + ".syx" });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$("vimport").addEventListener("click", () => $("vfile").click());
+$("vfile").addEventListener("change", async () => {
+  const f = $("vfile").files[0];
+  $("vfile").value = "";
+  if (!f) return;
+  const buf = new Uint8Array(await f.arrayBuffer());
+  try {
+    if (buf.length === DX7.SYX_LEN) {                 /* a bank: pick one voice */
+      const bank = dx7CheckSyx(buf), k = parseInt(prompt(t("vWhich"), "1"), 10) - 1;
+      if (!(k >= 0 && k < 32)) return;
+      VX.u = dx7Unpack(bank.data.subarray(k * 128, k * 128 + 128));
+    } else {
+      VX.u = dx7VcedCheck(buf);
+    }
+    VX.inSlot = false; VX.src = f.name;
+    renderVoice();
+  } catch (e) { sayK("vBadSyx", e.code || e.message); }
 });
 
 $("connect").addEventListener("click", () => {

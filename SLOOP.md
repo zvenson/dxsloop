@@ -265,6 +265,7 @@ Tap **EDIT** on a synth track: the voice opens as a **list**, one row per settin
 | **EDIT** (tap) | opens a group (OP1–OP6, Pitch Env, LFO, Name) or runs an action (tap twice for Copy To, Init Voice, Store) |
 | **HOME** | back to the top of the list; on the top, back to TRACKS |
 | **SAVE** | stores your bank in the FM-1's memory |
+| **PRESETS** | jumps straight to the next or previous operator (OP1 … OP6), on the same row |
 | **KNOB 1–4** | the voice's quick knobs, as on HOME |
 | keys, **OCT− / OCT+**, **PLAY** | play as always, so you hear every change |
 
@@ -277,7 +278,7 @@ The top of the list:
 | **Feedback** | 0–7 |
 | **Osc Sync** | every operator starts its wave together on each note |
 | **Transpose** | ±24 semitones |
-| **OP1 › … OP6 ›** | one operator: Output Level, Coarse (shown as the ratio, or the fixed range), Fine, Detune ±7, Osc Mode (ratio / fixed), Rate 1–4, Level 1–4, Key Velocity, Amp Mod Sens, Break Point, Left / Right Depth, Left / Right Curve, Rate Scaling |
+| **OP1 › … OP6 ›** | one operator: **On** (switch it off to hear the others; not stored, every operator is on again with another voice), Output Level, Coarse (shown as the ratio, or the fixed range), Fine, Detune ±7, Osc Mode (ratio / fixed), Rate 1–4, Level 1–4, Key Velocity, Amp Mod Sens, Break Point, Left / Right Depth, Left / Right Curve, Rate Scaling |
 | **Pitch Env ›** | Rate 1–4, Level 1–4 (0 = no shift) |
 | **LFO ›** | Wave, Speed, Delay, Pitch Mod Depth, Amp Mod Depth, Pitch Mod Sens, Key Sync |
 | **Name ›** | ten characters, one row each |
@@ -287,6 +288,8 @@ The top of the list:
 | **More Pages ›** | the quick knobs (VOICE, SHAPE) and the track's voice mode |
 
 **Where the edit goes.** As on a DX7, you edit a voice in one of your 32 slots. Change anything on a factory voice and sloopDX first copies it into the first slot called INIT VOICE (with no bank loaded: U01), switches the track to that slot and says *COPIED TO U01*. With no free slot it says so: pick one with **Copy To**. The next note plays every change; notes already sounding keep theirs. A dot after the name at the bottom means the bank has changes that are not stored: **SAVE** keeps them, power-off forgets them.
+
+**In the web editor** the **Voice** tab shows the same voice on one page: the algorithm drawn, every operator as a column of sliders with its envelope, the pitch envelope and the LFO. Every slider plays on the FM-1 at once. Pick the slot, copy in a factory voice, import or export a single voice (.syx, the DX7's one-voice format) or one voice of a bank, give it a name, **Store bank**. The FM-1's list and the editor work on the same slots.
 
 ### The quick knobs
 

@@ -32,7 +32,8 @@ const E = vm.runInNewContext(proto + `
 ;({ frame, unframe, parse, req, Link, makeMockDevice, CMD, DX7, dx7Checksum, dx7VoiceName, dx7BankNames, dx7CheckSyx, dx7MakeSyx, dxbank, crc32,
    UP, bank, capturePatch, auditionPatch, startWatch, libraryFile, readLibraryFile, paramKeys, patternFromSteps, stepsFromPattern, upName,
    mixer, GM_DRUM, drumName, parseNotes, fmtValue, F, DRUM_LANES, LV_NAMES, emptyDrum,
-   backupCapture, backupRestore, backupObjects, b64enc, b64dec })`,
+   backupCapture, backupRestore, backupObjects, b64enc, b64dec,
+   DX7_ALG, dx7Unpack, dx7Pack, dx7ParamMax, dx7InitVoice, dx7AlgGraph, dx7VcedMake, dx7VcedCheck, dxvoice })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
 async function editorMock() {
@@ -43,7 +44,7 @@ async function editorMock() {
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
   ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
-    && info.ntrk === 4 && info.proto === 7 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 7)");
+    && info.ntrk === 4 && info.proto === 8 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 8)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (17 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, two unused */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
@@ -450,7 +451,7 @@ async function editorBackup() {
   const C = E.CMD;
   const { m, rq, done } = attachMock({});
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 7, "backup: INFO protocol 7 (backup since 6)");
+  ok(info.proto === 8, "backup: INFO protocol 8 (backup since 6)");
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8");
   ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..8, no sample slots)");
   await rq(E.req.upStore(3, "BACKUP ME"));
@@ -507,10 +508,9 @@ async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 7 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (7: sloopDX)");
+  ok(info.proto === 8 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (8: sloopDX voice editing)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
-     commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8; the editor's voice page is
-     still to come, the mock answers 7), P_CHORD / the master globals as the mock has them */
+     commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
   const en = (/enum \{ ED_INFO = 1,([^}]*)\}/.exec(ec) || [])[1] || "";
   const names = ["ED_INFO", ...en.replace(/\/\*[^*]*\*\//g, "").split(",").map((x) => x.trim()).filter(Boolean)];
@@ -591,6 +591,65 @@ function makeBank(nameOf = (i) => `VOICE ${String(i + 1).padStart(2, "0")}`) {
     return v;
   }));
 }
+/* v8: DX7 voice editing. pack / unpack against the firmware's factory voices, the algorithm table against
+   dx7_core.c, a single-voice .syx (VCED) round trip, and a session with the mock */
+async function editorVoice() {
+  const C = E.CMD;
+  const bank = readFileSync(join(HERE, "../firmware/src/dx7_bank.h"), "utf8");
+  const body = bank.slice(bank.indexOf("DX_SYNTH[DX_NSYNTH][156] = {") + 28);
+  const voices = [...body.slice(0, body.indexOf("};")).matchAll(/\{([0-9,\s]+)\}/g)].map((m) => Uint8Array.from(m[1].split(",").map((x) => +x)));
+  let rt = voices.length === 17;
+  for (const u of voices) {
+    const back = E.dx7Unpack(E.dx7Pack(u));
+    for (let i = 0; i < 155; i++) if (back[i] !== u[i]) rt = false;
+  }
+  ok(rt, `voice: pack -> unpack gives every factory voice back (${voices.length} voices from dx7_bank.h)`);
+  const core = readFileSync(join(HERE, "../firmware/src/dx7_core.c"), "utf8");
+  const tab = core.slice(core.indexOf("DX_ALG[32][6] = {"));
+  const fw = [...tab.slice(0, tab.indexOf("};")).matchAll(/\{(0x[0-9a-f, x]+)\}/gi)].map((m) => m[1].split(",").map((x) => parseInt(x, 16)));
+  ok(fw.length === 32 && JSON.stringify(fw) === JSON.stringify(E.DX7_ALG), "voice: the algorithm table == dx7_core.c DX_ALG");
+  let graphs = true;
+  for (let a = 0; a < 32; a++) { const g = E.dx7AlgGraph(a); if (!g.carriers || g.fbin < 0 || g.fbout < 0) graphs = false; }
+  const g1 = E.dx7AlgGraph(0), g32 = E.dx7AlgGraph(31), g22 = E.dx7AlgGraph(21);
+  ok(graphs && g1.carriers === ((1 << 5) | (1 << 3)) && g1.mods[5] === 1 << 4 && g1.mods[3] === 1 << 2 && g32.carriers === 63
+    && g22.mods[1] === 1 && g22.mods[2] === 1 && g22.mods[3] === 1,
+    "voice: algorithm graphs (1: OP2->OP1, OP4->OP3; 22: OP6 feeds OP5, OP4, OP3; 32: six carriers; every one has feedback)");
+  ok(E.dx7ParamMax(134) === 31 && E.dx7ParamMax(135) === 7 && E.dx7ParamMax(144) === 48 && E.dx7ParamMax(20) === 14 && E.dx7ParamMax(150) === 127,
+    "voice: parameter ranges as eng_dx7.c");
+  const ved = E.dx7VcedMake(voices[3]), back = E.dx7VcedCheck(ved);
+  const code = (b) => { try { E.dx7VcedCheck(b); return "ok"; } catch (e) { return e.code; } };
+  const bad = Uint8Array.from(ved); bad[50] ^= 1;
+  ok(ved.length === 163 && ved[5] === 0x1B && back.slice(0, 155).every((x, i) => x === voices[3][i]) && code(bad) === "checksum"
+    && code(ved.subarray(0, 100)) === "length", "voice: a single-voice .syx (VCED, 163 bytes) round trip, damage refused");
+  const vp = E.req.voiceParam(5, 150, 65);
+  ok(vp[0] === C.VOICE_PARAM && vp[1][0] === 5 && vp[1][1] === 150 - 128 && vp[1][2] === 1 && vp[1][3] === 65 && vp[1].every((x) => x < 128),
+    "voice: VOICE_PARAM sends the parameter number in two 7-bit bytes (150 = 22, 1)");
+  /* a session: factory SLAP BASS into U06, the algorithm changed, the name, store */
+  const { rq, ev, done } = attachMock({});
+  const info = E.parse[C.INFO](await rq(E.req.info()));
+  const slap = await E.dxvoice.get(rq, 3);
+  const rc = await E.dxvoice.put(rq, 5, slap);
+  const alg = await E.dxvoice.param(rq, 5, 134, 9);
+  const fbClamped = await E.dxvoice.param(rq, 5, 135, 99);
+  const u6 = await E.dxvoice.get(rq, 17 + 5);
+  const nameBytes = "MY SLAP   ";
+  for (let i = 0; i < 10; i++) await E.dxvoice.param(rq, 5, 145 + i, nameBytes.charCodeAt(i));
+  const desc = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
+  const saved = await E.dxvoice.save(rq);
+  const u1 = await E.dxvoice.get(rq, 17);
+  ok(info.proto === 8 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
+    "voice: VOICE_GET / PUT / PARAM on the mock (ALG 10 set, feedback clamped to 7, OP1 kept)");
+  ok(desc.names[17 + 5] === "MY SLAP" && desc.names[17] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
+    "voice: the name in DESC of VOICE, the other slots INIT VOICE, BANK_SAVE ok");
+  done();
+  const old = attachMock({ proto7: true });
+  const i7 = E.parse[C.INFO](await old.rq(E.req.info()));
+  let none = false;
+  try { await old.rq(E.req.voiceGet(3), { timeout: 150, retries: 0, quiet: true }); } catch (e) { none = true; }
+  ok(i7.proto === 7 && none, "voice: sloopDX 1.0 (protocol 7) does not answer VOICE_GET (the editor hides the page)");
+  old.done();
+}
+
 async function editorDxBank() {
   const C = E.CMD;
   const syx = makeBank((i) => (i === 3 ? "A\u0001B  " : i === 31 ? "" : `VOICE ${String(i + 1).padStart(2, "0")}`));
@@ -671,7 +730,7 @@ function editorTabs() {
   const tabs = [...html.matchAll(/<button role="tab" data-tab="(\w+)"/g)].map((x) => x[1]);
   const panels = [...html.matchAll(/<section class="panel" id="p-(\w+)" data-tab="(\w+)"/g)].map((x) => [x[1], x[2]]);
   const TABS = JSON.parse((/const TABS = (\[[^\]]*\]);/.exec(html) || [])[1] || "[]");
-  ok(tabs.length === 6 && !tabs.includes("samples") && js(tabs) === js(TABS) && js(panels.map((x) => x[1])) === js(TABS) && panels.every(([a, b]) => a === b),
+  ok(tabs.length === 7 && tabs.includes("voice") && !tabs.includes("samples") && js(tabs) === js(TABS) && js(panels.map((x) => x[1])) === js(TABS) && panels.every(([a, b]) => a === b),
     `editor: ${tabs.length} tabs, one panel each (${tabs.join(" ")})`);
   ok(/localStorage\.setItem\(TAB_KEY/.test(html) && /try \{ localStorage/.test(html) && /history\.replaceState\([^)]*"#" \+ name\)/.test(html)
     && /addEventListener\("hashchange"/.test(html), "editor: last tab in localStorage (try/catch) and in the URL hash");
@@ -844,6 +903,7 @@ await editorMixer();
 await editorTrackParam();
 await editorV5();
 await editorDxBank();
+await editorVoice();
 await editorBackup();
 editorTabs();
 editorIcons();

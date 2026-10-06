@@ -9,7 +9,7 @@
  * v7 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (37-41) load a DX7 .syx bank in pieces, INFO ends
  * with 7, backup object 8 is the bank; the sample-slot commands 11-15 answer rc 7 (no slots);
  * v8 = sloopDX voice editing: VOICE_GET / PUT (42, 43: a packed voice), VOICE_PARAM (44: one unpacked
- * parameter of a user slot, live), BANK_SAVE (45: the bank to flash, STORE); INFO ends with 8.
+ * parameter of a user slot, live; its number in two 7-bit bytes), BANK_SAVE (45: the bank to flash, STORE); INFO ends with 8.
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -909,17 +909,20 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ui.force = 1;
         ed_b(0);
         break;
-    case ED_VOICE_PARAM:                                   /* slot, idx 0..154 [, value] -> slot, idx, value */
-        if (na < 2u || a[0] >= DX_NUSER || a[1] >= DX_NPARAM)
+    case ED_VOICE_PARAM: {                                 /* slot, idx (2 x 7 bit) [, value] -> slot, idx (2), value */
+        uint32_t idx = na >= 3u ? (uint32_t)a[1] | (uint32_t)a[2] << 7 : DX_NPARAM;   /* (0..154: two bytes) */
+        if (na < 3u || a[0] >= DX_NUSER || idx >= DX_NPARAM)
             return;
-        if (na >= 3u) {
-            dx_user_param_set(a[0], a[1], a[2]);
+        if (na >= 4u) {
+            dx_user_param_set(a[0], idx, a[3]);
             ui.force = 1;
         }
         ed_b(a[0]);
-        ed_b(a[1]);
-        ed_b(dx_user_param_get(a[0], a[1]));
+        ed_b(idx);
+        ed_b(idx >> 7);
+        ed_b(dx_user_param_get(a[0], idx));
         break;
+    }
     case ED_BANK_SAVE:                                     /* -> rc (0 ok, 1 no bank, 2 flash) */
         ed_b(!dx_user_ok ? 1u : (uint32_t)dx_bank_store());
         break;

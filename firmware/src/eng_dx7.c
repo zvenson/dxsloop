@@ -245,6 +245,9 @@ static void dx_sanitize(uint8_t *u)
             u[126 + i] = GMAX[i];
 }
 static uint8_t dx_note0[NPART][NVOICE], dx_rel[NPART][NVOICE];
+/* operators switched off per part (voice edit, ui_voice.c): bit d = OP(d+1). Not part of the voice, not
+ * stored: as on Baud Girl's FM-1+VA they come back with another voice */
+static uint8_t dx_opmute[NPART], dx_opmute_v[NPART];   /* the switches, and the VOICE they were set on */
 static int32_t dx_dc_x[NPART][NVOICE], dx_dc_y[NPART][NVOICE];   /* DC blocker state */
 
 static dxv_t *dx_of(const track_t *t, const voice_t *v, uint32_t *pi, uint32_t *vi)
@@ -289,6 +292,12 @@ static void dx_voice_for(const track_t *t, uint8_t *p)
         o[2] = (uint8_t)dx_clampi(o[2] - dec, 1, 99);
     }
     p[135] = (uint8_t)dx_clampi(p[135] + fb, 0, 7);
+    if ((uint32_t)(t - trk) < NPART && dx_opmute[t - trk] && dx_opmute_v[t - trk] != vi)
+        dx_opmute[t - trk] = 0;                   /* another voice: every operator on again */
+    if ((uint32_t)(t - trk) < NPART && dx_opmute[t - trk])
+        for (op = 0; op < 6u; op++)               /* op block 0 = OP6 */
+            if ((dx_opmute[t - trk] >> (5u - op)) & 1u)
+                p[op * 21u + 16u] = 0;
 }
 
 static void dx7_note_on(track_t *t, voice_t *v)

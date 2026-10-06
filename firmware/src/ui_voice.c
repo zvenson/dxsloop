@@ -10,7 +10,7 @@
 static int dx_bank_store(void);                          /* project.c: the user bank to flash, 0 ok */
 
 enum { VL_TOP, VL_OP, VL_PEG, VL_LFO, VL_NAME };
-enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE };
+enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE, VK_OPON };
 enum { VF_INT, VF_ONOFF, VF_DET, VF_CURVE, VF_MODE, VF_COARSE, VF_NOTE, VF_TRANS, VF_WAVE, VF_ALG, VF_CHAR, VF_PEG };
 typedef struct {
     const char *name;
@@ -35,6 +35,7 @@ static const vrow_t VR_TOP[] = {
     {"More Pages", VK_MORE, 0, 0},
 };
 static const vrow_t VR_OP[] = {                          /* idx: the offset in the operator's 21 bytes */
+    {"On", VK_OPON, 0, VF_ONOFF},                        /* (not stored: dx_opmute) */
     {"Output Level", VK_PAR, 16, VF_INT},
     {"Coarse", VK_PAR, 18, VF_COARSE},
     {"Fine", VK_PAR, 19, VF_INT},
@@ -99,6 +100,21 @@ static const vrow_t *ve_rows(uint32_t *n)
 static uint32_t ve_idx(const vrow_t *r) { return ve.lvl == VL_OP ? (5u - ve.op) * 21u + r->idx : r->idx; }
 static uint32_t ve_voice(void) { return (uint32_t)TSEL->p[P_E0] % DX_NVOICES; }
 static int ve_user(void) { return ve_voice() >= DX_NSYNTH ? (int)(ve_voice() - DX_NSYNTH) : -1; }
+
+/* the operator switches (eng_dx7.c dx_opmute): they belong to the voice they were set on */
+static int ve_muted(uint32_t d)
+{
+    return song.sel < NPART && dx_opmute_v[song.sel] == ve_voice() && ((dx_opmute[song.sel] >> d) & 1u);
+}
+static void ve_mute_toggle(uint32_t d)
+{
+    if (song.sel >= NPART)
+        return;
+    if (dx_opmute_v[song.sel] != ve_voice())
+        dx_opmute[song.sel] = 0;
+    dx_opmute_v[song.sel] = (uint8_t)ve_voice();
+    dx_opmute[song.sel] ^= (uint8_t)(1u << d);
+}
 
 static uint32_t ve_get(uint32_t idx)
 {
@@ -185,7 +201,7 @@ static void ve_fmt(const vrow_t *r, uint32_t v, char *b)
         }
         break;
     }
-    case VF_NOTE: note_name(b, v + 21u); break;           /* break point 0 = A-1 */
+    case VF_NOTE: note_name(b, v + 9u); break;            /* break point as the DX7 names it: 0 = A-1, 39 = C3 */
     case VF_TRANS:                                        /* 24 = C3, as the DX7 shows it */
         if (v > 24u) { b[0] = '+'; fmt_int(b + 1, (int32_t)v - 24); }
         else fmt_int(b, (int32_t)v - 24);
@@ -216,7 +232,11 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
         }
         str_cpy(b + str_len(b), dx_names[ve_voice()], 12);
         return -1;
-    case VK_GROUP: str_cpy(b, ">", 2); return -1;
+    case VK_GROUP:
+        if (r->idx >= 6u && ve_muted(r->idx - 6u)) { str_cpy(b, "OFF >", 6); return -1; }
+        str_cpy(b, ">", 2);
+        return -1;
+    case VK_OPON: str_cpy(b, ve_muted(ve.op) ? "OFF" : "ON", 4); return -1;
     case VK_NAME: str_cpy(b, dx_names[ve_voice()], 12); return -1;
     case VK_COPY: ve_slot_label(b, ve.copy); return -1;
     case VK_INIT: case VK_STORE: case VK_MORE: str_cpy(b, ve.arm == r->kind + 1u ? "AGAIN" : ">", 6); return -1;
@@ -369,7 +389,9 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
     }
     if ((s = panel_enc(EN_ALGO)) != 0 && ve.row < n) {    /* the value */
         const vrow_t *r = rows + ve.row;
-        if (r->kind == VK_VOICE) {
+        if (r->kind == VK_OPON) {
+            ve_mute_toggle(ve.op);
+        } else if (r->kind == VK_VOICE) {
             TSEL->p[P_E0] = (int16_t)clamp(TSEL->p[P_E0] + s, 0, DX_NVOICES - 1);
         } else if (r->kind == VK_COPY) {
             ve.copy = (uint8_t)clamp((int32_t)ve.copy + s, 0, DX_NUSER - 1);
@@ -387,7 +409,16 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
             }
         }
     }
-    panel_enc(EN_PRESET);                                 /* (a stray turn would load another sound) */
+    if ((s = panel_enc(EN_PRESET)) != 0) {                /* PRESETS: straight to the next / previous operator */
+        int32_t d = ve.lvl == VL_OP ? (int32_t)ve.op + (s > 0 ? 1 : -1) : (s > 0 ? 0 : 5);
+        uint32_t row = ve.lvl == VL_OP ? ve.row : 0u, top = ve.lvl == VL_OP ? ve.top : 0u;
+        d = (d + 6) % 6;
+        ve_go(VL_OP, (uint32_t)d);
+        ve.row = (uint8_t)row;                            /* (the same row on the next operator) */
+        ve.top = (uint8_t)top;
+        ve.row0 = (uint8_t)(5u + (uint32_t)d);            /* HOME comes back to that OP row */
+        ui.force = 1;
+    }
     for (k = 0; k < 4u; k++) {                            /* KNOB 1..4: the voice's quick knobs, as on HOME */
         int16_t *vp;
         const param_desc_t *d;
@@ -472,9 +503,9 @@ static void ve_draw_alg(uint32_t alg, uint16_t col)
     }
     for (i = 0; i < 6u; i++) {
         char b[2] = {(char)('6' - (int32_t)i), 0};
-        int carrier = (carriers >> i) & 1u;
-        cv_rect(x2[i] - 12, y[i] - 10, 24, 20, carrier ? col : TE_G2);
-        cv_text(x2[i] - 4, y[i] - 8, &FONT_S, b, carrier ? C_BLACK : C_WHITE);
+        int carrier = (carriers >> i) & 1u, off = ve_muted(5u - i);
+        cv_rect(x2[i] - 12, y[i] - 10, 24, 20, off ? TE_G1 : carrier ? col : TE_G2);
+        cv_text(x2[i] - 4, y[i] - 8, &FONT_S, b, off ? TE_G3 : carrier ? C_BLACK : C_WHITE);
     }
 }
 
