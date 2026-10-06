@@ -71,6 +71,8 @@ static void up_ui(uint32_t op, uint32_t k) { (void)op; (void)k; }
 static void settings_save(void) {}
 static uint32_t dx_stores;
 static int dx_bank_store(void) { dx_stores++; return 0; }
+static uint32_t kit_stores;
+static int ukit_store(void) { kit_stores++; return 0; }
 static uint32_t dx_selects;
 static int dx_bank_select(uint32_t k) { if (k >= DX_NBANKS) return 1; dx_selects++; dx_bank_cur = (uint8_t)k; dx_bank_clear(); return 0; }
 #include "../firmware/src/ui_song.c"
@@ -311,6 +313,13 @@ int main(int argc, char **argv)
     fm1_in.notes = 0; frame();
     check(dstep_lvl(&TDRUM->dstep[4], 2) == LV_HARD && dstep_rat(&TDRUM->dstep[4], 2) == 2u,
           "step 5 held + KNOB 2 / 3: hard, x3");
+    fm1_in.notes = 1u << 7; frame();                  /* step 5 held + KNOB 4 / PRESETS: a TUNE / DECAY lock */
+    encs[panel.enc[EN_K4]] = 3; frame();
+    encs[panel.enc[EN_PRESET]] = -2; frame();
+    ui.force = 1; frame(); ppm("layer-steps-lock");
+    fm1_in.notes = 0; frame();
+    check(dlock_lane(dext.lock[4]) == 2u && dlock_tune(dext.lock[4]) == 3 && dlock_decay(dext.lock[4]) == -6 &&
+          dstep_has(&TDRUM->dstep[4], 2), "step 5 held + KNOB 4 / PRESETS: snare locked to +3 st, decay -6; the step kept");
     key(0); check(!dstep_has(&TDRUM->dstep[0], 2), "step 1 again: off");
     release(B_SEQ); check(ui.layer == LY_PLAY && !on_drum_page(), "SEQ used then let go: no page change");
 
@@ -425,6 +434,39 @@ int main(int argc, char **argv)
         drum_lane = 4; drum_cursor = 6; drum_page = 0; ui.force = 1; ui.msg_t = 0;
         drums.hits = 1u | 1u << 4; frame(); ppm("live-grid");
         drum_page = 1; ui.force = 1; drums.hits = 1u | 1u << 4; frame(); ppm("live-kit");
+        {   /* KIT: EDIT -> the lane's macros (the sound last played), KNOB 1..4, PRESETS the page; EDIT twice: the
+             * dice; SAVE twice: MY KIT */
+            uint32_t stores0 = kit_stores;
+            memset(&dext, 0, sizeof dext);
+            drum_lane = 2;
+            tap(B_EDIT); frames(40);
+            check(drum_page == 2u, "KIT + EDIT: the lane's macros");
+            encs[panel.enc[EN_K1]] = 5; frame();
+            encs[panel.enc[EN_K2]] = -4; frame();
+            check(dext.m[2][DM_TUNE] == 5 && dext.m[2][DM_DECAY] == -4 && ui.msg[0] == 'd',
+                  "LANE: KNOB 1 TUNE, KNOB 2 DECAY of the snare; the value in the message bar");
+            ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane");
+            encs[panel.enc[EN_PRESET]] = 1; frame();
+            encs[panel.enc[EN_K3]] = -20; frame();
+            check(dm_pg == 1u && dext.m[2][DM_PAN] == -20, "LANE: PRESETS the next page (NOISE LEVEL PAN CHOKE)");
+            ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane-2");
+            dm_pg = 0;
+            tap(B_EDIT); frames(2);
+            check(drum_page == 1u, "LANE + EDIT later: back to KIT");
+            tap(B_EDIT); tap(B_EDIT); frames(2);
+            check(drum_page == 1u && drum_kit() == KIT_USER && ukit.seed && !dext.m[2][DM_TUNE],
+                  "KIT + EDIT twice: the dice: MY KIT, its seed, the macros clear");
+            ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-dice");
+            dext.m[3][DM_LEVEL] = -10;
+            tap(B_SAVE); frame();
+            check(kit_stores == stores0 && ui.msg[0] == 'S', "KIT + SAVE: asks again");
+            tap(B_SAVE); frame();
+            check(kit_stores == stores0 + 1u && drum_kit() == KIT_USER && !dext.m[3][DM_LEVEL],
+                  "KIT + SAVE twice: MY KIT stored, the macros in it");
+            TDRUM->p[P_E0] = 0, drum_page = 1;
+            memset(&dext, 0, sizeof dext);
+            ukit_from(0);
+        }
         drum_page = 0; song.sel = 1; go_home(); ui.force = 1;
         transport_req = 1; frames(30); song.rec = 2u; frame(); ui.force = 1; frame(); ppm("live-tracks");
         song.rec = 0; transport_req = 2; frames(2);

@@ -20,7 +20,7 @@ preset/DX7/16_DEEP_SUB b9f2fc4ad5d2198c
 preset/DX7/17_808_SUB dc88480a78ef0043
 preset/DX7/18_REESE 685b342c9d46e6e3
 preset/DX7/19_INIT_VOICE ea3f2e1ea2b1f484
-drums/fm_kit 3cb02cde91b0260b
+drums/fm_kit da270452e0f2b5d2
 mode/DX7/FM_BASS/POLY 0c26d50d557802e3
 mode/DX7/FM_BASS/MONO af2046ffc00fe496
 mode/DX7/FM_BASS/LEGATO 7f6cb704d9f25927
@@ -45,7 +45,7 @@ sends/DX7/EPIANO_1/delay 31f6f739e48b673c
 sends/DX7/EPIANO_1/reverb 8807cc577a281e3b
 sends/DX7/EPIANO_1/all afeb3a05dabbd9a3
 sends/DX7/EPIANO_1/dist fb797bdaace3cd7e
-song/4track_mix 9ec7bc7ef7e0393c
+song/4track_mix 8921d22f46c64fbc
 slicer/gate/ANALOG_DARK_STR 923f4ee47354a0c5
 slicer/stut/DIGITAL_RHODES c603a9a134e6676f
-slicer/song_gate_stut aa8303e1162a049c
+slicer/song_gate_stut ba6b679388cc3aa2

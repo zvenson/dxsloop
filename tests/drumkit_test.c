@@ -49,6 +49,37 @@ static uint32_t one_hit(uint32_t kit, uint32_t note, int32_t *peak, uint64_t *en
     return blocks;
 }
 
+/* one hit of lane l in kit kit with the macros of dext as set: blocks until it ends, peaks of L / R and the
+ * reverb send, the zero crossings of L in its first 100 ms (the pitch / the noise) */
+typedef struct { uint32_t blocks, zc; int32_t pl, pr, ps; uint64_t e; } hitst_t;
+static hitst_t lane_hit(uint32_t kit, uint32_t l)
+{
+    hitst_t h = {0};
+    int32_t L[CTL], R[CTL], V[CTL], last = 0;
+    uint32_t k;
+    memset(&drums, 0, sizeof drums);
+    TDRUM->p[P_E0] = (int16_t)kit;
+    song.g[G_DRLVL] = 100;
+    song.g[G_DRREV] = 64;
+    drum_on(LANE_NOTE[l], 110);
+    while (h.blocks < FS * 9u / CTL) {
+        memset(L, 0, sizeof L), memset(R, 0, sizeof R), memset(V, 0, sizeof V);
+        drums_render(L, R, V, CTL);
+        for (k = 0; k < CTL; k++) {
+            h.pl = abs(L[k]) > h.pl ? abs(L[k]) : h.pl;
+            h.pr = abs(R[k]) > h.pr ? abs(R[k]) : h.pr;
+            h.ps = abs(V[k]) > h.ps ? abs(V[k]) : h.ps;
+            h.e += (uint64_t)abs(L[k]) + (uint64_t)abs(R[k]);
+            if (h.blocks * CTL + k < FS / 10u) h.zc += (L[k] < 0) != (last < 0);
+            last = L[k];
+        }
+        h.blocks++;
+        if (!active_n() && !drums.tail)
+            break;
+    }
+    return h;
+}
+
 int main(int argc, char **argv)
 {
     uint32_t kit, lane, j;
@@ -56,6 +87,42 @@ int main(int argc, char **argv)
     uint64_t e;
     int bad = 0;
     FILE *rep = argc > 2 ? fopen(argv[2], "w") : stdout;
+    {   /* the noise operator (dx7_core.c dx_op_noise): one carrier (alg 32 OP1, fixed 9.7 kHz, a decay) as noise:
+         * bounded, broadband (many zero crossings), the same for the same seed, it ends; a sine at its place is
+         * tonal; dx_init never leaves noise on (a synth voice) */
+        static dxv_t nv;
+        uint8_t p[156];
+        int32_t b[DX_N], pk = 0;
+        uint32_t zc = 0, n = 0, blk, sum1 = 0, sum2 = 0, round;
+        int32_t tail = 0;
+        memcpy(p, DX_SYNTH[DX_NSYNTH - 1], 156);     /* INIT VOICE: alg 1, OP1 alone */
+        p[5 * 21 + 17] = 1, p[5 * 21 + 18] = 3, p[5 * 21 + 19] = 99;   /* OP1 fixed ~9.7 kHz */
+        p[5 * 21 + 1] = 60, p[5 * 21 + 5] = 0, p[5 * 21 + 6] = 0;      /* R2 60 down to L2 0 */
+        for (round = 0; round < 2u; round++) {
+            int32_t last = 0;
+            dx_init(&nv, p, 60, 100);
+            if (nv.noise) bad = 1, printf("noise: dx_init left noise on\n");
+            nv.noise = 1u << 5, nv.nseed = 12345u;
+            for (blk = 0; blk < 44100u / DX_N; blk++) {
+                memset(b, 0, sizeof b);
+                dx_compute(&nv, b, 0);
+                for (j = 0; j < DX_N; j++) {
+                    int32_t x = b[j] >> 11;
+                    pk = abs(x) > pk ? abs(x) : pk;
+                    if (blk < 200u) { zc += (x < 0) != (last < 0); n++; }
+                    last = x;
+                    if (blk >= 44100u / DX_N - 20u) tail = abs(x) > tail ? abs(x) : tail;
+                    if (round) sum2 = sum2 * 31u + (uint32_t)x; else sum1 = sum1 * 31u + (uint32_t)x;
+                }
+            }
+        }
+        if (!(pk > 2000 && pk < 70000 && zc > n / 5u && sum1 == sum2 && tail < 16)) {
+            printf("noise operator: peak %d, crossings %u of %u, repeatable %d, tail %d\n", pk, zc, n, sum1 == sum2, tail);
+            bad = 1;
+        } else {
+            printf("noise operator: bounded (peak %d), broadband (%u%% crossings), repeatable, ends\n", pk, zc * 100u / n);
+        }
+    }
     host_tracks_init();
 
     /* every kit x lane: audible, bounded, ends within 8 s; per kit the loudest / quietest lane */
@@ -178,6 +245,141 @@ int main(int argc, char **argv)
             printf("drum bus: DRIVE not louder or not bounded\n");
             bad = 1;
         }
+    }
+
+    {   /* the lane macros (drums.c dext.m) and a step lock (drum_lock): each does what it says, 0 is the kit */
+        hitst_t k0, k1, s0, s1, h0, h1, o0;
+        uint32_t fails0 = (uint32_t)bad;
+        memset(&dext, 0, sizeof dext);
+        k0 = lane_hit(0, 0);                                   /* DX KIT kick as the kit */
+        dext.m[0][DM_TUNE] = 12;
+        k1 = lane_hit(0, 0);
+        if (!(k1.zc > k0.zc * 3u / 2u)) printf("macro TUNE +12: crossings %u -> %u\n", k0.zc, k1.zc), bad = 1;
+        dext.m[0][DM_TUNE] = 0, dext.m[0][DM_LEVEL] = -40;
+        k1 = lane_hit(0, 0);
+        if (!(k1.pl * 6 < k0.pl && k1.pl * 14 > k0.pl)) printf("macro LEVEL -20 dB: peak %d -> %d\n", k0.pl, k1.pl), bad = 1;
+        dext.m[0][DM_LEVEL] = 0, dext.m[0][DM_PAN] = -64;
+        k1 = lane_hit(0, 0);
+        if (!(k1.pr < k0.pr / 50 && k1.pl >= k0.pl * 9 / 10)) printf("macro PAN L64: right %d left %d\n", k1.pr, k1.pl), bad = 1;
+        dext.m[0][DM_PAN] = 0, dext.m[0][DM_REV] = -64;
+        k1 = lane_hit(0, 0);
+        if (!(k1.ps == 0 && k0.ps > 0)) printf("macro REV 0: send %d (kit %d)\n", k1.ps, k0.ps), bad = 1;
+        dext.m[0][DM_REV] = 0, dext.m[0][DM_SWEEP] = 40;
+        k1 = lane_hit(0, 0);
+        if (!(k1.zc > k0.zc)) printf("macro SWEEP +40: crossings %u -> %u\n", k0.zc, k1.zc), bad = 1;
+        dext.m[0][DM_SWEEP] = 0;
+        h0 = lane_hit(0, 5);                                   /* the open hat: DECAY */
+        dext.m[5][DM_DECAY] = 40;
+        h1 = lane_hit(0, 5);
+        if (!(h1.blocks > h0.blocks * 3u / 2u)) printf("macro DECAY +40: %u -> %u blocks\n", h0.blocks, h1.blocks), bad = 1;
+        dext.m[5][DM_DECAY] = -40;
+        h1 = lane_hit(0, 5);
+        if (!(h1.blocks < h0.blocks)) printf("macro DECAY -40: %u -> %u blocks\n", h0.blocks, h1.blocks), bad = 1;
+        dext.m[5][DM_DECAY] = 0;
+        s0 = lane_hit(0, 2);                                   /* the snare: NOISE off leaves the body */
+        dext.m[2][DM_NOISE] = -40;
+        s1 = lane_hit(0, 2);
+        if (!(s1.zc * 5u < s0.zc * 4u && s1.pl > 0)) printf("macro NOISE -40: crossings %u -> %u\n", s0.zc, s1.zc), bad = 1;
+        dext.m[2][DM_NOISE] = 0, dext.m[2][DM_BRIGHT] = -40;
+        s1 = lane_hit(0, 2);
+        if (!(s1.e != s0.e)) printf("macro BRIGHT: no change\n"), bad = 1;
+        dext.m[2][DM_BRIGHT] = 0;
+        /* CHOKE: the open hat rings on under a closed hat once its group is off */
+        memset(&drums, 0, sizeof drums);
+        drum_on(LANE_NOTE[5], 110);
+        run(20, 0, 0);
+        drum_on(LANE_NOTE[4], 110);
+        o0.blocks = active_n();
+        dext.m[5][DM_CHOKE] = 1;
+        memset(&drums, 0, sizeof drums);
+        drum_on(LANE_NOTE[5], 110);
+        run(20, 0, 0);
+        drum_on(LANE_NOTE[4], 110);
+        if (!(o0.blocks == 1u && active_n() == 2u)) printf("macro CHOKE off: %u / %u voices\n", o0.blocks, active_n()), bad = 1;
+        dext.m[5][DM_CHOKE] = 0;
+        /* a lock: TUNE +12 on the kick of this step only */
+        drum_lock = dlock_make(0, 1, 12, 0, 0);
+        k1 = lane_hit(0, 0);
+        drum_lock = 0;
+        h1 = lane_hit(0, 0);
+        if (!(k1.zc > k0.zc * 3u / 2u && h1.zc == k0.zc && dlock_tune(dlock_make(3, 1, -7, 1, -21)) == -7 &&
+              dlock_decay(dlock_make(3, 1, -7, 1, -21)) == -21 && dlock_lane(dlock_make(3, 1, -7, 1, -21)) == 3u))
+            printf("lock: tune %u / %u / %u\n", k1.zc, h1.zc, k0.zc), bad = 1;
+        memset(&dext, 0, sizeof dext);
+        printf("drum lane macros (TUNE DECAY SWEEP BRIGHT NOISE LEVEL PAN CHOKE REV) and locks: %s\n", (uint32_t)bad != fails0 ? "FAIL" : "ok");
+    }
+
+    {   /* MY KIT: the dice (the same kit for the same seed; 24 seeds x 16 lanes bounded, audible, ending), the bake
+         * (kit + macros -> MY KIT plays the same), the .syx (the 4096 voice bytes there and back, exactly) */
+        static uint8_t a[DRUM_LANES][156], syx[4096];
+        static ukit_img_t i1;
+        uint32_t seed, ok = 1, l, fails0 = (uint32_t)bad;
+        hitst_t x1;
+        dice_kit(4711);
+        memcpy(a, ukit.v, sizeof a);
+        dice_kit(4712);
+        ok &= memcmp(a, ukit.v, sizeof a) != 0;
+        dice_kit(4711);
+        ok &= !memcmp(a, ukit.v, sizeof a) && ukit.seed == 4711u;
+        if (!ok) printf("dice: not repeatable / not different\n"), bad = 1;
+        for (seed = 1; seed <= 24u; seed++) {
+            dice_kit(seed * 977u);
+            for (l = 0; l < DRUM_LANES; l++) {
+                hitst_t h = lane_hit(KIT_USER, l);
+                if (!(h.pl > 300 && h.pl < 120000 && h.blocks < FS * 6u / CTL)) {
+                    printf("dice %u lane %s: peak %d, %u blocks\n", seed * 977u, LANE_SHORT[l], h.pl, h.blocks);
+                    bad = 1;
+                }
+            }
+        }
+        memset(&dext, 0, sizeof dext);                       /* the bake: 808 FM with macros = MY KIT without */
+        dext.m[0][DM_TUNE] = 5, dext.m[0][DM_DECAY] = 20, dext.m[2][DM_NOISE] = -10, dext.m[5][DM_PAN] = 30;
+        dext.m[5][DM_LEVEL] = -6, dext.m[0][DM_SWEEP] = 10, dext.m[2][DM_REV] = 20, dext.m[3][DM_BRIGHT] = -8;
+        {
+            static hitst_t want[DRUM_LANES];
+            for (l = 0; l < DRUM_LANES; l++)
+                want[l] = lane_hit(1, l);
+            ukit_bake(1);
+            for (l = 0; l < DRUM_LANES; l++) {
+                if (dext.m[l][DM_TUNE] || dext.m[l][DM_PAN]) ok = 0;
+                x1 = lane_hit(KIT_USER, l);
+                if (!(x1.zc == want[l].zc && x1.blocks == want[l].blocks && (double)x1.e > 0.97 * (double)want[l].e &&
+                      (double)x1.e < 1.03 * (double)want[l].e && abs(x1.pr - want[l].pr) * 30 <= want[l].pr + 30)) {
+                    printf("bake lane %s: crossings %u/%u blocks %u/%u energy %llu/%llu\n", LANE_SHORT[l], x1.zc,
+                           want[l].zc, x1.blocks, want[l].blocks, (unsigned long long)x1.e, (unsigned long long)want[l].e);
+                    bad = 1;
+                }
+            }
+        }
+        dice_kit(321);                                       /* the .syx: there and back */
+        ukit_to_img(&i1);
+        ukit_syx_put(syx);
+        ukit_from(0);
+        if (!ukit_syx_is_kit(syx) || ukit_syx_get(syx) || ukit.seed != 321u)
+            printf("kit syx: not read back\n"), bad = 1;
+        ukit_to_img(&ukit_img);
+        if (memcmp(&i1, &ukit_img, sizeof i1))
+            printf("kit syx: changed on the way\n"), bad = 1;
+        {   /* the reference for the web editor (web/test_web.mjs: its .syx <-> image conversion, the same bytes) */
+            FILE *f = fopen("build/host/mykit.img", "wb");
+            uint32_t sum = 0, q;
+            if (f) { fwrite(&i1, 1, sizeof i1, f); fclose(f); }
+            f = fopen("build/host/mykit.syx", "wb");
+            if (f) {
+                static const uint8_t H[6] = {0xF0, 0x43, 0x00, 0x09, 0x20, 0x00};
+                for (q = 0; q < 4096u; q++) sum += syx[q];
+                fwrite(H, 1, 6, f); fwrite(syx, 1, 4096, f);
+                fputc((int)((128u - (sum & 127u)) & 127u), f); fputc(0xF7, f);
+                fclose(f);
+            }
+        }
+        syx[(DRUM_LANES + 3u) * 128u + 120u] = 'X';
+        if (ukit_syx_get(syx) != 1)
+            printf("kit syx: a bank that is not a kit is taken\n"), bad = 1;
+        if (!ok) printf("bake: macros not back to 0\n"), bad = 1;
+        memset(&dext, 0, sizeof dext);
+        ukit_from(0);
+        printf("MY KIT: dice repeatable, 24 seeds x 16 lanes, bake, .syx: %s\n", (uint32_t)bad != fails0 ? "FAIL" : "ok");
     }
 
     /* demo: each kit plays two bars of a beat at 120 BPM */

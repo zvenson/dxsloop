@@ -121,7 +121,7 @@ int main(void)
 
     bad += check("layout: P_CHORD just before P_E0 (50), P_COUNT = format 3's + 1",
                  P_CHORD + 1 == P_E0 && P_E0 == 50 && P_COUNT == PROJ_NP_V3 + 1u && P_SLDEPTH + 1 == P_CHORD);
-    bad += check("format 4 fits one flash object; 4 slots fit .noinit", sizeof(project_t) <= 4096u - 256u &&
+    bad += check("format 5 fits one flash object; 4 slots fit .noinit", sizeof(project_t) <= 4096u - 256u &&
                  4u * sizeof(project_t) < 0x3D50u - 1024u);
 
     /* format 3 (SLOOP 1.x) */
@@ -255,6 +255,34 @@ int main(void)
     ok &= trk[0].p[P_E0] == 5 && trk[1].p[P_E0] == 19 && trk[2].p[P_E0] == 23 && trk[0].preset == 5u &&
           trk[1].preset == 19u && trk[3].p[P_E0] == 2 && trk[0].p[P_E6] == DX_CUT_OPEN && trk[2].p[P_E6] == DX_CUT_OPEN;
     bad += check("a project from before 2.0: DX7 voices 16.. up by three, CUT open", ok);
+
+    {   /* format 5: the drum lanes' macros and locks go with the project; a format 4 project (sloopDX 2.0, SLOOP
+         * 2.x) loads with neutral macros and no locks; out-of-range macros come back inside their range */
+        static project_t q5;
+        static project_v4_t o4;
+        host_tracks_init();
+        memset(&dext, 0, sizeof dext);
+        dext.m[2][DM_TUNE] = -5, dext.m[5][DM_DECAY] = 30, dext.m[9][DM_PAN] = -20, dext.lock[7] = dlock_make(2, 1, 3, 0, 0);
+        proj_capture(&q5);
+        memset(&dext, 0, sizeof dext);
+        proj_apply(&q5, 1);
+        ok = q5.magic == PROJ_MAGIC && dext.m[2][DM_TUNE] == -5 && dext.m[5][DM_DECAY] == 30 && dext.m[9][DM_PAN] == -20 &&
+             dlock_tune(dext.lock[7]) == 3;
+        q5.dext.m[0][DM_TUNE] = 100;
+        proj_apply(&q5, 1);
+        ok &= dext.m[0][DM_TUNE] == 24;
+        memset(&o4, 0, sizeof o4);
+        o4.magic = PROJ_MAGIC_V4, o4.size = sizeof o4, o4.sel = 2, o4.dxv = PROJ_DXV;
+        memcpy(o4.g, q5.g, sizeof o4.g);
+        memcpy(o4.t, q5.t, sizeof o4.t);
+        o4.sum = proj_hash(&o4, sizeof o4 - 4u);
+        ok &= proj_import(&q, &o4, (int)sizeof o4) && proj_ok(&q) && q.sel == 2 && q.dxv == PROJ_DXV &&
+              !memcmp(q.t, q5.t, sizeof q.t) && !q.dext.m[2][DM_TUNE] && !q.dext.lock[7];
+        o4.sum ^= 1u;
+        ok &= !proj_import(&q, &o4, (int)sizeof o4);
+        memset(&dext, 0, sizeof dext);
+        bad += check("format 5: drum macros and locks kept; FUN4 loads with neutral ones", ok);
+    }
 
     printf("%s\n", bad ? "PROJECT FORMAT TEST FAILED" : "project format test passed");
     return bad != 0;

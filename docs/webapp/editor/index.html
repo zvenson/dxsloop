@@ -427,6 +427,20 @@
           </p>
           <div class="list" id="dxlist"></div>
         </div>
+        <!-- v10: MY KIT, the drum kit kept on the FM-1 (16 FM drums; a .syx of its own) -->
+        <h2 data-t="kitTitle" data-ic="symbol_grid" style="margin-top:12px"></h2>
+        <p class="dim" id="kithint"></p>
+        <div id="kitpane" hidden>
+          <p class="dim" data-t="kitHelp"></p>
+          <p class="bar">
+            <button id="kitload" data-t="kitLoad" data-ic="symbol_folder_open"></button>
+            <input type="file" id="kitfile" accept=".syx,application/octet-stream" hidden>
+            <button id="kitsave" data-t="kitSave" data-ic="symbol_download"></button>
+            <label><span data-t="kitSeed"></span> <input id="kitseed" type="number" min="1" max="65535" step="1" style="width:6.5em"></label>
+            <button id="kitdice" data-t="kitDice" data-ic="control_arrow_loop"></button>
+            <span id="kitstatus" class="dim"></span>
+          </p>
+        </div>
       </div>
     </div>
   </section>
@@ -470,6 +484,7 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   DRUM_STEP: 33,
   BK_LIST: 34, BK_GET: 35, BK_PUT: 36,              /* v6: backup / restore (SLOOP 2.3) */
   BANK_BEGIN: 37, BANK_WRITE: 38, BANK_END: 39, BANK_INFO: 40, BANK_ERASE: 41,     /* v7: the DX7 user bank (sloopDX) */
+  KIT_DICE: 47,                                                                   /* v10: MY KIT rolled (sloopDX 2.1) */
   VOICE_GET: 42, VOICE_PUT: 43, VOICE_PARAM: 44, BANK_SAVE: 45,                     /* v8: voice editing (sloopDX) */
   BANK_SELECT: 46 };                                                                /* v9: 8 user banks (sloopDX) */
 /* frames the device sends on its own (while WATCH is on); never replies */
@@ -615,6 +630,7 @@ const parse = {
     return { id, rc, off, count, data: unpack7(a.slice(r.i)) };
   },
   [CMD.BK_PUT](a) { const r = new Reader(a); return { op: r.b(), id: r.b(), rc: r.b() }; },
+  [CMD.KIT_DICE](a) { const r = new Reader(a); const rc = r.b(); return { rc, seed: r.b() | (r.b() << 7) | (r.b() << 14) }; },
   /* v5: the drum track's step: the lanes on (16 bits), their levels and ratchets (2 bits each) */
   [CMD.DRUM_STEP](a) {
     const r = new Reader(a);
@@ -706,6 +722,7 @@ const req = {
   bkData: (id, off, bytes) => [CMD.BK_PUT, [1, id & 0x7F, ...u35enc(off), ...pack7(bytes)]],
   bkCommit: (id) => [CMD.BK_PUT, [2, id & 0x7F]],
   bkAbort: (id) => [CMD.BK_PUT, [3, id & 0x7F]],
+  kitDice: (seed) => [CMD.KIT_DICE, [seed & 0x7F, (seed >> 7) & 0x7F, (seed >> 14) & 3]],
   /* v7: the DX7 user bank. bytes: 1..512 voice bytes of the dump (7 bit, as they are) at offset 0..4095 */
   bankBegin: () => [CMD.BANK_BEGIN, []],
   bankWrite: (off, bytes) => [CMD.BANK_WRITE, [off & 0x7F, (off >> 7) & 0x7F, ...Array.from(bytes, (x) => x & 0x7F)]],
@@ -759,6 +776,75 @@ function dx7MakeSyx(voices) {
   out[DX7.DATA_OFF + DX7.DATA_LEN] = dx7Checksum(out.subarray(DX7.DATA_OFF, DX7.DATA_OFF + DX7.DATA_LEN));
   out[DX7.SYX_LEN - 1] = 0xF7;
   return out;
+}
+
+/* ------------------------------------------------------------ MY KIT --- */
+/* The drum kit you keep (firmware drums.c ukit_img_t, backup object 9: little endian): magic "DKT1", the dice seed,
+   16 lane voices (156 bytes unpacked each), 16 rows of note, level, sweep, burst, choke, noise (the operators that
+   play noise), rev, pan (signed), sweep_k (u16), burst_n (u16). As a .syx it is a DX7 32-voice bank: voices 1-16
+   the lanes, 17-32 the rows, named "KIT DATA01".. (drums.c ukit_syx_put / ukit_syx_get, the same bytes) */
+const UKIT = { MAGIC: 0x31544B44, LEN: 2696, LANES: 16, VOFF: 8, ROFF: 8 + 16 * 156, ROW: 12, NAME: "KIT DATA" };
+const kitIsSyx = (data) => Array.from({ length: 16 }, (_, d) => d).every((d) =>
+  [...UKIT.NAME].every((c, k) => data[(16 + d) * 128 + 118 + k] === c.charCodeAt(0)));
+/* the 4096 voice bytes of a kit .syx -> the device's image; null: not a sloopDX kit */
+function kitImgFromSyx(data) {
+  if (!kitIsSyx(data)) return null;
+  const img = new Uint8Array(UKIT.LEN), dv = new DataView(img.buffer);
+  dv.setUint32(0, UKIT.MAGIC, true);
+  let seed = 0;
+  for (let k = 0; k < 5; k++) seed += (data[16 * 128 + 14 + k] & 0x7F) * 2 ** (7 * k);
+  dv.setUint32(4, seed >>> 0, true);
+  for (let d = 0; d < 16; d++) {
+    img.set(dx7Unpack(data.subarray(d * 128, d * 128 + 128)), UKIT.VOFF + d * 156);
+    const q = data.subarray((16 + d) * 128, (17 + d) * 128), o = UKIT.ROFF + d * UKIT.ROW;
+    img[o] = q[0]; img[o + 1] = q[1]; img[o + 2] = q[2]; img[o + 3] = q[6]; img[o + 4] = q[10]; img[o + 5] = q[11];
+    img[o + 6] = q[13]; dv.setInt8(o + 7, q[12] - 64);
+    dv.setUint16(o + 8, q[3] | (q[4] << 7) | ((q[5] & 3) << 14), true);
+    dv.setUint16(o + 10, q[7] | (q[8] << 7) | ((q[9] & 3) << 14), true);
+  }
+  return img;
+}
+/* the device's image -> a kit .syx (4104 bytes) */
+function kitSyxFromImg(img) {
+  const dv = new DataView(img.buffer, img.byteOffset, img.byteLength), voices = [], seed = dv.getUint32(4, true);
+  for (let d = 0; d < 16; d++) voices.push(dx7Pack(img.subarray(UKIT.VOFF + d * 156, UKIT.VOFF + d * 156 + 156)));
+  for (let d = 0; d < 16; d++) {
+    const q = new Uint8Array(128), o = UKIT.ROFF + d * UKIT.ROW, sk = dv.getUint16(o + 8, true), bn = dv.getUint16(o + 10, true);
+    q[0] = img[o]; q[1] = img[o + 1]; q[2] = img[o + 2];
+    q[3] = sk & 127; q[4] = (sk >> 7) & 127; q[5] = sk >> 14;
+    q[6] = img[o + 3]; q[7] = bn & 127; q[8] = (bn >> 7) & 127; q[9] = bn >> 14;
+    q[10] = img[o + 4]; q[11] = img[o + 5] & 63; q[12] = (dv.getInt8(o + 7) + 64) & 127; q[13] = img[o + 6] & 127;
+    for (let k = 0; k < 5; k++) q[14 + k] = d ? 0 : Math.floor(seed / 2 ** (7 * k)) & 127;
+    q[20] = 1;
+    for (let k = 0; k < 8; k++) q[118 + k] = UKIT.NAME.charCodeAt(k);
+    q[126] = 0x30 + Math.floor((d + 1) / 10); q[127] = 0x30 + ((d + 1) % 10);
+    voices.push(q);
+  }
+  return dx7MakeSyx(voices);
+}
+const kitSeedOf = (img) => new DataView(img.buffer, img.byteOffset, img.byteLength).getUint32(4, true);
+/* one backup object written (BK_PUT begin, pieces, commit) -> rc of the commit */
+async function bkPutObject(rq, id, d) {
+  let r = parse[CMD.BK_PUT](await rq(req.bkBegin(id, d.length, crc32(d)), { timeout: 1500, retries: 1 }));
+  if (r.rc) return r.rc;
+  for (let off = 0; off < d.length; off += 256) {
+    r = parse[CMD.BK_PUT](await rq(req.bkData(id, off, d.subarray(off, off + 256)), { timeout: 1500, retries: 1 }));
+    if (r.rc) return r.rc;
+  }
+  return parse[CMD.BK_PUT](await rq(req.bkCommit(id), { timeout: 5000, retries: 0 })).rc;
+}
+/* one backup object read (LIST takes the snapshot) -> Uint8Array, or null when the device has none */
+async function bkGetObject(rq, id) {
+  const L = parse[CMD.BK_LIST](await rq(req.bkList(), { timeout: 5000, retries: 0 }));
+  const it = L.items.find((x) => x.id === id);
+  if (L.rc || !it) return null;
+  const data = new Uint8Array(it.len);
+  for (let off = 0; off < it.len; off += 256) {
+    const n = Math.min(256, it.len - off), g = parse[CMD.BK_GET](await rq(req.bkGet(id, off, n), { timeout: 1500, retries: 2 }));
+    if (g.rc || g.data.length !== n) return null;
+    data.set(g.data, off);
+  }
+  return crc32(data) === it.crc ? data : null;
 }
 
 /* --------------------------------------------------------- DX7 voice --- */
@@ -1283,7 +1369,7 @@ function b64dec(s) {
 /* object ids (firmware editor.c ED_BK_IDS): 0 the working project, 1 the settings, 2..5 projects A..D,
    6..7 the user preset banks, 8 the DX7 user bank (sloopDX; 4096 voice bytes, 0 = none). SLOOP 2.3 has its
    USR1..3 slots as 32..34 instead: sloopDX has nowhere to put them, so a SLOOP backup restores without them */
-const BK = { FORMAT: "sloop-backup", VERSION: 1, RESTORE: [6, 7, 8, 2, 3, 4, 5, 0, 1], SKIP: [32, 33, 34] };
+const BK = { FORMAT: "sloop-backup", VERSION: 1, RESTORE: [6, 7, 8, 9, 2, 3, 4, 5, 0, 1], SKIP: [32, 33, 34] };   /* 9: MY KIT (2.1) */
 class BackupError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
 /* read everything; progress(done, total bytes) */
 async function backupCapture(rq, info, progress = () => {}) {
@@ -1446,7 +1532,7 @@ function makeMockDevice(opt = {}) {
   ];
   /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
      first 16 voices of the DX7 user bank) */
-  const KIT = E("KIT", ["DX KIT", "808 FM", "ELECTRO", "METAL"], 0);
+  const KIT = E("KIT", ["DX KIT", "808 FM", "ELECTRO", "METAL", "MY KIT"], 0);
   /* a GM note -> its drum lane (drums.c LANE_OF_GM: 35..81) */
   const LANE_OF_GM = [1, 0, 7, 2, 3, 8, 9, 4, 9, 6, 9, 5, 10, 10, 11, 10, 12, 11, 12, 13, 11, 15, 11, 13, 12, 14, 14, 14, 14, 14,
     14, 14, 15, 15, 13, 13, 15, 15, 13, 13, 7, 7, 7, 14, 14, 15, 15];
@@ -1527,6 +1613,12 @@ function makeMockDevice(opt = {}) {
     g: GP.map((d) => d.def),
     slots: [null, null, null, null],
     dx: { data: null, pending: null, cur: 0, banks: new Array(8).fill(null) },   /* the bank in use (4096 voice bytes), an upload, the 8 slots */
+    kit: (() => {                                    /* v10: MY KIT (backup object 9): INIT VOICE on every lane */
+      const k = new Uint8Array(UKIT.LEN), dv = new DataView(k.buffer);
+      dv.setUint32(0, UKIT.MAGIC, true);
+      for (let d = 0; d < 16; d++) { k.set(dx7InitVoice(), UKIT.VOFF + d * 156); k[UKIT.ROFF + d * UKIT.ROW] = 60; k[UKIT.ROFF + d * UKIT.ROW + 1] = 100; k[UKIT.ROFF + d * UKIT.ROW + 6] = 64; }
+      return k;
+    })(),
     bank: new Array(opt.slots || 32).fill(null),     /* user presets: {engine, name, p, pattern} */
     settings: Uint8Array.from({ length: 88 }, (_, i) => (i * 37 + 5) & 0xFF),   /* v6: the settings object (opaque here) */
     bkSnap: null, bkPut: null,
@@ -1683,10 +1775,10 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.1 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : 9);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks */
+        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : 10);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1888,13 +1980,23 @@ function makeMockDevice(opt = {}) {
         dxNames();
         b(0);
         break;
+      case CMD.KIT_DICE: {                            /* v10: MY KIT rolled (the mock keeps the seed only) */
+        if (opt.proto9 || opt.proto8 || opt.proto7 || opt.sloop23 || opt.noBackup) return null;
+        let seed = (a[0] | (a[1] << 7) | ((a[2] & 3) << 14)) & 0xFFFF;
+        if (!seed) seed = 1 + Math.floor(Math.random() * 65535);
+        new DataView(st.kit.buffer).setUint32(4, seed, true);
+        st.tracks[TRK_DRUM].p[P_E0] = 4;
+        b(0); b(seed & 0x7F); b((seed >> 7) & 0x7F); b(seed >> 14);
+        break;
+      }
       /* v6 backup: the mock's objects are JSON bytes (projects, banks), the settings and the raw DX7 bank (8) */
       case CMD.BK_LIST: {
         if (opt.noBackup) return null;
         const enc = (o) => Uint8Array.from(Array.from(JSON.stringify(o), (c) => c.charCodeAt(0) & 0x7F));
         const bankOf = (h) => { const x = st.bank.slice(h * 16, h * 16 + 16); return x.some(Boolean) ? enc(x) : new Uint8Array(0); };
         st.bkSnap = new Map([[0, enc(project())], [1, st.settings.slice()], ...[0, 1, 2, 3].map((k) => [2 + k, st.slots[k] ? enc(st.slots[k]) : new Uint8Array(0)]),
-          [6, bankOf(0)], [7, bankOf(1)], [8, st.dx.data ? st.dx.data.slice() : new Uint8Array(0)]]);
+          [6, bankOf(0)], [7, bankOf(1)], [8, st.dx.data ? st.dx.data.slice() : new Uint8Array(0)],
+          ...(opt.proto9 || opt.proto8 || opt.proto7 || opt.sloop23 ? [] : [[9, st.kit.slice()]])]);
         st.bkPut = null;
         b(0); b(st.bkSnap.size);
         for (const [id, d] of st.bkSnap) { b(id); out.push(...u35enc(d.length), ...u35enc(crc32(d))); }
@@ -1913,7 +2015,7 @@ function makeMockDevice(opt = {}) {
         if (opt.noBackup || a.length < 2) return null;
         const op = a[0], id = a[1], r = new Reader(a.slice(2));
         let rc = 1;
-        if (op === 0 && a.length === 12 && [0, 1, 2, 3, 4, 5, 6, 7, 8].includes(id)) {
+        if (op === 0 && a.length === 12 && [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].includes(id)) {
           const len = u35dec(r), crc = u35dec(r);
           if ((id >= 2 || len) && len <= 1 << 20) { st.bkPut = { id, len, crc, pos: 0, buf: new Uint8Array(len) }; st.bkSnap = null; rc = 0; }
         } else if (!st.bkPut || st.bkPut.id !== id) rc = 5;
@@ -1930,6 +2032,7 @@ function makeMockDevice(opt = {}) {
             else if (id === 0) { const o = js(); st.tracks = o.tracks; st.sel = o.sel; st.g = o.g; }
             else if (id <= 5) st.slots[id - 2] = P.len ? js() : null;
             else if (id <= 7) { const x = P.len ? js() : new Array(16).fill(null); for (let i = 0; i < 16; i++) st.bank[(id - 6) * 16 + i] = x[i] || null; }
+            else if (id === 9) { if (P.len !== UKIT.LEN || new DataView(P.buf.buffer).getUint32(0, true) !== UKIT.MAGIC) throw 0; st.kit = P.buf.slice(); }
             else { if (P.len && P.len !== DX7.DATA_LEN) throw 0; st.dx.data = P.len ? P.buf.slice() : null; st.dx.pending = null; dxNames(); }
           } catch (e) { rc = 2; }
         } else if (op === 3) { st.bkPut = null; rc = 0; }
@@ -2169,6 +2272,11 @@ const TEXT = {
     bkStale: "本体の内容が途中で変わりました。もう一度バックアップしてください: ", bkRead: "読み取りエラー: ", bkWrite: "書き込みエラー: ", bkRc4: "フラッシュがありません",
     system: "システム", firmware: "ファームウェア", sync: "同期", tracksN: "トラック", stepsN: "ステップ数", enginesL: "エンジン",
     dxBankL: "DX7 バンク", userBank: "ユーザープリセット", none: "なし",
+    kitTitle: "MY KIT (ドラム)", kitHelp: "FM-1 に保存するドラムキット。キット画面で SAVE を2回: レーンの編集ごと保存、EDIT を2回: ダイス。ここでは .syx の読み込み・書き出し、シードでダイス。",
+    kitLoad: "キット .syx を読む", kitSave: "MY KIT を書き出す", kitDice: "ダイス", kitSeed: "シード",
+    kitNone: "MY KIT は sloopDX 2.1 以降。", kitConnect: "FM-1 を接続するとキットを読み書きできます。",
+    kitNotKit: "sloopDX のキットではありません (音色 17-32 が KIT DATA)。DX7 音色バンクは上のバンクへ。",
+    kitLoaded: "MY KIT を読み込み: ", kitSaved: "MY KIT を保存: ", kitRolled: "MY KIT ダイス、シード ", kitFail: "MY KIT: ",
   },
   en: {
     other: "日本語", connect: "Connect", disconnect: "Disconnect", mock: "Mock device (no hardware)",
@@ -2246,6 +2354,11 @@ const TEXT = {
     bkStale: "The FM-1 changed during the backup; back up again: ", bkRead: "Read error: ", bkWrite: "Write error: ", bkRc4: "No flash",
     system: "System", firmware: "Firmware", sync: "Sync", tracksN: "Tracks", stepsN: "Steps", enginesL: "Engines",
     dxBankL: "DX7 bank", userBank: "User presets", none: "none",
+    kitTitle: "MY KIT (drums)", kitHelp: "The drum kit you keep on the FM-1: SAVE twice on its kit page stores the kit with your lane edits; EDIT twice there rolls a new one. Here: load a kit .syx, download MY KIT as a .syx, or roll the dice with a seed (the same seed, the same kit).",
+    kitLoad: "Load kit .syx", kitSave: "Download MY KIT", kitDice: "Dice", kitSeed: "Seed",
+    kitNone: "MY KIT needs sloopDX 2.1 or later.", kitConnect: "Connect the FM-1 to load or save its kit.",
+    kitNotKit: "Not a sloopDX kit (voices 17-32 are named KIT DATA). A DX7 voice bank goes into the bank above.",
+    kitLoaded: "MY KIT loaded: ", kitSaved: "MY KIT saved as ", kitRolled: "MY KIT rolled, seed ", kitFail: "MY KIT: ",
   },
 };
 let lang = "en";                                   /* sloopDX: English only (the Japanese strings stay, unused) */
@@ -2263,7 +2376,7 @@ function applyLang() {
   renderLib();
   renderBank();
   renderPanels();
-  renderDxBank();
+  renderDxBank(); renderKit();
   if (dev) { renderSlots(); renderStepHead(); renderTrackbar(); renderMixer(); renderSysinfo(); }
 }
 $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
@@ -2439,7 +2552,7 @@ function disconnect(reasonKey = "disconnected") {
   renderLive();
   renderLib();
   renderBank();
-  renderDxBank();
+  renderDxBank(); renderKit();
   $("version").textContent = "";
   setLabel($("connect"), t("connect"));
   sayK(reasonKey);
@@ -2517,7 +2630,7 @@ async function load(d) {
     renderLive();
     renderLib();
     renderBank();
-    renderDxBank();
+    renderDxBank(); renderKit();
     renderSysinfo();
     sayK("ready");
   } finally { busy--; }
@@ -3648,7 +3761,7 @@ async function libOp(fn) {
   libBusy = true;
   busy++;
   renderLib(); renderBank();
-  try { await fn(); } catch (err) { report(err); } finally { busy--; libBusy = false; renderLib(); renderBank(); renderDxBank(); }
+  try { await fn(); } catch (err) { report(err); } finally { busy--; libBusy = false; renderLib(); renderBank(); renderDxBank(); renderKit(); }
 }
 const rqf = (r, o) => rq(r, o);
 const checkRc = (rc) => { if (rc) throw new Error(t("flashFail").replace("{rc}", rc)); };
@@ -3786,7 +3899,7 @@ $("bk-file").addEventListener("change", async () => {
       await backupRestore(rq, file, bkProgress("bkRestoring"));
       dev.slotUsed = [null, null, null, null];
       renderSlots();
-      if (dev.dxbank) try { dev.dxbank = await dxbank.info(rq); renderDxBank(); } catch (e) { /* shown by the next action */ }
+      if (dev.dxbank) try { dev.dxbank = await dxbank.info(rq); renderDxBank(); renderKit(); } catch (e) { /* shown by the next action */ }
       await afterSoundChange("bkRestored");
     } catch (e) { bkReport(e); } finally { $("bk-prog").hidden = true; }
   });
@@ -3888,6 +4001,56 @@ $("bkexport").addEventListener("click", () => libOp(async () => {
 /* dev.dxbank = BANK_INFO ({ok, names[32]}), null when the firmware has no bank (protocol < 7). An upload is
    checked here first (dx7CheckSyx), then BANK_BEGIN, 8 x BANK_WRITE, BANK_END; the VOICE enum is read again. */
 const DX_ERR = { length: "dxBadLen", header: "dxBadHdr", byte: "dxBadByte", checksum: "dxBadSum" };
+/* v10: MY KIT (backup object 9 there and back as a .syx; KIT_DICE) */
+function renderKit() {
+  const has = !!dev && !!dev.dump && dev.info.proto >= 10;
+  $("kithint").hidden = has;
+  $("kithint").textContent = t(!dev || !dev.dump ? "kitConnect" : "kitNone");
+  $("kitpane").hidden = !has;
+  ["kitload", "kitsave", "kitdice"].forEach((id) => { $(id).disabled = libBusy; });
+}
+async function kitUpload(file, syx) {
+  const img = kitImgFromSyx(syx.data);
+  if (!img) { sayK("kitFail", t("kitNotKit")); return; }
+  libOp(async () => {
+    checkRc(await bkPutObject(rqf, 9, img));
+    await rqf(req.trackParam(3, dev.info.pe0, 4));       /* the drum track plays MY KIT */
+    const sd = kitSeedOf(img);
+    if (sd) $("kitseed").value = String(sd);
+    sayK("kitLoaded", file.name);
+  });
+}
+$("kitload").addEventListener("click", () => { $("kitfile").value = ""; $("kitfile").click(); });
+$("kitfile").addEventListener("change", async () => {
+  const f = $("kitfile").files[0];
+  if (!f || !dev) return;
+  let syx;
+  try { syx = dx7CheckSyx(await f.arrayBuffer()); }
+  catch (e) { sayK("kitFail", DX_ERR[e.code] ? t(DX_ERR[e.code]).replace("{n}", e.detail || "") : e.message); return; }
+  kitUpload(f, syx);
+});
+$("kitsave").addEventListener("click", () => {
+  if (!dev) return;
+  libOp(async () => {
+    const img = await bkGetObject(rqf, 9);
+    if (!img) throw new Error("read");
+    const sd = kitSeedOf(img), name = `sloopdx-mykit${sd ? "-" + sd : ""}-${today()}.syx`;
+    const blob = new Blob([kitSyxFromImg(img)], { type: "application/octet-stream" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    sayK("kitSaved", name);
+  });
+});
+$("kitdice").addEventListener("click", () => {
+  if (!dev) return;
+  const want = Math.max(0, Math.min(65535, Math.floor(+$("kitseed").value || 0)));
+  libOp(async () => {
+    const r = parse[CMD.KIT_DICE](await rqf(req.kitDice(want)));
+    $("kitseed").value = String(r.seed);
+    sayK("kitRolled", String(r.seed));
+  });
+});
 function renderDxBank() {
   const has = !!dev && !!dev.dump && !!dev.dxbank;
   $("dxhint").hidden = has;
@@ -3925,6 +4088,7 @@ async function dxUpload(file) {
   let syx;
   try { syx = dx7CheckSyx(await file.arrayBuffer()); }
   catch (e) { sayK("dxFail", DX_ERR[e.code] ? t(DX_ERR[e.code]).replace("{n}", e.detail || "") : e.message); return; }
+  if (kitIsSyx(syx.data) && dev.info.proto >= 10) { kitUpload(file, syx); return; }   /* a sloopDX kit: MY KIT */
   if (!confirm(t("confirmDxUpload").replace("{name}", file.name))) return;
   libOp(async () => {
     sayK("dxUploading", file.name);

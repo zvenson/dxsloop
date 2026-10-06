@@ -167,6 +167,14 @@ typedef struct {                 /* a step of the drum track (10 bytes, the size
     uint8_t rat[4];              /* 2 bits per lane: ratchet */
 } dstep_t;
 _Static_assert(sizeof(step_t) == 10 && sizeof(dstep_t) == 10, "a step is 10 bytes on every track");
+/* sloopDX: the drum track's lane macros and parameter locks (drums.c), kept with the project. A macro is an
+ * offset on the kit's sound (0 = as the kit): TUNE semitones, DECAY / SWEEP / BRIGHT / NOISE -40..40, LEVEL in
+ * 1/2 dB -40..20, PAN -64..63, CHOKE 0 the kit's, 1 none, 2..4 groups A..C, REV the send -64..63 (64 + REV) */
+enum { DM_TUNE, DM_DECAY, DM_SWEEP, DM_BRIGHT, DM_NOISE, DM_LEVEL, DM_PAN, DM_CHOKE, DM_REV, DM_N };
+typedef struct {
+    int8_t m[DRUM_LANES][DM_N];
+    uint16_t lock[NSTEP];        /* a step's TUNE / DECAY lock of one lane (drums.c dlock_*), 0 = none */
+} drum_ext_t;
 
 typedef struct track {
     int16_t p[P_COUNT];

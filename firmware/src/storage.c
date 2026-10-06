@@ -18,12 +18,13 @@
 
 /* flash map (FL_DATA 0x97000..0xDFFFF, FL_GLOB 0xFC000..): settings 0xFC000 / 0xFD000, projects
  * 0x97000..0x9EFFF, 8 DX7 user banks 0xA0000..0xBFFFF (two objects of 16 voices each) and the bank in use
- * 0xC0000..0xC1FFF (eng_dx7.c / project.c; bank 1 is where sloopDX 1.0-1.6 kept its one bank;
+ * 0xC0000..0xC1FFF, MY KIT (drums.c) 0xC2000..0xC3FFF (eng_dx7.c / project.c; bank 1 is where sloopDX 1.0-1.6 kept its one bank;
  * SLOOP's user sample slots were 0xA0000..0xDBFFF, the rest of that room is free), user preset banks
  * 0xDC000..0xDFFFF (upreset.c); the working project (autosave, project.c): copy A 0x9F000, copy B 0xFE000
  * (the two sectors left: A/B needs no two neighbours) */
 enum { OBJ_SETTINGS, OBJ_PROJECT0, OBJ_UPRESET0 = OBJ_PROJECT0 + 4, OBJ_AUTOSAVE = OBJ_UPRESET0 + 2,
-       OBJ_DXBANK0, OBJ_DXMETA = OBJ_DXBANK0 + 16, OBJ_COUNT };   /* 8 DX7 banks x 2 halves, the bank in use */
+       OBJ_DXBANK0, OBJ_DXMETA = OBJ_DXBANK0 + 16, OBJ_DXKIT, OBJ_COUNT };   /* 8 DX7 banks x 2 halves, the bank in use,
+                                                                              * MY KIT (drums.c, 0xC2000..0xC3FFF) */
 
 typedef struct {
     uint32_t magic;
@@ -59,7 +60,7 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
         return copy ? 0xFE000u : 0x9F000u;
     if (obj >= OBJ_UPRESET0 && obj < OBJ_AUTOSAVE)
         return 0xDC000u + (obj - OBJ_UPRESET0) * 2u * ST_SECTOR + copy * ST_SECTOR;
-    if (obj >= OBJ_DXBANK0 && obj <= OBJ_DXMETA)     /* 0xA0000..0xC1FFF: the banks, then the bank in use */
+    if (obj >= OBJ_DXBANK0 && obj <= OBJ_DXKIT)      /* 0xA0000..0xC3FFF: the banks, the bank in use, MY KIT */
         return 0xA0000u + (obj - OBJ_DXBANK0) * 2u * ST_SECTOR + copy * ST_SECTOR;
     return 0x97000u + (obj - OBJ_PROJECT0) * 2u * ST_SECTOR + copy * ST_SECTOR;
 }

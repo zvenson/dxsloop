@@ -16,14 +16,19 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 
 ## Where things are
 
-- `firmware/src/dx7_core.c`: the DX7 voice (`dxv_t`, `dx_init`, `dx_compute`, envelopes, LFO).
+- `firmware/src/dx7_core.c`: the DX7 voice (`dxv_t`, `dx_init`, `dx_compute`, envelopes, LFO). Drums only: a noise
+  operator (`dxv_t.noise`, `dx_op_noise`), set by drums.c after `dx_init`; synth voices never (bit-exact as Dexed).
 - `firmware/src/eng_dx7.c`: the engine (`ENG_DX7`): factory voices (20: 01–20, the bank 21–52; 1.9 had 17, older saves
   are renumbered on load: `core.h DX_VOICE_FROM_V1`), a low-pass per voice (CUT `P_E6`, RESO `P_E7`), user bank `dx_user` (packed .syx,
   `dx_bank_begin/write/end` for the editor's pieces, `dx_bank_load`, `dx_unpack`, `dx_sanitize`), macros
   BRITE/ATK/DEC/REL/FDBK, DC blocker. Flash side of the bank: `project.c` (`dx_bank_boot/store/erase`,
   storage objects `OBJ_DXBANK0/1` at 0xA0000). Editor cmds 34-38 in `editor.c` (protocol v6).
 - `firmware/src/drums.c`: FM drum track, 16 lanes, kits in `FM_KITS` (DX KIT, 808 FM, ELECTRO, METAL: each its own voices, `DX_KIT_VOICE`; the USER kit went in 1.9).
-  The voices sum into a bus (`drums_bus`: DRIVE = the drum track's `P_DIST`, COMP = its `P_CHOR`; kit page KNOB 3 / 4).
+  The voices sum into a stereo bus (lane pan) -> `drums_bus` (DRIVE = the drum track's `P_DIST`, COMP = its `P_CHOR`;
+  kit page KNOB 3 / 4) -> each lane's reverb send. Per lane 8 macros + REV (`dext.m`, `core.h drum_ext_t`, saved in the
+  project: format 5 "FUN5") and per step a TUNE / DECAY lock of one lane (`dext.lock`, `dlock_*`). MY KIT = kit 5
+  (`ukit`, flash object `OBJ_DXKIT`, backup object 9, .syx via `ukit_syx_*`), the dice `dice_kit(seed)`. UI: kit
+  screen pages grid / kit / lane (`ui_studio.c`), locks in the SEQ layer (`ui_layers.c`). Editor protocol v10.
 - `firmware/src/dx7_bank.h`: generated voices + `DX_DRUM[]` table (`tools/gen_dx7_bank.py`).
 - `firmware/src/engines.c`: `ENGINES[] = {&ENG_DX7}`, NENGINES 1 (`core.h`). Old engine numbers in
   projects / presets map through `% NENGINES`.

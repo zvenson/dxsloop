@@ -1359,9 +1359,11 @@ static void seq_step(track_t *t, const step_t *s, uint32_t slen, uint32_t skip)
 static void drum_step(track_t *t, const dstep_t *s, uint32_t skip)
 {
     uint32_t l, m = dstep_mask(s) & ~skip & ~roll_lanes(t);
+    drum_lock = dext.lock[(uint32_t)(s - t->dstep) % NSTEP];   /* the step's TUNE / DECAY lock of one lane */
     for (l = 0; m; l++, m >>= 1)
         if (m & 1u)
             trk_note_on(t, LANE_NOTE[l], lvl_vel(dstep_lvl(s, l), 100));
+    drum_lock = 0;
 }
 
 /* ratchets: the further hits of the playing step's notes / lanes, each at its share of the step */
@@ -1379,7 +1381,9 @@ static void seq_ratchets(track_t *t, uint32_t into, uint32_t slen)
             done = (t->rat_lanes >> (2u * i)) & 3u;
             if (h > done && h < hits) {
                 t->rat_lanes = (t->rat_lanes & ~(3u << (2u * i))) | h << (2u * i);
+                drum_lock = dext.lock[t->seq_idx % NSTEP];
                 trk_note_on(t, LANE_NOTE[i], lvl_vel(dstep_lvl(s, i), 100));
+                drum_lock = 0;
             }
         }
         return;

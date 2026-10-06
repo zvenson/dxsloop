@@ -315,6 +315,10 @@ typedef struct {
     uint8_t alg, fb_shift, on;
     int32_t pmdepth, pmsens, amdepth;
     int32_t bright;              /* sloopDX: the modulators' level offset, Q24 log2 (0 = as Dexed) */
+    uint8_t noise;               /* sloopDX drums: a bit per operator (bit op, 0 = OP6) that plays noise instead of a
+                                  * sine (dx_op_noise); set by drums.c after dx_init, never from a voice or a .syx */
+    uint32_t nseed;              /* the noise generator (xorshift32) */
+    int32_t nval[6];             /* each noise operator's held value */
 } dxv_t;
 
 static const uint8_t DX_ALG[32][6] = {      /* FmCore::algorithms (Dexed) */
@@ -422,6 +426,7 @@ static void dx_init(dxv_t *v, const uint8_t *p, int note, int vel)
         v->ams[op] = DX_AMSENS[o[14] & 3];
         v->phase[op] = 0;
         v->gain[op] = 0;
+        v->nval[op] = 0;
     }
     dx_penv_set(&v->penv, p + 126, p + 130);
     v->alg = p[134] & 31;
@@ -433,6 +438,7 @@ static void dx_init(dxv_t *v, const uint8_t *p, int note, int vel)
     dx_lfo_reset(&v->lfo, p + 137);
     dx_lfo_keydown(&v->lfo);
     v->bright = 0;
+    v->noise = 0;                                /* (a synth voice never has noise: drums.c sets it after this) */
     v->on = 1;
 }
 
@@ -487,6 +493,33 @@ static void dx_op_fb(int32_t *out, int32_t phase, int32_t freq, int32_t g1, int3
     fb[1] = y;
 }
 
+/* sloopDX drums: a noise operator. Sample and hold of a 32-bit xorshift, a new value twice per period of the
+ * operator's frequency (its ratio / fixed frequency is the colour: low = rumble, high = hiss), at the operator's
+ * level and envelope as a sine would have. No modulation input (a noise operator ignores what feeds it) */
+__attribute__((noinline))                       /* (out of dx_compute: the synth path stays as it was) */
+static void dx_op_noise(int32_t *out, int32_t phase, int32_t freq, int32_t g1, int32_t g2, int add, int32_t *val,
+                        uint32_t *seed)
+{
+    int32_t dg = (g2 - g1 + (DX_N >> 1)) >> DX_LG_N, g = g1, x = *val;
+    uint32_t s = *seed, every = (uint32_t)freq >= (1u << 23);
+    int i;
+    for (i = 0; i < DX_N; i++) {
+        int32_t y, pn = (int32_t)((uint32_t)phase + (uint32_t)freq);
+        g += dg;
+        if (every || (((uint32_t)pn ^ (uint32_t)phase) & (1u << 23))) {
+            s ^= s << 13;
+            s ^= s >> 17;
+            s ^= s << 5;
+            x = (int32_t)s >> 7;                     /* +-2^24, as dx_sin */
+        }
+        y = (int32_t)(((int64_t)x * g) >> 24);
+        out[i] = add ? out[i] + y : y;
+        phase = pn;
+    }
+    *val = x;
+    *seed = s;
+}
+
 /* one block: adds the note into out[DX_N]. pitch: an offset in Q24 log2 for the ratio operators and the
  * fixed ones alike (Dexed's pitch bend / master tune: the part's glide, LFO and tuning here); lfo_val /
  * lfo_delay as Dexed's synth gives them (dx_compute_lfo: the note's own) */
@@ -534,7 +567,9 @@ static void dx_compute_ext(dxv_t *v, int32_t *out, int32_t lfo_val, int32_t lfo_
         if (g1 >= 1120 || g2 >= 1120) {
             if (!has[outb])
                 add = 0;
-            if (inb == 0 || !has[inb]) {
+            if (v->noise && ((v->noise >> op) & 1u)) {   /* (drums only: a synth voice never gets here) */
+                dx_op_noise(o, v->phase[op], fq[op], g1, g2, add, &v->nval[op], &v->nseed);
+            } else if (inb == 0 || !has[inb]) {
                 if ((fl & 0xc0) == 0xc0 && v->fb_shift < 16)
                     dx_op_fb(o, v->phase[op], fq[op], g1, g2, v->fb, v->fb_shift, add);
                 else

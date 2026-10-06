@@ -2,10 +2,10 @@
 # function in build/felucca.dis, x4 per nesting level, divides x9. The check allows +10 %.
 # Rewritten by BUDGET_UPDATE=1.
 dx7_render 447
-dx_compute 428
+dx_compute 460
 dx_op 23
 dx_env_advance 0
 slicer_track 825
-drums_mix 742
-mix_block 188097
+drums_mix 1156
+mix_block 187036
 fm1_alnk0_irq 255

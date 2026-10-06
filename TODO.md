@@ -32,6 +32,19 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1c. Ausbau FM-Drum-Engine (2.1), erledigt
+
+- [x] Drum-Editor pro Lane: TUNE DECAY SWEEP BRIGHT NOISE LEVEL PAN CHOKE (+ REV), Kit-Seite EDIT -> Lane-Seite, PRESETS
+      blättert, Wert in der Meldungszeile; im Projekt (Format 5 "FUN5", FUN4 lädt neutral). `drums.c dext`, `drum_voice`.
+- [x] Noise-Operator (`dx7_core.c dx_op_noise`, nur Drums, Maske in `dx_drum_t.noise`); Werks-Kits nachgezogen
+      (Snare, Clap, Hats, Becken, Shaker; FM-Feedback-Rauschen -> echtes Rauschen). Test in `drumkit_test.c`.
+- [x] Parameter-Locks: 2 Bytes pro Step (eine Lane: TUNE ±16, DECAY ±48), SEQ-Layer: Step halten + KNOB 4 / PRESETS, ★.
+- [x] MY KIT: Kit 5, SAVE 2× auf der Kit-Seite (Makros eingebacken), Flash `OBJ_DXKIT` 0xC2000; .syx (Stimmen 1-16 +
+      Tabelle 17-32 "KIT DATA") über Editor (Backup-Objekt 9, Umwandlung im Browser, gegen C getestet).
+- [x] Würfel-Kit: EDIT 2×, Regeln pro Lane, Seed oben rechts (#4711), im Editor mit Seed wiederholbar (KIT_DICE 47).
+- [x] Drum-Bus: Lane-Gain -> Summe (Stereo, Lane-Pan) -> Drive -> Kompressor -> Reverb-Send pro Lane.
+- [ ] Am Gerät nachhören: Noise-Snare / Hats, Würfel-Kits, Locks, CPU mit 6 Drum-Stimmen + 8 Synth-Stimmen.
+
 ## 1b. Gefunden beim Bank-Upload über den ALSA-Sequencer (2026-10-06)
 
 - [x] (1.9, Release) `usb.c ota_wire_send`: eine lange Antwort (BANK_INFO ~330 Bytes, DESC mit 49 Namen) wird nach 200 ms

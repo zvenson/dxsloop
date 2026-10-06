@@ -13,8 +13,9 @@ import sys
 
 class Op:
     def __init__(self, r=(99, 99, 99, 99), l=(99, 99, 99, 0), out=0, ratio=1.0, hz=None, det=7, vel=0,
-                 rs=0, ams=0, bp=39, ld=0, rd=0, lc=0, rc=0):
+                 rs=0, ams=0, bp=39, ld=0, rd=0, lc=0, rc=0, noise=False):
         self.r, self.l, self.out, self.det, self.vel, self.rs, self.ams = r, l, out, det, vel, rs, ams
+        self.noise = noise                       # drums only: noise instead of a sine (dx7_core.c dx_op_noise)
         self.bp, self.ld, self.rd, self.lc, self.rc = bp, ld, rd, lc, rc
         if hz is not None:                       # fixed frequency: 10^(coarse + fine/100)
             lg = math.log10(max(1.0, hz))
@@ -33,6 +34,11 @@ class Op:
                 self.out, self.fixed, self.coarse, self.fine, self.det]
 
 
+class V(tuple):
+    """(name, 156 bytes); .noise: the noise operators as dxv_t.noise has them (bit 0 = OP6 .. bit 5 = OP1)"""
+    noise = 0
+
+
 def voice(name, alg, ops, fb=0, pr=(99, 99, 99, 99), pl=(50, 50, 50, 50), lfo=(35, 0, 0, 0, 1, 0, 0), trans=24):
     """ops: dict op number (1..6) -> Op; missing operators are silent"""
     b = []
@@ -42,7 +48,9 @@ def voice(name, alg, ops, fb=0, pr=(99, 99, 99, 99), pl=(50, 50, 50, 50), lfo=(3
     b += list(name.ljust(10)[:10].encode())
     b += [0]
     assert len(b) == 156, (name, len(b))
-    return name, b
+    v = V((name, b))
+    v.noise = sum(1 << (6 - n) for n, o in ops.items() if o.noise)
+    return v
 
 
 # ---------------------------------------------------------------- synth voices
@@ -198,18 +206,18 @@ _BYNAME = [
     ("KICK 808", voice("KICK 808", 5, {1: dec(KICK808_R, 99, vel=2), 2: dec(80, 55), 3: dec(96, 55, hz=1600, vel=4),
                                        4: dec(97, 70, hz=3400)}), 31, 100, 20, 28, 1, 0, 0),
     ("SNARE", voice("SNARE", 5, {1: dec(SN_BODY_R, 92, vel=3), 2: dec(85, 50, ratio=1.5), 3: dec(SN_BODY_R, 70, ratio=1.9, vel=3),
-                                 5: dec(SN_NOISE_R, 95, hz=5000, vel=3), 6: dec(SN_NOISE_R, 99, hz=8500)}, fb=7),
+                                 5: dec(SN_NOISE_R, 95, hz=5000, vel=3), 6: dec(SN_NOISE_R, 99, hz=8500, noise=True)}, fb=7),
      54, 100, 5, 12, 1, 0, 0),
-    ("CLAP", voice("CLAP", 5, {3: dec(CLAP_R, 88, hz=1100, vel=3), 4: dec(CLAP_R, 99, hz=2200, det=12),
-                               5: dec(CLAP_R, 92, hz=1700, vel=3), 6: dec(CLAP_R, 99, hz=3100)}, fb=7),
+    ("CLAP", voice("CLAP", 5, {3: dec(CLAP_R, 88, hz=1100, vel=3), 4: dec(CLAP_R, 99, hz=2200, det=12, noise=True),
+                               5: dec(CLAP_R, 92, hz=1700, vel=3), 6: dec(CLAP_R, 99, hz=3100, noise=True)}, fb=7),
      60, 100, 0, 0, 4, 11, 0),
     ("HAT CLOSED", voice("HAT CLOSED", 5, {1: dec(HATC_R, 80, hz=7300, vel=3), 2: dec(HATC_R, 92, hz=5200),
                                            3: dec(HATC_R, 70, hz=9100, vel=3), 4: dec(HATC_R, 90, hz=6300),
-                                           5: dec(HATC_R, 88, hz=8800, vel=3), 6: dec(HATC_R, 99, hz=9700)}, fb=7),
+                                           5: dec(HATC_R, 88, hz=8800, vel=3), 6: dec(HATC_R, 99, hz=9700, noise=True)}, fb=7),
      60, 100, 0, 0, 1, 0, 1),
     ("HAT OPEN", voice("HAT OPEN", 5, {1: dec(HATO_R, 80, hz=7300, vel=3), 2: dec(HATO_R, 92, hz=5200),
                                        3: dec(HATO_R, 70, hz=9100, vel=3), 4: dec(HATO_R, 90, hz=6300),
-                                       5: dec(HATO_R, 88, hz=8800, vel=3), 6: dec(HATO_R, 99, hz=9700)}, fb=7),
+                                       5: dec(HATO_R, 88, hz=8800, vel=3), 6: dec(HATO_R, 99, hz=9700, noise=True)}, fb=7),
      60, 100, 0, 0, 1, 0, 1),
     ("TOM LOW", voice("TOM LOW", 5, {1: dec(TOM_R, 97, vel=2), 2: dec(80, 50), 3: dec(95, 45, hz=1200, vel=4),
                                      4: dec(96, 60, hz=2500)}), 43, 100, 9, 45, 1, 0, 0),
@@ -217,14 +225,14 @@ _BYNAME = [
                                        4: dec(96, 60, hz=2500)}), 50, 100, 9, 45, 1, 0, 0),
     ("CRASH", voice("CRASH", 5, {1: dec2(70, 80, CRASH_R, 82, hz=4700, vel=2), 2: dec2(70, 80, CRASH_R, 95, hz=3300),
                                  3: dec2(70, 80, CRASH_R, 75, hz=6100, vel=2), 4: dec2(70, 80, CRASH_R, 95, hz=8900),
-                                 5: dec2(70, 80, CRASH_R, 85, hz=7000, vel=2), 6: dec2(70, 80, CRASH_R, 99, hz=9700)}, fb=7),
+                                 5: dec2(70, 80, CRASH_R, 85, hz=7000, vel=2), 6: dec2(70, 80, CRASH_R, 99, hz=9700, noise=True)}, fb=7),
      60, 100, 0, 0, 1, 0, 0),
     ("RIDE", voice("RIDE", 5, {1: dec2(60, 80, 56, 84, hz=3900, vel=2), 2: dec2(60, 80, 56, 80, hz=5600),
                                3: dec2(60, 80, 56, 70, hz=7900, vel=2), 4: dec2(60, 80, 56, 72, hz=11000),
                                5: dec2(75, 70, 58, 70, hz=6800, vel=2), 6: dec2(75, 70, 58, 85, hz=9300)}, fb=5),
      60, 127, 0, 0, 1, 0, 0),
     ("SHAKER", voice("SHAKER", 5, {5: Op(r=(80, SHAKER_R, 99, 99), l=(99, 0, 0, 0), out=90, hz=7500, vel=3),
-                                   6: Op(r=(80, SHAKER_R, 99, 99), l=(99, 0, 0, 0), out=99, hz=9700)}, fb=7),
+                                   6: Op(r=(80, SHAKER_R, 99, 99), l=(99, 0, 0, 0), out=99, hz=9700, noise=True)}, fb=7),
      60, 100, 0, 0, 1, 0, 0),
     ("CONGA", voice("CONGA", 5, {1: dec(62, 97, vel=2), 2: dec(85, 55), 3: dec(96, 40, hz=2400, vel=4)}),
      62, 100, 4, 20, 1, 0, 0),
@@ -243,7 +251,7 @@ _BYNAME = [
 ]
 _BYNAME.append(("PEDAL HAT", voice("PEDAL HAT", 5, {1: dec(HATC_R + 6, 70, hz=7300, vel=3), 2: dec(HATC_R + 6, 92, hz=5200),
                                                  3: dec(HATC_R + 6, 60, hz=9100, vel=3), 4: dec(HATC_R + 6, 90, hz=6300),
-                                                 5: dec(HATC_R + 6, 80, hz=8800, vel=3), 6: dec(HATC_R + 6, 99, hz=9700)}, fb=7),
+                                                 5: dec(HATC_R + 6, 80, hz=8800, vel=3), 6: dec(HATC_R + 6, 99, hz=9700, noise=True)}, fb=7),
                  60, 127, 0, 0, 1, 0, 1))
 _D = {d[0]: d for d in _BYNAME}
 DRUMS = [_D[n] for n in ("KICK 808", "KICK PUNCH", "SNARE", "CLAP", "HAT CLOSED", "HAT OPEN", "PEDAL HAT", "RIMSHOT",
@@ -270,8 +278,8 @@ def pairs(hz_c, hz_m, r, outs=(88, 92, 90), mods=(90, 94, 99), fb=7, alg=5, name
     return voice(name, alg, ops, fb=fb)
 
 
-def noise(hz, r, out=99, att=99):            # OP6 with full feedback (alg 32): FM noise
-    return Op(r=(att, r, 99, 99), l=(99, 0, 0, 0), out=out, hz=hz)
+def noise(hz, r, out=99, att=99):            # a noise operator (sloopDX drums; its frequency is the colour)
+    return Op(r=(att, r, 99, 99), l=(99, 0, 0, 0), out=out, hz=hz, noise=True)
 
 
 CLICK = _D["CLAVE"]
@@ -361,7 +369,7 @@ def drum_rows(kit):
     out = []
     for d in kit:
         k = int(round(65536 * math.exp(-32 / (d[5] * 44.1)))) if d[5] else 0
-        out.append(f'{{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}}}')
+        out.append(f'{{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}, {d[1].noise}, 0, 64}}')
     return out
 
 
@@ -377,8 +385,9 @@ def main(path):
     L.append("};")
     L.append("#define DX_SYNTH_NAME_LIST " + ", ".join(f'"{n}"' for n, _ in SYNTH))
     L.append("/* a drum: its voice, the note it plays, level (0..127), the pitch sweep at the hit (semitones and its\n"
-             " * decay per CTL block, Q16), burst (hits) and the samples between them, choke group (0 = none) */")
-    L.append("typedef struct { const char *name; uint8_t note, level, sweep; uint16_t sweep_k; uint8_t burst; uint16_t burst_n; uint8_t choke; } dx_drum_t;")
+             " * decay per CTL block, Q16), burst (hits) and the samples between them, choke group (0 = none), the noise\n"
+             " * operators (dxv_t.noise), pan (-64..63) and reverb send (64 = as the kit's REV) */")
+    L.append("typedef struct { const char *name; uint8_t note, level, sweep; uint16_t sweep_k; uint8_t burst; uint16_t burst_n; uint8_t choke, noise; int8_t pan; uint8_t rev; } dx_drum_t;")
     L.append(f"#define DX_NDRUM {len(DRUMS)}   /* the 16 lanes, then the click (clave) */")
     L.append("static const uint8_t DX_DRUM_VOICE[DX_NDRUM][156] = {")
     for d in DRUMS:
@@ -387,7 +396,7 @@ def main(path):
     L.append("static const dx_drum_t DX_DRUM[DX_NDRUM] = {")
     for d in DRUMS:
         k = int(round(65536 * math.exp(-32 / (d[5] * 44.1)))) if d[5] else 0
-        L.append(f'    {{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}}},')
+        L.append(f'    {{"{d[0]}", {d[2]}, {d[3]}, {d[4]}, {min(k, 65535)}, {d[6]}, {d[7] * 441 // 10}, {d[8]}, {d[1].noise}, 0, 64}},')
     L.append("};")
     L.append(f"/* the other kits: their own voices (808 FM, ELECTRO, METAL), lanes as above, the click last */")
     L.append(f"#define DX_NKITS {len(MORE_KITS)}")

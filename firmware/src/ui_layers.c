@@ -149,12 +149,38 @@ static void step_up(uint32_t w)
         return;
     layer_undo_mark(t);
     fm1_irq_off();
-    if (is_drum(t))
+    if (is_drum(t)) {
         dstep_clr(&t->dstep[idx], pen_lane);
-    else
+        if (dext.lock[idx] && dlock_lane(dext.lock[idx]) == pen_lane)
+            dext.lock[idx] = 0;                         /* (its lock goes with the hit) */
+    } else {
         step_clear(&t->step[idx]);
+    }
     fm1_irq_on();
     sync_reload = 1;
+}
+/* drum steps held: a TUNE (KNOB 4) / DECAY (PRESETS) lock of the shown sound on them (drums.c dlock_*: one lane per
+ * step; another lane's lock there is replaced). Back to 0 both: no lock */
+static void steps_held_lock(int32_t dt, int32_t dd)
+{
+    track_t *t = TSEL;
+    uint32_t w;
+    layer_undo_mark(t);
+    step_pend_off &= (uint16_t)~ui.step_held;
+    fm1_irq_off();
+    for (w = 0; w < 16u; w++) {
+        uint32_t idx = ui.step_page * 16u + w, lk;
+        int32_t tu, de;
+        if (!((ui.step_held >> w) & 1u) || idx >= trk_len(t) || !dstep_has(&t->dstep[idx], pen_lane))
+            continue;
+        lk = dext.lock[idx];
+        if (lk && dlock_lane(lk) != pen_lane)
+            lk = 0;
+        tu = clamp(dlock_tune(lk) + dt, -16, 15);
+        de = clamp(dlock_decay(lk) + dd, -48, 45);
+        dext.lock[idx] = dlock_make(pen_lane, tu != 0, tu, de != 0, de);
+    }
+    fm1_irq_on();
 }
 /* KNOB 2 / 3 with step keys held: their level / ratchet (drums: the sound's lane; synth: every note) */
 static void steps_held_edit(uint32_t knob, int32_t s)
@@ -323,6 +349,12 @@ static void layer_knobs(uint32_t layer)
     uint32_t k;
     int32_t s;
     track_t *t = TSEL;
+    if (layer == LY_STEP && ui.step_held && is_drum(t) && (s = panel_enc(EN_PRESET)) != 0) {
+        steps_held_lock(0, s * 3);                      /* PRESETS: the held drum steps' DECAY lock */
+        ui.layer_used = 1;
+        ui.hot_col = 3;
+        ui.hot_t = 40;
+    }
     for (k = 0; k < 4u; k++) {
         if ((s = panel_enc(EN_K1 + k)) == 0)
             continue;
@@ -351,7 +383,9 @@ static void layer_knobs(uint32_t layer)
                 song.g[G_ROLL] = (int16_t)clamp(song.g[G_ROLL] + s, 0, 4);
             break;
         case LY_STEP:
-            if (ui.step_held && k < 3u) {
+            if (ui.step_held && is_drum(t) && k == 3u) {
+                steps_held_lock(s, 0);                  /* KNOB 4: the held drum steps' TUNE lock */
+            } else if (ui.step_held && k < 3u) {
                 if (k == 0u && is_drum(t))
                     pen_lane = (uint8_t)clamp(pen_lane + s, 0, DRUM_LANES - 1);
                 else
@@ -559,6 +593,10 @@ static void layer_screen_draw(void)
                 if (on) {
                     lv = dstep_lvl(d, pen_lane);
                     rt = dstep_rat(d, pen_lane);
+                    if (dext.lock[idx] && dlock_lane(dext.lock[idx]) == pen_lane) {   /* a lock: its number and a star */
+                        fmt_int(tl[i].lab, (int32_t)idx + 1);
+                        str_cpy(tl[i].lab + str_len(tl[i].lab), "*", 2);
+                    }
                 }
             } else {
                 const step_t *st = &t->step[idx];
@@ -599,6 +637,21 @@ static void layer_screen_draw(void)
             lab[1] = "level", lab[2] = "ratchet";
             str_cpy(v[1], "-  +", 8);
             str_cpy(v[2], "x1 x4", 8);
+            if (is_drum(t)) {                           /* KNOB 4 TUNE, PRESETS DECAY: the lock of the first held step */
+                uint32_t w, lk = 0;
+                for (w = 0; w < 16u; w++)
+                    if ((ui.step_held >> w) & 1u) {
+                        lk = dext.lock[(page * 16u + w) % NSTEP];
+                        break;
+                    }
+                if (lk && dlock_lane(lk) != pen_lane)
+                    lk = 0;
+                lab[3] = "lock";
+                fmt_int(v[3], dlock_tune(lk));
+                str_cpy(v[3] + str_len(v[3]), "/", 2);
+                fmt_int(v[3] + str_len(v[3]), dlock_decay(lk));
+                ratio[3] = (dlock_tune(lk) + 16) * 1000 / 31;
+            }
         } else {
             lab[1] = "div", lab[2] = "swing", lab[3] = "steps";
             str_cpy(v[1], N_DIV[t->p[P_SDIV] % 6], 8);

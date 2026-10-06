@@ -93,7 +93,7 @@ int main(void)
         for (o = 0; o < OBJ_COUNT; o++)
             for (c = 0; c < 2u; c++) {
                 uint32_t a = st_sector(o, c);
-                int data = a >= 0x97000u && a + 4096u <= 0xC2000u, ups = a >= 0xDC000u && a + 4096u <= 0xE0000u;
+                int data = a >= 0x97000u && a + 4096u <= 0xC4000u, ups = a >= 0xDC000u && a + 4096u <= 0xE0000u;
                 int glob = a >= 0xFC000u && a + 4096u <= 0xFF000u;
                 inside &= (data || ups || glob) && !(a & 0xFFFu);
                 for (o2 = 0; o2 < OBJ_COUNT; o2++)

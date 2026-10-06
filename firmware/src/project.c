@@ -6,8 +6,9 @@
  * the transport is stopped and nothing sounds) and comes back at power-on: SLOOP starts where you
  * left it.
  *
- * Formats: 4 ("FUN4", written, SLOOP 2.0): today's P_COUNT / G_COUNT, 10-byte steps (levels and
- * ratchets; the drum track: 16 lanes). Read and converted: 3 ("FUN3", SLOOP 1.x: 8-byte steps, the
+ * Formats: 5 ("FUN5", written, sloopDX 2.1): format 4 and the drum track's lane macros and step locks
+ * (drum_ext_t). 4 ("FUN4", SLOOP 2.0, sloopDX up to 2.0): today's P_COUNT / G_COUNT, 10-byte steps (levels and
+ * ratchets; the drum track: 16 lanes); read with neutral macros. Read and converted: 3 ("FUN3", SLOOP 1.x: 8-byte steps, the
  * drum track's notes become its lanes, the swings x 0.8 for the MPC scale), 2 ("FUN2") and 1 ("FUN1"),
  * which held PROJ_NP_V2 parameters per track, mapped by count as user presets are (the first
  * PROJ_NP_V2 - 8 are P_LEVEL.. in order, the last 8 P_E0..P_E7; the parameters added since take their
@@ -16,7 +17,8 @@
  *
  * Built on the host too (tests/project_test.c, -DPROJ_HOST): the part above the #ifndef
  * PROJ_HOST needs core.h, params.c (TP), drums.c (the lanes), the engines and trk_def_engine (ui.c). */
-#define PROJ_MAGIC 0x46554E34u                 /* "FUN4": four tracks, P_COUNT parameters each, 10-byte steps */
+#define PROJ_MAGIC 0x46554E35u                 /* "FUN5": four tracks, P_COUNT parameters each, 10-byte steps, drums */
+#define PROJ_MAGIC_V4 0x46554E34u              /* "FUN4": the same without the drum macros; read only */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": SLOOP 1.x; read only */
 #define PROJ_MAGIC_V2 0x46554E32u              /* "FUN2": four tracks, PROJ_NP_V2 parameters; read only */
 #define PROJ_MAGIC_V1 0x46554E31u              /* "FUN1": one instrument; loads into track 1 */
@@ -38,8 +40,16 @@ typedef struct {
     int16_t g[G_COUNT];
     uint8_t sel, dxv, rsv[2];                  /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0) */
     proj_trk_t t[NTRK];
+    drum_ext_t dext;                           /* the drum lanes' macros and step locks (drums.c) */
     uint32_t sum;
 } project_t;
+typedef struct {                               /* format 4 (SLOOP 2.x, sloopDX up to 2.0), read only */
+    uint32_t magic, size;
+    int16_t g[G_COUNT];
+    uint8_t sel, dxv, rsv[2];
+    proj_trk_t t[NTRK];
+    uint32_t sum;
+} project_v4_t;
 typedef struct { uint8_t note[4], n, time, flags, vel; } step8_t;   /* the steps of formats 1..3 */
 typedef struct {                               /* a track of format 3, read only */
     int16_t p[PROJ_NP_V3];
@@ -219,13 +229,32 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
     return 1;
 }
 
-/* n bytes of a stored project (any format) -> slot q as format 4; 0 = not a project */
+/* a format 4 project -> slot q (the drum macros neutral, no locks) */
+static int proj_from_v4(project_t *q, const project_v4_t *v4, int n)
+{
+    if (n != (int)sizeof *v4 || v4->magic != PROJ_MAGIC_V4 || v4->size != sizeof *v4 ||
+        v4->sum != proj_hash(v4, sizeof *v4 - 4u))
+        return 0;
+    memset(q, 0, sizeof *q);
+    q->magic = PROJ_MAGIC;
+    q->size = sizeof *q;
+    memcpy(q->g, v4->g, sizeof q->g);
+    q->sel = v4->sel;
+    q->dxv = v4->dxv;
+    memcpy(q->t, v4->t, sizeof q->t);
+    q->sum = proj_sum(q);
+    return 1;
+}
+
+/* n bytes of a stored project (any format) -> slot q as format 5; 0 = not a project */
 static int proj_import(project_t *q, const void *b, int n)
 {
     if (n == (int)sizeof *q && proj_ok((const project_t *)b)) {
         memcpy(q, b, sizeof *q);
         return 1;
     }
+    if (proj_from_v4(q, (const project_v4_t *)b, n))
+        return 1;
     return proj_from_v3(q, (const project_v3_t *)b, n) || proj_from_v2(q, (const project_v2_t *)b, n) ||
            proj_from_v1(q, (const project_v1_t *)b, n);
 }
@@ -238,6 +267,7 @@ static void proj_capture(project_t *p)        /* what is playing now, as a proje
     p->magic = PROJ_MAGIC;
     p->size = sizeof *p;
     p->dxv = PROJ_DXV;
+    p->dext = dext;
     for (i = 0; i < G_COUNT; i++)
         p->g[i] = song.g[i];
     p->sel = song.sel;
@@ -259,6 +289,10 @@ static void proj_apply(const project_t *p, int all)
     for (i = 0; i < G_COUNT; i++)
         if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE && i != G_SYNC : i == G_DRLVL || i == G_DRREV)
             song.g[i] = (int16_t)clamp(p->g[i], GP[i].min, GP[i].max);
+    for (k = 0; k < DRUM_LANES; k++)                    /* the drum lanes' macros, each inside its range; the locks */
+        for (i = 0; i < DM_N; i++)
+            dext.m[k][i] = (int8_t)clamp(p->dext.m[k][i], DM_DESC[i].min, DM_DESC[i].max);
+    memcpy(dext.lock, p->dext.lock, sizeof dext.lock);
     for (k = 0; k < NTRK; k++) {
         track_t *t = &trk[k];
         const proj_trk_t *s = &p->t[k];
@@ -468,6 +502,11 @@ static int dx_bank_read(uint32_t k)              /* bank k of flash -> dx_user: 
     dx_bank_clear();
     return 0;
 }
+static void ukit_boot(void)                       /* MY KIT from flash (else DX KIT) */
+{
+    if (!(flash_ok && st_load(OBJ_DXKIT, &ukit_img, sizeof ukit_img) == (int)sizeof ukit_img && !ukit_from_img(&ukit_img)))
+        ukit_from(0);
+}
 static void dx_bank_boot(void)
 {
     uint32_t m[2] = {0, 0};
@@ -487,6 +526,17 @@ static int dx_bank_store(void)                    /* the bank in RAM -> its flas
     if (st_save(o, b, DX_BANK_HALF) || st_save(o + 1u, b + DX_BANK_HALF, DX_BANK_HALF))
         return 2;
     return 0;
+#else
+    return 2;
+#endif
+}
+static int ukit_store(void)                       /* MY KIT (drums.c ukit) -> flash: 0 ok, 2 flash error / no flash */
+{
+#if FELUCCA_FLASH
+    if (!flash_ok)
+        return 2;
+    ukit_to_img(&ukit_img);
+    return st_save(OBJ_DXKIT, &ukit_img, sizeof ukit_img) ? 2 : 0;
 #else
     return 2;
 #endif
@@ -591,6 +641,7 @@ static void persist_boot(void)                    /* before settings_init / pane
     }
     up_boot();                                     /* user presets */
     dx_bank_boot();                                /* the DX7 user bank */
+    ukit_boot();                                   /* MY KIT */
 #endif
 }
 

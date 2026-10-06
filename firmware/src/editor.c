@@ -30,8 +30,9 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_BK_LIST, ED_BK_GET, ED_BK_PUT,                                        /* v6: backup / restore (SLOOP 2.3) */
        ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE,    /* v7: the DX7 user bank (sloopDX) */
        ED_VOICE_GET, ED_VOICE_PUT, ED_VOICE_PARAM, ED_BANK_SAVE,                /* v8: voice editing (sloopDX) */
-       ED_BANK_SELECT };                                                        /* v9: 8 user banks (sloopDX) */
-#define ED_PROTOCOL 9
+       ED_BANK_SELECT,                                                          /* v9: 8 user banks (sloopDX) */
+       ED_KIT_DICE };                                                           /* v10: MY KIT (backup object 9), dice */
+#define ED_PROTOCOL 10
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -321,14 +322,15 @@ static const param_desc_t *ed_desc(uint32_t scope, uint32_t id, int16_t **vp)
 
 /* ---- v6: backup / restore (web/EDITOR_PROTOCOL.md). Objects: 0 the working project, 1 the settings
  * (colours, calibration, the song order, the lights, SYNC), 2..5 the projects A..D, 6..7 the user preset
- * banks, 32..34 the user sample slots USR1..3 (read only here: restored with SMP_BEGIN / WRITE / END).
+ * banks, 8 the DX7 user bank in use, 9 MY KIT (drums.c ukit_img_t: the drum kit in flash; the editor turns it into a
+ * .syx and back), 32..34 the user sample slots USR1..3 (read only here: restored with SMP_BEGIN / WRITE / END).
  * LIST takes a snapshot of the working project and the settings; GET reads 1..256 bytes of an object.
  * PUT stages one object in RAM (begin: id, length, CRC-32; data; commit), checks it as a load would,
  * then writes it through the usual A/B commit: a cut-off restore never leaves half an object. */
 #if FELUCCA_FLASH
 #define ED_BK_RAW ((uint8_t *)&proj_tmp)                  /* the staging RAM (main loop, as the project loads) */
 _Static_assert(sizeof proj_tmp >= sizeof(project_t) && sizeof proj_tmp >= sizeof(up_bank_t) &&
-               sizeof proj_tmp >= sizeof(persist_t), "backup staging");
+               sizeof proj_tmp >= sizeof(persist_t) && sizeof proj_tmp >= sizeof(ukit_img_t), "backup staging");
 static uint8_t ed_smp_buf[256];                         /* a BK_PUT piece, unpacked */
 static persist_t ed_bk_set;                             /* LIST's snapshot of the settings */
 static uint8_t ed_bk_valid, ed_bk_put, ed_bk_id;
@@ -377,9 +379,13 @@ static const uint8_t *ed_bk_obj(uint32_t id, uint32_t *len)   /* 0 = no such obj
             *len = sizeof dx_user;
         return &dx_user[0][0];
     }
+    if (id == 9u) {                                       /* sloopDX 2.1: MY KIT (LIST took its snapshot) */
+        *len = sizeof ukit_img;
+        return (const uint8_t *)&ukit_img;
+    }
     return 0;
 }
-static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
 static uint32_t ed_bk_commit(void)
 {
@@ -415,6 +421,15 @@ static uint32_t ed_bk_commit(void)
             return 2;
         return dx_bank_store() ? 4u : 0u;
     }
+    if (id == 9u) {                                       /* MY KIT: checked, played at once, kept in flash */
+        if (n != sizeof(ukit_img_t) || ((const ukit_img_t *)raw)->magic != UKIT_MAGIC)
+            return 2;
+        fm1_irq_off();
+        ukit_from_img((const ukit_img_t *)raw);
+        fm1_irq_on();
+        ui.force = 1;
+        return ukit_store() ? 4u : 0u;
+    }
     return 1;
 }
 
@@ -427,6 +442,7 @@ static int ed_backup(uint32_t cmd, const uint8_t *a, uint32_t na)   /* 1: a back
         if (!rc) {
             proj_capture((project_t *)ED_BK_RAW);           /* the working project, as it is now */
             persist_fill(&ed_bk_set);
+            ukit_to_img(&ukit_img);                         /* MY KIT, as it is now */
             ed_bk_valid = 1;
             ed_bk_put = 0;
         }
@@ -936,6 +952,22 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(idx);
         ed_b(idx >> 7);
         ed_b(dx_user_param_get(a[0], idx));
+        break;
+    }
+    case ED_KIT_DICE: {                                    /* seed (3 x 7 bit, 1..65535) -> rc, seed (3): MY KIT rolled,
+                                                            * the drum track plays it (not in flash until SAVE) */
+        uint32_t seed = na >= 3u ? ((uint32_t)a[0] | (uint32_t)a[1] << 7 | (uint32_t)a[2] << 14) & 0xFFFFu : 0u;
+        if (!seed)
+            seed = (fm1_ms * 2654435761u >> 16) % 65535u + 1u;
+        fm1_irq_off();
+        dice_kit(seed);
+        TDRUM->p[P_E0] = KIT_USER;
+        fm1_irq_on();
+        ui.force = 1;
+        ed_b(0);
+        ed_b(seed & 127u);
+        ed_b((seed >> 7) & 127u);
+        ed_b(seed >> 14);
         break;
     }
     case ED_BANK_SAVE:                                     /* -> rc (0 ok, 1 no bank, 2 flash) */

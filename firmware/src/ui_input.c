@@ -323,6 +323,9 @@ static void project_new(void)
         fm1_irq_on();
     }
     TDRUM->p[P_E0] = DRUM_DEFAULT_KIT;
+    fm1_irq_off();
+    memset(&dext, 0, sizeof dext);                      /* the drum lanes as their kit, no locks */
+    fm1_irq_on();
     for (i = 0; i < G_COUNT; i++)
         if (i != G_SLOT && i != G_DRCH && i != G_SYNC)
             song.g[i] = GP[i].def;
@@ -504,9 +507,11 @@ static void layer_tap(uint32_t layer)
             voice_tap();
             break;
         }
-        if (on_drum_page()) {                             /* DRUMS: GRID <-> KIT */
-            drum_page = (uint8_t)((drum_page + 1u) % 2u);
-            ui.force = 1;
+        if (on_drum_page()) {                             /* DRUMS: SEQ GRID <-> KIT; EDIT KIT -> LANE, twice: dice */
+            if (layer == LY_STEP)
+                drum_seq_tap();
+            else
+                drum_edit_tap();
             break;
         }
         if (!ui.home && cur_page()->scope == SC_TRK && is_drum(TSEL)) {
@@ -539,7 +544,7 @@ static void layer_tap(uint32_t layer)
         else if (!ui.home && cur_page()->scope == SC_TRK)
             studio_open(SC_SONG);
         else if (on_drum_page())
-            studio_open(SC_SONG);
+            drum_save_tap();                              /* (GRID: the song page; KIT / LANE: MY KIT) */
         else
             open_family(FAM_SAVE);
         break;

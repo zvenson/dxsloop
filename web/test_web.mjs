@@ -33,7 +33,8 @@ const E = vm.runInNewContext(proto + `
    UP, bank, capturePatch, auditionPatch, startWatch, libraryFile, readLibraryFile, paramKeys, patternFromSteps, stepsFromPattern, upName,
    mixer, GM_DRUM, drumName, parseNotes, fmtValue, F, DRUM_LANES, LV_NAMES, emptyDrum,
    backupCapture, backupRestore, backupObjects, b64enc, b64dec,
-   DX7_ALG, dx7Unpack, dx7Pack, dx7ParamMax, dx7InitVoice, dx7AlgGraph, dx7VcedMake, dx7VcedCheck, dxvoice })`,
+   DX7_ALG, dx7Unpack, dx7Pack, dx7ParamMax, dx7InitVoice, dx7AlgGraph, dx7VcedMake, dx7VcedCheck, dxvoice,
+   UKIT, kitIsSyx, kitImgFromSyx, kitSyxFromImg, kitSeedOf, bkPutObject, bkGetObject })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
 async function editorMock() {
@@ -44,7 +45,7 @@ async function editorMock() {
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
   ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
-    && info.ntrk === 4 && info.proto === 9 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 9)");
+    && info.ntrk === 4 && info.proto === 10 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 10)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (20 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, CUT RESO */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
@@ -225,7 +226,7 @@ async function editorLibrarian() {
   const pe0 = info.pe0, mk = (v) => ({ ...file.patches[0], dxv: undefined, params: file.patches[0].params.map((x, i) => (i === pe0 ? v : i >= pe0 + 6 ? 0 : x)) });
   const old19 = E.readLibraryFile({ ...file, firmware: "FELUCCA sloopDX 1.9", patches: [mk(15), mk(16), mk(20)] }, ctx);
   const new10 = E.readLibraryFile({ ...file, patches: [{ ...mk(20), dxv: 2 }] }, ctx);
-  ok(/sloopDX 2\.0/.test(info.version) && file.patches.every((x) => x.dxv === 2)
+  ok(/sloopDX 2\.\d/.test(info.version) && file.patches.every((x) => x.dxv === 2)
     && old19.patches.map((x) => x.p[pe0]).join() === "15,19,23" && old19.patches.every((x) => x.p[pe0 + 6] === 127 && x.p[pe0 + 7] === 0 && x.dxv === 2)
     && new10.patches[0].p[pe0] === 20 && new10.patches[0].p[pe0 + 6] === 0,
     "library file: from 1.9: VOICE 16.. + 3, CUT open; a 2.0 file kept");
@@ -459,21 +460,55 @@ async function editorTrackParam() {
   o.done();
 }
 
+/* ------------------------------------- editor v10: MY KIT --- */
+/* the kit .syx <-> the device's image: the same bytes as the firmware (drums.c ukit_syx_put / ukit_syx_get; the
+   reference is written by tests/drumkit_test.c), and the mock: load (backup object 9), download, the dice */
+async function editorKit() {
+  const C = E.CMD;
+  const syxF = join(HERE, "../build/host/mykit.syx"), imgF = join(HERE, "../build/host/mykit.img");
+  if (existsSync(syxF) && existsSync(imgF)) {
+    const syx = E.dx7CheckSyx(new Uint8Array(readFileSync(syxF))), img = new Uint8Array(readFileSync(imgF));
+    const mine = E.kitImgFromSyx(syx.data), back = E.kitSyxFromImg(img);
+    ok(E.kitIsSyx(syx.data) && mine && eq(mine, img) && eq(back, new Uint8Array(readFileSync(syxF))) && E.kitSeedOf(img) === 321,
+      "kit: .syx -> image and image -> .syx as the firmware does them (drumkit_test's kit, seed 321)");
+    const bank = E.dx7MakeSyx(Array.from({ length: 32 }, () => E.dx7Pack(E.dx7InitVoice())));
+    ok(!E.kitIsSyx(E.dx7CheckSyx(bank).data) && E.kitImgFromSyx(E.dx7CheckSyx(bank).data) === null, "kit: a DX7 voice bank is not a kit");
+  } else {
+    console.log("kit: reference files missing (run tests/drumkit_test first): conversion skipped");
+  }
+  const { m, rq, done } = attachMock({});
+  const info = E.parse[C.INFO](await rq(E.req.info()));
+  const before = await E.bkGetObject(rq, 9);
+  const k = E.kitSyxFromImg(before);
+  const mod = E.kitImgFromSyx(E.dx7CheckSyx(k).data);
+  mod[E.UKIT.ROFF + 2 * E.UKIT.ROW] = 47;               /* the snare's note */
+  new DataView(mod.buffer).setUint32(4, 1234, true);
+  const rc = await E.bkPutObject(rq, 9, mod);
+  const after = await E.bkGetObject(rq, 9);
+  const d = E.parse[C.KIT_DICE](await rq(E.req.kitDice(4711)));
+  const after2 = await E.bkGetObject(rq, 9);
+  const badRc = await E.bkPutObject(rq, 9, new Uint8Array(100));
+  ok(info.proto === 10 && before && before.length === E.UKIT.LEN && rc === 0 && eq(after, mod) && E.kitSeedOf(after) === 1234 &&
+     d.rc === 0 && d.seed === 4711 && E.kitSeedOf(after2) === 4711 && badRc !== 0,
+    "kit: MY KIT out of the mock, changed, back (backup object 9); KIT_DICE with a seed; a wrong object refused");
+  done();
+}
+
 /* ------------------------------------- editor v6: backup / restore --- */
 async function editorBackup() {
   const C = E.CMD;
   const { m, rq, done } = attachMock({});
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 9, "backup: INFO protocol 9 (backup since 6)");
+  ok(info.proto === 10, "backup: INFO protocol 10 (backup since 6)");
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8");
-  ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..8, no sample slots)");
+  ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8, 9\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..9: 9 MY KIT; no sample slots)");
   await rq(E.req.upStore(3, "BACKUP ME"));
   await rq(E.req.project(1, 2), { timeout: 4000, retries: 0 });
   const syx = E.dx7CheckSyx(makeBank());
   ok((await E.dxbank.upload(rq, syx)) === 0, "backup: a DX7 bank on the device");
   const A = await E.backupCapture(rq, info);
   const obj = (id) => A.objects.find((o) => o.id === id);
-  ok(A.format === "sloop-backup" && A.objects.map((o) => o.id).join() === "0,1,2,3,4,5,6,7,8" && obj(8).len === E.DX7.DATA_LEN
+  ok(A.format === "sloop-backup" && A.objects.map((o) => o.id).join() === "0,1,2,3,4,5,6,7,8,9" && obj(8).len === E.DX7.DATA_LEN
     && eq(E.b64dec(obj(8).data), syx.data) && obj(4).len > 0 && obj(3).len === 0 && obj(6).len > 0,
     "backup: LIST + GET: 9 objects (project in C, B empty, the DX7 bank as its 4096 voice bytes)");
   await rq(E.req.upErase(3));
@@ -500,7 +535,7 @@ async function editorBackup() {
   const objs = E.backupObjects(sloop);
   ok(!objs.has(32) && !objs.has(8) && objs.has(0) && objs.has(1), "backup: a SLOOP 2.3 file (sample slots 32..34) is accepted without them");
   let wrong = "";
-  try { E.backupObjects({ ...A, objects: [...A.objects, { id: 9, len: 0, crc: 0, data: "" }] }); } catch (e) { wrong = e.code; }
+  try { E.backupObjects({ ...A, objects: [...A.objects, { id: 10, len: 0, crc: 0, data: "" }] }); } catch (e) { wrong = e.code; }
   ok(wrong === "bkBad", "backup: an unknown object is refused");
   done();
   const old = attachMock({ noBackup: true });
@@ -521,20 +556,21 @@ async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 9 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (9: sloopDX, 8 banks)");
+  ok(info.proto === 10 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (10: sloopDX, MY KIT)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
      commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
   const en = (/enum \{ ED_INFO = 1,([^}]*)\}/.exec(ec) || [])[1] || "";
   const names = ["ED_INFO", ...en.replace(/\/\*[^*]*\*\//g, "").split(",").map((x) => x.trim()).filter(Boolean)];
-  const fwProto = +((/#define ED_PROTOCOL (\d)/.exec(ec) || [])[1] || 0);
+  const fwProto = +((/#define ED_PROTOCOL (\d+)/.exec(ec) || [])[1] || 0);
   ok(names.indexOf("ED_DRUM_STEP") + 1 === C.DRUM_STEP && names.indexOf("ED_TRACK_CHANGED") + 1 === C.TRACK_CHANGED
     && names.indexOf("ED_BK_LIST") + 1 === C.BK_LIST && names.indexOf("ED_BK_PUT") + 1 === C.BK_PUT
     && names.indexOf("ED_BANK_BEGIN") + 1 === C.BANK_BEGIN && names.indexOf("ED_BANK_ERASE") + 1 === C.BANK_ERASE
     && names.indexOf("ED_VOICE_GET") + 1 === 42 && names.indexOf("ED_BANK_SAVE") + 1 === 45
     && names.indexOf("ED_BANK_SELECT") + 1 === C.BANK_SELECT && C.BANK_SELECT === 46
-    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 9,
-    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, BANK_SELECT 46, firmware protocol ${fwProto})`);
+    && names.indexOf("ED_KIT_DICE") + 1 === C.KIT_DICE && C.KIT_DICE === 47
+    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 10,
+    `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, BANK_SELECT 46, KIT_DICE 47, firmware protocol ${fwProto})`);
   const enumNames = (id) => (new RegExp(`${id}\\[\\] = \\{([^}]*)\\}`).exec(pc) || [])[1].split(",").map((x) => x.trim().replace(/"/g, ""));
   const chord = E.parse[C.DESC](await rq(E.req.desc(0, 49)));
   const gd = [];
@@ -578,7 +614,7 @@ async function editorV5() {
   const kit = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const dd = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const fwKits = ((/DRUM_KIT_NAMES\[\] = \{([^}]*)\}/.exec(dc) || [])[1] || "").split(",").map((x) => x.trim().replace(/"/g, ""));
-  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,808 FM,ELECTRO,METAL" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
+  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,808 FM,ELECTRO,METAL,MY KIT" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
     && dd.p[info.pe0] === 0, `v5: the drum track's KIT (${kit.names.length} FM kits, == drums.c; DX KIT at power-on)`);
   /* TRACK ends with the solo mask */
   m.state.solo = 0b0101;
@@ -651,7 +687,7 @@ async function editorVoice() {
   const desc = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const saved = await E.dxvoice.save(rq);
   const u1 = await E.dxvoice.get(rq, 20);
-  ok(info.proto === 9 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
+  ok(info.proto === 10 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
     "voice: VOICE_GET / PUT / PARAM on the mock (ALG 10 set, feedback clamped to 7, OP1 kept)");
   ok(desc.names[20 + 5] === "MY SLAP" && desc.names[20] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
     "voice: the name in DESC of VOICE, the other slots INIT VOICE, BANK_SAVE ok");
@@ -933,6 +969,7 @@ await editorV5();
 await editorDxBank();
 await editorVoice();
 await editorBackup();
+await editorKit();
 editorTabs();
 editorIcons();
 await packages();

@@ -13,7 +13,7 @@ and `P_E7` RESO (0..127), the low-pass behind the voice (unused before 2.0). A D
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
-0 slots, the others rc 7). `INFO` ends with 9 (8 before the 8 banks, 7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
+0 slots, the others rc 7). `INFO` ends with 10 (9 before MY KIT, 8 before the 8 banks, 7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
 v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
 sample slots 32..34.
 
@@ -125,6 +125,22 @@ An absent status byte retains the original reply format.
 | 46 BANK_SELECT | — (query), or bank 0..7 | bank in use, number of banks (8), ok (1 = that slot holds a bank). Switching loads the bank from flash: U01..U32 play it, and BANK_BEGIN / WRITE / END / INFO / ERASE / SAVE and VOICE_* act on it. Unstored voice edits of the bank left are dropped (the device's own voice list stores them first). The device remembers the bank in use. Re-read `DESC` of `P_E0` afterwards |
 
 `BANK_INFO` (v9) ends with the bank in use and the number of banks (older editors ignore the two bytes).
+
+| cmd (v10, sloopDX 2.1: MY KIT) | Request args | Reply args |
+| --- | --- | --- |
+| 47 KIT_DICE | seed 3 × 7 bit LSB first (1..65535; 0 = the device picks one) | rc (0), seed (3 × 7 bit). MY KIT becomes the dice kit of that seed (the same seed, the same kit: `drums.c dice_kit`), the drum track plays it, the lane macros go to 0. Not in flash until it is saved (SAVE twice on the kit page, or backup object 9) |
+
+**MY KIT** (v10) is the drum kit kept on the device: backup object **9** (below). Its image (`drums.c ukit_img_t`,
+little endian, 2696 bytes): magic `DKT1` (0x31544B44), the dice seed (u32, 0 = none), 16 lane voices (156 bytes
+unpacked each, VCED order as `VOICE_PARAM`), then 16 rows of 12 bytes: note, level (0..127), sweep (semitones),
+burst (hits), choke (0 none, 1..3), noise (a bit per operator that plays noise: bit 0 = OP6 .. bit 5 = OP1), rev
+(the lane's reverb send, 64 = as the kit), pan (signed, -64..63), sweep_k (u16, the sweep's decay per 32 samples,
+Q16), burst_n (u16, samples between burst hits). As a **.syx** it is a standard DX7 32-voice bulk dump: voices
+1-16 the lanes (packed), voices 17-32 one row each, named `KIT DATA01`..`KIT DATA16`: bytes 0 note, 1 level,
+2 sweep, 3..5 sweep_k (7 + 7 + 2 bits), 6 burst, 7..9 burst_n, 10 choke, 11 noise, 12 pan + 64, 13 rev, 14..18
+the seed (in the first row, 5 × 7 bit), 20 the table's version (1). The editor turns one into the other
+(`kitImgFromSyx` / `kitSyxFromImg`, the same bytes as `drums.c ukit_syx_get / ukit_syx_put`; tested against
+each other).
 
 **pack7:** groups of up to 7 bytes, each preceded by one byte holding their top bits
 (bit j = bit 7 of byte j).
@@ -275,13 +291,15 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 (`persist_t`: colours, low cut, zoom, the panel calibration, the song order, the lights and SYNC word),
 **2..5** the projects 1..4 (song sections A..D; length 0 = empty), **6..7** the user preset banks (`up_bank_t`,
 16 records each; 0 = empty), **8** the DX7 user bank (sloopDX: 4096 voice bytes as in a .syx; 0 = none; SLOOP 2.3 has the user
-sample slots as 32..34 instead). Numbers are 5 × 7 bit (u35, LSB first); data is pack7.
+sample slots as 32..34 instead), **9** MY KIT (sloopDX 2.1: `ukit_img_t`, 2696 bytes; above). Projects are format 5
+(`FUN5`, sloopDX 2.1: format 4 and the drum lanes' macros and step locks, `core.h drum_ext_t`); a format 4 project
+(SLOOP 2.x, sloopDX up to 2.0) loads with neutral macros. Numbers are 5 × 7 bit (u35, LSB first); data is pack7.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
 | 34 BK_LIST | — | rc (0 ok, 4 no flash), count, then per object: id, length u35, CRC-32 u35 (zlib). Takes a snapshot of the working project and the settings for GET |
 | 35 BK_GET | id, offset u35, count (2 × 7 bit, 1..256) | id, rc (0 ok, 1 arguments, 5 the snapshot is gone: LIST again), offset u35, count, pack7 data |
-| 36 BK_PUT | op 0 begin: id 0..8, length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object (CRC, magic, sizes, ranges), 3 stop the song first (projects), 4 flash, 5 no begin for this object (or more than 15 s ago) |
+| 36 BK_PUT | op 0 begin: id 0..9, length u35, CRC-32 u35 · op 1 data: id, offset u35, pack7 (≤ 256 bytes, in order) · op 2 commit: id · op 3 abort: id | op, id, rc: 0 ok, 1 arguments, 2 not a valid object (CRC, magic, sizes, ranges), 3 stop the song first (projects), 4 flash, 5 no begin for this object (or more than 15 s ago) |
 
 A restore stages one object in RAM (the project load buffer), checks it at the commit as a load checks it
 (projects: magic, size and sum, older formats converted; banks: magic, record size, slot count; settings:

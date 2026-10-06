@@ -22,9 +22,9 @@ int main(int argc,char **argv)
     assert(lane_of_key(0)==0 && lane_of_key(1)==0 && lane_of_key(26)==15 && key_of_lane(15)==26);
     for(i=35;i<=81;i++)assert(lane_of_note(i)<DRUM_LANES);
     for(i=0;i<DRUM_LANES;i++)assert(lane_of_note(LANE_NOTE[i])==i);
-    /* Render the same hits through every FM kit; each must be distinct (USER without a loaded bank
-     * plays the factory voices), finite and silent after its one-shots have finished (3 s: the long
-     * open hat rings past 2 s). */
+    /* Render the same hits through every FM kit; each factory kit must be distinct, MY KIT (nothing stored)
+     * the DX KIT, all finite and silent after their one-shots have finished (3 s: the long open hat rings
+     * past 2 s). */
     for(i=0;i<DRUM_KITS;i++) {
         memset(&drums,0,sizeof drums);
         TDRUM->p[P_E0]=(int16_t)i;
@@ -36,7 +36,8 @@ int main(int argc,char **argv)
         }
         assert(energy[i]>10000);
         for(k=0;k<NDRUM;k++)assert(!drums.v[k].active);
-        for(k=0;k<i;k++)assert(energy[k]!=energy[i]);
+        if(i==KIT_USER)assert(energy[i]==energy[0]);
+        else for(k=0;k<i;k++)assert(energy[k]!=energy[i]);
     }
     /* LIVE metronome (seq.c click_tick): 120 BPM, 2 s = 4 beats; REC mode clicks only while a
      * track records, ON always while playing, OFF never; the first beat of the bar is louder */
