@@ -74,11 +74,38 @@ int main(int argc, char **argv)
             fails++;
         }
     }
+    {   /* the editor's way (BANK_BEGIN, eight BANK_WRITE of 512, BANK_END): the same bank, the names */
+        int off;
+        dx_bank_begin();
+        if (dx_user_ok || strcmp(dx_names[DX_NSYNTH + 4], "U05"))
+            fails++, printf("FAIL: during an upload the bank must be empty (U05 = %s)\n", dx_names[DX_NSYNTH + 4]);
+        for (off = 0; off < 4096; off += 512)
+            if (dx_bank_write((uint32_t)off, s + 6 + off, 512))
+                fails++, printf("FAIL: BANK_WRITE at %d refused\n", off);
+        if (dx_bank_write(4095, s + 6, 2) == 0 || dx_bank_write(0, s + 6, 0) == 0)
+            fails++, printf("FAIL: a write past the bank or an empty one was taken\n");
+        if (dx_bank_end(s[4102]) || !dx_user_ok)
+            fails++, printf("FAIL: BANK_END refused a right checksum\n");
+        for (k = 0; k < 32; k++) {
+            dx_unpack(dx_user[k], u);
+            if (!f && memcmp(u, src_voice((uint32_t)k), 155))
+                fails++, printf("FAIL: U%02d after the pieces is not what went in\n", k + 1);
+        }
+        if (dx_bank_write(0, s + 6, 1) == 0)
+            fails++, printf("FAIL: a write without BANK_BEGIN was taken\n");
+        dx_bank_begin();                        /* a wrong checksum: no bank, slot labels again */
+        dx_bank_write(0, s + 6, 4096);
+        if (dx_bank_end((s[4102] + 1u) & 127u) != 1 || dx_user_ok || strcmp(dx_names[DX_NSYNTH + 31], "U32"))
+            fails++, printf("FAIL: a wrong checksum must leave no bank\n");
+        if (!dx_bank_load(s, (uint32_t)n))
+            fails++, printf("FAIL: the dump again\n");
+    }
     s[100] ^= 1;                                /* one bit wrong: the checksum refuses it */
-    if (dx_bank_load(s, (uint32_t)n)) {
+    if (dx_bank_load(s, (uint32_t)n) || dx_user_ok) {
         printf("FAIL: a damaged dump was taken\n");
         fails++;
     }
+    s[100] ^= 1;
     {   /* random bytes with a right checksum: every value in range after dx_sanitize */
         uint32_t sum = 0, r = 7;
         s[0] = 0xF0, s[1] = 0x43, s[2] = 0, s[3] = 9, s[4] = 0x20, s[5] = 0, s[4103] = 0xF7;

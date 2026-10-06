@@ -21,21 +21,20 @@ static uint8_t dx_user_ok;
 static char dx_user_name[DX_NUSER][11] = {"U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08", "U09", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25", "U26", "U27", "U28", "U29", "U30", "U31", "U32"};
 static const char *dx_names[DX_NVOICES] = {DX_SYNTH_NAME_LIST, dx_user_name[0], dx_user_name[1], dx_user_name[2], dx_user_name[3], dx_user_name[4], dx_user_name[5], dx_user_name[6], dx_user_name[7], dx_user_name[8], dx_user_name[9], dx_user_name[10], dx_user_name[11], dx_user_name[12], dx_user_name[13], dx_user_name[14], dx_user_name[15], dx_user_name[16], dx_user_name[17], dx_user_name[18], dx_user_name[19], dx_user_name[20], dx_user_name[21], dx_user_name[22], dx_user_name[23], dx_user_name[24], dx_user_name[25], dx_user_name[26], dx_user_name[27], dx_user_name[28], dx_user_name[29], dx_user_name[30], dx_user_name[31]};
 
-/* DX7 32-voice bulk dump -> the user bank; 0 = not one (header, length or checksum) */
-static int dx_bank_load(const uint8_t *s, uint32_t n)
+static uint8_t dx_bank_busy;                  /* an upload is on (BANK_BEGIN .. BANK_END) */
+
+/* the voice names U01..U32: from the bank's 10-character names, or the slot labels without a bank */
+static void dx_bank_names(void)
 {
-    uint32_t i, k, sum = 0;
-    if (n < 4104u || s[0] != 0xF0 || s[1] != 0x43 || (s[2] & 0xF0) != 0x00 || s[3] != 0x09 || s[4] != 0x20 ||
-        s[5] != 0x00 || s[4103] != 0xF7)
-        return 0;
-    for (i = 0; i < 4096u; i++)
-        sum += s[6 + i];
-    if (((128u - (sum & 127u)) & 127u) != s[4102])
-        return 0;
+    uint32_t k, i, j;
     for (k = 0; k < DX_NUSER; k++) {
-        uint32_t j;
-        for (i = 0; i < 128u; i++)
-            dx_user[k][i] = s[6 + k * 128u + i] & 127u;
+        if (!dx_user_ok) {
+            dx_user_name[k][0] = 'U';
+            dx_user_name[k][1] = (char)('0' + (k + 1u) / 10u);
+            dx_user_name[k][2] = (char)('0' + (k + 1u) % 10u);
+            dx_user_name[k][3] = 0;
+            continue;
+        }
         for (i = 0; i < 10u; i++) {
             char c = (char)dx_user[k][118 + i];
             dx_user_name[k][i] = c >= 32 && c < 127 ? c : ' ';
@@ -44,8 +43,55 @@ static int dx_bank_load(const uint8_t *s, uint32_t n)
             ;
         dx_user_name[k][j] = 0;
     }
+}
+static uint32_t dx_bank_sum(void)            /* the dump's checksum byte of what is in dx_user */
+{
+    uint32_t k, i, sum = 0;
+    for (k = 0; k < DX_NUSER; k++)
+        for (i = 0; i < 128u; i++)
+            sum += dx_user[k][i];
+    return (128u - (sum & 127u)) & 127u;
+}
+static void dx_bank_clear(void)              /* no bank: U01..U32 play INIT VOICE, the USER kit the DX KIT */
+{
+    dx_user_ok = 0;
+    dx_bank_busy = 0;
+    memset(dx_user, 0, sizeof dx_user);
+    dx_bank_names();
+}
+/* the bank in pieces (editor cmds BANK_BEGIN / WRITE / END, editor.c; tools/fm1_bank_upload.py): the voice
+ * bytes of the dump (bytes 6..4101 of the .syx) land in dx_user as they come, then the checksum decides */
+static void dx_bank_begin(void) { dx_bank_clear(); dx_bank_busy = 1; }
+static int dx_bank_write(uint32_t off, const uint8_t *d, uint32_t n)   /* 0 ok, 1 arguments */
+{
+    uint32_t i;
+    if (!dx_bank_busy || !n || off + n > sizeof dx_user)
+        return 1;
+    for (i = 0; i < n; i++)
+        dx_user[(off + i) / 128u][(off + i) % 128u] = d[i] & 127u;
+    return 0;
+}
+static int dx_bank_end(uint32_t checksum)    /* 0 ok (the bank plays), 1 checksum (no bank) */
+{
+    if (!dx_bank_busy || dx_bank_sum() != (checksum & 127u)) {
+        dx_bank_clear();
+        return 1;
+    }
+    dx_bank_busy = 0;
     dx_user_ok = 1;
-    return 1;
+    dx_bank_names();
+    return 0;
+}
+
+/* DX7 32-voice bulk dump (4104 bytes) -> the user bank; 0 = not one (header, length or checksum) */
+static int dx_bank_load(const uint8_t *s, uint32_t n)
+{
+    if (n < 4104u || s[0] != 0xF0 || s[1] != 0x43 || (s[2] & 0xF0) != 0x00 || s[3] != 0x09 || s[4] != 0x20 ||
+        s[5] != 0x00 || s[4103] != 0xF7)
+        return 0;
+    dx_bank_begin();
+    dx_bank_write(0, s + 6, 4096);
+    return dx_bank_end(s[4102]) == 0;
 }
 
 /* a packed voice (128 bytes, the bulk format) -> unpacked (156) */
@@ -215,7 +261,8 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
     for (i = 0; i < DX_N; i++) {
         int32_t x = (a1 - a0) * (int32_t)i;
         int32_t a = a0 + ((x + ((x >> 31) & (CTL - 1))) >> CTL_LOG2);
-        int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 */
+        int32_t s = clamp(buf[i] >> 10, -65535, 65535);   /* one carrier at full level: 32768 (the DX7's
+                                                       * voices are quiet next to SLOOP's; measured: tools/level_presets.py) */
         int32_t y = s - dx_dc_x[pi][vi] + mulq15(dx_dc_y[pi][vi], 32610);   /* DC blocker, ~10 Hz: FM with */
         dx_dc_x[pi][vi] = s;                      /* feedback is not symmetric (a DX7 has the same offset) */
         dx_dc_y[pi][vi] = y = clamp(y, -131071, 131071);

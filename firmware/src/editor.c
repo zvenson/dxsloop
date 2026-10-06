@@ -4,7 +4,9 @@
  * v3 = four tracks: the v1 / v2 commands act on the selected track, cmds 27-30 reach any track;
  * v4 = TRACK_PARAM (31) and the TRACK_CHANGED push (32), enabled by WATCH bit 1;
  * v5 = SLOOP 2.0: INFO ends with the protocol version (5), steps carry level / ratchet bytes,
- * DRUM_STEP (33) reads / writes the drum track's 16 lanes, TRACK ends with the solo mask).
+ * DRUM_STEP (33) reads / writes the drum track's 16 lanes, TRACK ends with the solo mask;
+ * v6 = sloopDX: BANK_BEGIN / WRITE / END / INFO / ERASE (34-38) load a DX7 .syx bank in pieces, INFO ends
+ * with 6; the sample-slot commands 11-15 answer rc 7 (no slots).
  *   F0 7D 46 4C cmd args.. F7     (7D = non-commercial ID, "FL")
  * Values are 14 bit, two 7-bit bytes LSB first, offset by 8192 (so -8192..8191).
  * Every request gets a reply with the same cmd; 23/24/26 are also pushed
@@ -19,7 +21,9 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_WATCH, ED_CHANGED, ED_RELOAD, ED_PING, ED_STEP_CHANGED,              /* v2: live sync */
        ED_TRACK, ED_TRACK_MIX, ED_TRACK_DUMP, ED_TRACK_STEP,                    /* v3: tracks */
        ED_TRACK_PARAM, ED_TRACK_CHANGED,                                        /* v4: any track's parameters */
-       ED_DRUM_STEP };                                                          /* v5: the 16 drum lanes */
+       ED_DRUM_STEP,                                                            /* v5: the 16 drum lanes */
+       ED_BANK_BEGIN, ED_BANK_WRITE, ED_BANK_END, ED_BANK_INFO, ED_BANK_ERASE };  /* v6: the DX7 user bank */
+#define ED_PROTOCOL 6
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -326,7 +330,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         for (i = 0; i < NENGINES; i++)
             ed_str(ENGINES[i]->name, 8);
         ed_b(NTRK);                                       /* v3 */
-        ed_b(5);                                          /* v5: the protocol version */
+        ed_b(ED_PROTOCOL);                                /* v5: the protocol version (6: sloopDX) */
         break;
     case ED_GET:
     case ED_SET:
@@ -644,6 +648,41 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             ed_b(rt >> (7u * i));
         break;
     }
+    case ED_BANK_BEGIN:                                    /* -> rc: the bank is empty until BANK_END takes it */
+        dx_bank_begin();
+        ui.force = 1;
+        ed_b(0);
+        break;
+    case ED_BANK_WRITE: {                                  /* offset (2), data (1..512, 7-bit voice bytes) -> offset, rc */
+        uint32_t off;
+        if (na < 2u)
+            return;
+        off = (uint32_t)a[0] | (uint32_t)a[1] << 7;
+        ed_b(a[0]);
+        ed_b(a[1]);
+        ed_b(dx_bank_write(off, a + 2, na - 2u));
+        break;
+    }
+    case ED_BANK_END: {                                    /* checksum -> rc (0 ok, 1 checksum, 2 flash) */
+        uint32_t rc;
+        if (na < 1u)
+            return;
+        rc = (uint32_t)dx_bank_end(a[0]);
+        if (!rc)
+            rc = (uint32_t)dx_bank_store();
+        ui.force = 1;
+        ed_b(rc);
+        break;
+    }
+    case ED_BANK_INFO:                                     /* -> ok, 32 names */
+        ed_b(dx_user_ok);
+        for (i = 0; i < DX_NUSER; i++)
+            ed_str(dx_user_ok ? dx_user_name[i] : "", 10);
+        break;
+    case ED_BANK_ERASE:                                    /* -> rc */
+        ui.force = 1;
+        ed_b(dx_bank_erase());
+        break;
     case ED_TRACK_PARAM: {                                 /* track, id [, v14] -> track, id, v14 */
         track_t *t;
         if (na < 2u || a[0] >= NTRK || a[1] >= P_COUNT)

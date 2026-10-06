@@ -49,7 +49,7 @@ def main(raw, rep):
         for e, name, v in re.findall(r"/\* (\d+)\.\d+ (.*?) \*/ (-?\d+)", OUT.read_text()):
             old[(int(e), name)] = int(v)              # (by name: presets may move in their table)
     neng = max(int(r[0]) for r in rows) + 1
-    pmax = 16
+    pmax = max(int(r[1]) for r in rows) + 1     # (sloopDX: the 17 DX7 presets)
     tab = [[0] * pmax for _ in range(neng)]
     names = [[""] * pmax for _ in range(neng)]
     for i, (e, p, role, name) in enumerate(rows):
@@ -65,7 +65,7 @@ def main(raw, rep):
              "#pragma once", f"#define PT_ENGINES {neng}u", f"#define PT_MAX {pmax}u",
              "static const int8_t PRESET_TRIM[PT_ENGINES][PT_MAX] = {"]
     for e in range(neng):
-        cells = [f"/* {e}.{p} {names[e][p] or '-'} */ {tab[e][p]}" for p in range(pmax) if names[e][p]]
+        cells = [f"/* {e}.{p} {names[e][p] or '-'} */ {tab[e][p]}" for p in range(pmax)]
         lines.append("    {" + ", ".join(cells) + "},")
     lines.append("};")
     OUT.write_text("\n".join(lines) + "\n")

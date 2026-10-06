@@ -434,6 +434,46 @@ typedef struct {
 static persist_t persist_saved;
 #endif
 
+/* the DX7 user bank (eng_dx7.c dx_user, 4096 bytes) as two storage objects of 16 voices: both valid = a bank */
+#if FELUCCA_FLASH
+#define DX_BANK_HALF (sizeof dx_user / 2u)
+static void dx_bank_boot(void)
+{
+    uint8_t *b = &dx_user[0][0];
+    if (flash_ok && st_load(OBJ_DXBANK0, b, DX_BANK_HALF) == (int)DX_BANK_HALF &&
+        st_load(OBJ_DXBANK0 + 1, b + DX_BANK_HALF, DX_BANK_HALF) == (int)DX_BANK_HALF) {
+        dx_user_ok = 1;
+        dx_bank_names();
+    } else {
+        dx_bank_clear();
+    }
+}
+#endif
+static int dx_bank_store(void)                    /* the bank in RAM -> flash: 0 ok, 2 flash error / no flash */
+{
+#if FELUCCA_FLASH
+    const uint8_t *b = &dx_user[0][0];
+    if (!flash_ok)
+        return 2;
+    if (st_save(OBJ_DXBANK0, b, DX_BANK_HALF) || st_save(OBJ_DXBANK0 + 1, b + DX_BANK_HALF, DX_BANK_HALF))
+        return 2;
+    return 0;
+#else
+    return 2;
+#endif
+}
+static int dx_bank_erase(void)                    /* no bank, in RAM and in flash: 0 ok, 2 flash error */
+{
+    dx_bank_clear();
+#if FELUCCA_FLASH
+    if (flash_ok) {
+        static const uint8_t none[4] = {0, 0, 0, 0};
+        return st_save(OBJ_DXBANK0, none, 4) || st_save(OBJ_DXBANK0 + 1, none, 4) ? 2 : 0;
+    }
+#endif
+    return 0;
+}
+
 static void persist_boot(void)                    /* before settings_init / panel_init */
 {
 #if FELUCCA_ARRANGER
@@ -494,6 +534,7 @@ static void persist_boot(void)                    /* before settings_init / pane
             }
     }
     up_boot();                                     /* user presets */
+    dx_bank_boot();                                /* the DX7 user bank */
 #endif
 }
 

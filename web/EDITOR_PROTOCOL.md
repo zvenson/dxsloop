@@ -1,9 +1,17 @@
-# SLOOP editor protocol (SysEx over USB-MIDI)
+# sloopDX editor protocol (SysEx over USB-MIDI)
 
-The firmware side is `firmware/src/editor.c` (SLOOP is based on Felucca: the frames keep its "FL"
-header). Commands 16-26 (user presets and live sync) form protocol v2; commands 27-30 (tracks) form
-protocol v3; commands 31-32 (any track's parameters) form protocol v4; command 33 and the extra step,
-`INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0).
+The firmware side is `firmware/src/editor.c` (sloopDX is based on SLOOP, which is based on Felucca: the
+frames keep its "FL" header). Commands 16-26 (user presets and live sync) form protocol v2; commands
+27-30 (tracks) form protocol v3; commands 31-32 (any track's parameters) form protocol v4; command 33 and
+the extra step, `INFO` and `TRACK` bytes form protocol v5 (SLOOP 2.0); commands 34-38 (the DX7 user
+bank) form protocol v6 (sloopDX).
+
+**v6 (sloopDX):** one engine, `DX7` (NENGINES = 1; the engine byte of the drum track is 1). Its `P_E0`
+(VOICE) is an enum of 49 names: the 17 factory voices, then U01..U32, the user bank. A DX7 32-voice bulk
+dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
+checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
+`P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
+0 slots, the others rc 7). `INFO` ends with 6.
 
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
@@ -46,7 +54,7 @@ after an engine change.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |
-| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (5); older firmware ends after the names / NTRK |
+| 1 INFO | — | version string, NENGINES, P_COUNT, G_COUNT, NSTEP, P_E0, then NENGINES engine-name strings, then (v3) NTRK (4), then (v5) the protocol version (6 on sloopDX, 5 on SLOOP 2.x); older firmware ends after the names / NTRK |
 | 2 GET | scope, id | scope, id, v14 |
 | 3 SET | scope, id, v14 | scope, id, v14 (the value after clamping). Setting global `G_ENGSEL` (id from DESC label "ENG") changes the engine with its defaults |
 | 4 DUMP | — | engine, preset, then P_COUNT × v14 (the selected track), then G_COUNT × v14 (globals) |
@@ -60,11 +68,11 @@ The local Studio build may append status `1` to a PROJECT reply when playback
 prevents a load/save. No operation occurred; stop playback and try again.
 An absent status byte retains the original reply format.
 | 10 NAMES | engine | engine, count, count preset-name strings, then the two edit-page titles |
-| 11 SMP_BEGIN | slot 0..2 | slot, rc (0 ok). Erases the slot's header sector: the slot is empty from now on |
-| 12 SMP_WRITE | slot, offset (3 × 7 bit, LSB first), pack7 data (≤ 256 bytes) | slot, offset, rc: 0 ok, 1 arguments, 2 erase, 3 write, 4 slot in use (send SMP_BEGIN first). Offset ≥ 512 and a multiple of 256; writes go in increasing order (a write at a 4 KiB boundary erases that sector) |
-| 13 SMP_END | slot, pack7 header (480 bytes) | slot, rc: 0 ok, 1 size, 2 header, 3 data CRC, 4 flash, 5 zones |
-| 14 SMP_ERASE | slot | slot, rc (erases the whole slot, ~1 s) |
-| 15 SMP_INFO | — | slots, slot KiB, then per slot: zone count (0 = empty), name string, data KiB |
+| 11 SMP_BEGIN | slot | slot, rc 7 (sloopDX has no sample slots) |
+| 12 SMP_WRITE | slot, offset (3 bytes), data | slot, offset, rc 7 |
+| 13 SMP_END | slot, data | slot, rc 7 |
+| 14 SMP_ERASE | slot | slot, rc 7 |
+| 15 SMP_INFO | — | 0, 0 (no slots) |
 | 16 UP_LIST | start, count (1..16) | start, count, total slots, then per slot: used (0/1), engine, name string ("" if unused) |
 | 17 UP_GET | slot | slot, used, engine, name, P_COUNT × v14, 16 × (note, flags) |
 | 18 UP_PUT | slot, engine, name, P_COUNT × v14, 16 × (note, flags) | slot, rc (0 ok, 1 args, 2 flash). Writes flash: allow 1 s |
@@ -93,22 +101,25 @@ An absent status byte retains the original reply format.
 | --- | --- | --- |
 | 33 DRUM_STEP | index (get), or index, on (3 bytes), lvl (5 bytes), rat (5 bytes) (set) | index, on (3 bytes), lvl (5 bytes), rat (5 bytes): the drum track's step, whichever track is selected |
 
+| cmd (v6, sloopDX) | Request args | Reply args |
+| --- | --- | --- |
+| 34 BANK_BEGIN | — | rc (0 ok). Starts an upload: the user bank is empty from now on (U01..U32 play INIT VOICE, the USER kit the DX KIT) until `BANK_END` accepts it |
+| 35 BANK_WRITE | offset (2 × 7 bit, LSB first, 0..4095), data (1..512 bytes: the voice bytes of the dump, bytes 6..4101 of the .syx, each 7 bit, as they are) | offset (2 bytes), rc: 0 ok, 1 arguments (no `BANK_BEGIN`, offset + length > 4096, no data) |
+| 36 BANK_END | checksum (byte 4102 of the .syx) | rc: 0 ok (the bank plays and is in flash), 1 checksum (the bank stays empty), 2 flash (the bank plays until power-off) |
+| 37 BANK_INFO | — | ok (0 = no bank, 1 = a bank), then 32 name strings (U01..U32; empty strings without a bank) |
+| 38 BANK_ERASE | — | rc: 0 ok, 2 flash. The user bank is empty again |
+
 **pack7:** groups of up to 7 bytes, each preceded by one byte holding their top bits
 (bit j = bit 7 of byte j).
 
-**User sample slot** (80 KiB each, SAMPLE engine sets USR1..USR3; reference uploader
-`tools/fm1_sample_upload.py`, slot builder `sampleio.user_slot`; the editor's port of it is
-checked byte for byte by `web/test_web.mjs`): header at 0, ADPCM data at 512.
-
-| Offset | Field |
-| --- | --- |
-| 0 | magic `"FSMP"` (u32 0x504D5346), u16 version 1, u8 zone count 1..16, u8 0 |
-| 8 | name, 8 ASCII bytes (0-padded) |
-| 16 | u32 data length (bytes), u32 CRC-32 (zlib) of the data, 8 bytes 0 |
-| 32 | 16 zones × 28 bytes: u32 off (in the data), n (samples), loop start, loop end, rate (Hz / 44100 × 65536); i16 root × 16 (MIDI note), ADPCM predictor at the loop start; u8 step index at the loop start, lo note, hi note, looped (0/1) |
-
-Data is IMA ADPCM, 4 bit, low nibble first, starting from predictor 0 and step index 0.
-All little endian.
+**DX7 user bank** (v6): a DX7 32-voice bulk dump is `F0 43 0n 09 20 00`, 4096 voice bytes (32 × 128,
+the DX7's packed voice format), a checksum byte and `F7`: 4104 bytes. The checksum is
+`(128 - (sum of the 4096 voice bytes) mod 128) mod 128`. The uploader checks the header, the length and the
+checksum itself, then sends `BANK_BEGIN`, eight `BANK_WRITE` of 512 bytes (offsets 0, 512, .. 3584) and
+`BANK_END` with the checksum byte. One request at a time, as always; a `BANK_WRITE` answers in a few ms,
+`BANK_END` writes flash (allow ~1 s). After rc 0 re-read `DESC` of `P_E0` (the voice names) and, if
+wanted, `BANK_INFO`. The reference uploader is `tools/fm1_bank_upload.py`; the firmware keeps the bank in
+`firmware/src/eng_dx7.c` (`dx_user`, two storage objects at 0xA0000..0xA3FFF) and loads it at boot.
 
 `fmt` values (`firmware/src/core.h`):
 
@@ -238,8 +249,8 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 - **`TRACK`** ends with the solo mask (bit per track; GLO + key on the device). A soloed track plays,
   the others are faded out unless soloed too; mute and solo do not change `P_MUTE` of other tracks.
 - **The kit** is the drum track's `P_E0`: `DESC` of `P_E0` with the drum track selected is the enum
-  `KIT` (34 kits: ORIGINAL..DUST, the GM sample kit and its treatments, then the synthesised kits from
-  808). `DESC` of `P_E1..P_E7` there still describes engine 0 (unused).
+  `KIT` (sloopDX: 5 FM kits, DX KIT, TIGHT, BOOM, METAL, USER; SLOOP 2.x had 34 sample kits). `DESC` of
+  `P_E1..P_E7` there still describes engine 0 (unused).
 
 ## Notes for the editor
 
@@ -251,5 +262,5 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
   and installers find it). Updates use the same
   port with other SysEx (the `F0 22 24 35 …` keys, `00 59 …` frames); never send those
   from the editor.
-- **Safety.** Only `PROJECT` save, the sample-slot commands and `UP_PUT` / `UP_STORE` / `UP_ERASE` write flash, and only in
-  Felucca's own storage; never the app or the update area.
+- **Safety.** Only `PROJECT` save, `BANK_END` / `BANK_ERASE` and `UP_PUT` / `UP_STORE` / `UP_ERASE` write
+  flash, and only in Felucca's own storage; never the app or the update area.
