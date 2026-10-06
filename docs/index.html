@@ -25,11 +25,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sloopDX: a DX7 for the M-VAVE FM-1</title>
+<title>sloopDX: M-VAVE FM-1 custom firmware, a DX7 FM synth</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="description" content="sloopDX: free firmware that turns the M-VAVE FM-1 into a six-operator DX7 FM synth with FM drums, voice editing on the device and 256 voices from your own .syx banks.">
+<meta name="description" content="sloopDX: free custom firmware for the M-VAVE FM-1. Turns it into a six-operator DX7 FM synth with voice editing on the device, 256 voices from your own DX7 .syx banks and FM drums. Install from the browser.">
+<link rel="canonical" href="https://dx7.designburgapps.com/">
+<meta name="keywords" content="M-VAVE FM-1, FM-1 custom firmware, FM-1 firmware, DX7, DX7 firmware, FM synthesizer, Dexed, sloopDX, SLOOP, Felucca, syx banks, FM drums">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="sloopDX">
+<meta property="og:title" content="sloopDX: M-VAVE FM-1 custom firmware, a DX7 FM synth">
+<meta property="og:description" content="Free firmware for the M-VAVE FM-1: six operators, 32 algorithms, voice editing on the device, 256 voices from your DX7 .syx banks, FM drums.">
+<meta property="og:url" content="https://dx7.designburgapps.com/">
+<meta property="og:image" content="https://dx7.designburgapps.com/og-image.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="sloopDX: the M-VAVE FM-1 as a DX7">
+<meta name="twitter:description" content="Free custom firmware for the M-VAVE FM-1: a DX7 FM synth with FM drums and .syx banks.">
+<meta name="twitter:image" content="https://dx7.designburgapps.com/og-image.png">
+<meta name="theme-color" content="#151213">
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "sloopDX", "applicationCategory": "MultimediaApplication", "operatingSystem": "M-VAVE FM-1 (firmware); installer and editor in Chrome / Edge", "softwareVersion": "1.9", "description": "Free custom firmware for the M-VAVE FM-1: a six-operator DX7 FM synthesizer with voice editing, 256 voices from .syx banks and FM drums.", "url": "https://dx7.designburgapps.com/", "downloadUrl": "https://dx7.designburgapps.com/webapp/installer/", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "image": "https://dx7.designburgapps.com/og-image.png", "author": {"@type": "Person", "name": "Sven Trogus"}, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "codeRepository": "https://github.com/zvenson/dxsloop"}, {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is sloopDX?", "acceptedAnswer": {"@type": "Answer", "text": "sloopDX is free, open source custom firmware for the M-VAVE FM-1 that turns it into a six-operator DX7 FM synthesizer with FM drums, based on SLOOP and Felucca and on the msfa engine of Dexed."}}, {"@type": "Question", "name": "How do I install custom firmware on the M-VAVE FM-1?", "acceptedAnswer": {"@type": "Answer", "text": "Connect the FM-1 by USB, open the sloopDX web installer in Chrome or Edge and press Install. It takes about a minute; the FM-1 restarts twice."}}, {"@type": "Question", "name": "Can I load DX7 .syx banks?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. sloopDX loads standard DX7 32-voice bulk dumps (.syx, 4104 bytes) into 8 banks, 256 voices, from the web editor or a command line tool."}}, {"@type": "Question", "name": "Can I edit DX7 voices on the FM-1?", "acceptedAnswer": {"@type": "Answer", "text": "Yes: algorithm, feedback and every operator's level, ratio, detune, envelope and keyboard scaling, on the device and in the web editor."}}, {"@type": "Question", "name": "Can I go back to the original FM-1 firmware?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, with M-VAVE's own updater (M-UPGRADE) and the official firmware, or from the installer page."}}, {"@type": "Question", "name": "Is it safe?", "acceptedAnswer": {"@type": "Answer", "text": "It is unofficial firmware, free and without warranty, installed at your own risk. Back up your projects first and do not unplug the FM-1 while it writes."}}]}]</script>
+
 <style>
   :root { --bg: #151213; --panel: #221e1f; --panel2: #2e2a2b; --line: #3a3435; --fg: #efe8e1; --dim: #a39a94;
           --cyan: #42f5f5; --blue: #afd9f4; --pink: #f4c0cb; --beige: #e6d1b9; --led: #ff2e22; }
@@ -135,6 +151,11 @@
   .risk b.ico { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--pink); color: #111; display: grid;
                 place-items: center; font-size: 20px; font-weight: 800; }
   .risk p { margin: 0; color: #d8d0c9; font-size: 15px; }
+  .faq { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .faq details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; }
+  .faq summary { cursor: pointer; font-weight: 650; font-size: 17px; }
+  .faq p { color: var(--dim); margin: 10px 0 0; }
+  @media (max-width: 860px) { .faq { grid-template-columns: 1fr; } }
   footer { padding: 36px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
   footer .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
   @media (max-width: 980px) {
@@ -179,7 +200,7 @@
 
 <header class="hero" id="top"><div class="wrap">
   <div>
-    <p class="eyebrow">Free firmware for the M-VAVE FM-1</p>
+    <p class="eyebrow">Free custom firmware for the M-VAVE FM-1</p>
     <h1>The FM-1,<br>as a <b>DX7</b>.</h1>
     <p class="lead">Six operators, 32 algorithms, Dexed's sound. Edit every operator on the FM-1 itself, play 256 voices from your own .syx banks, and jam with FM drums in SLOOP's live workflow.</p>
     <div class="cta">
@@ -259,6 +280,18 @@
     <li><h3>Load your banks</h3><p>In the <a href="webapp/editor/">editor</a>, tab Library: choose a bank 1–8 and drop a .syx. Original DX7 ROMs: yamahablackboxes.com.</p></li>
   </ol>
   <div class="risk"><b class="ico">!</b><p><b>Use at your own risk.</b> sloopDX is unofficial, custom firmware, free and without any warranty. Installing it replaces the FM-1's firmware; an interrupted update can leave the device unable to start. Back up your projects and banks first. The author accepts no liability for damage or data loss. <a href="impressum.html">Disclaimer &amp; Impressum</a></p></div>
+</div></section>
+
+<section id="faq"><div class="wrap">
+  <h2>Questions about the <b>FM-1 firmware</b></h2>
+  <div class="faq">
+    <details><summary>What is sloopDX?</summary><p>sloopDX is free, open source custom firmware for the M-VAVE FM-1 that turns it into a six-operator DX7 FM synthesizer with FM drums, based on SLOOP and Felucca and on the msfa engine of Dexed.</p></details>
+    <details><summary>How do I install custom firmware on the M-VAVE FM-1?</summary><p>Connect the FM-1 by USB, open the sloopDX web installer in Chrome or Edge and press Install. It takes about a minute; the FM-1 restarts twice.</p></details>
+    <details><summary>Can I load DX7 .syx banks?</summary><p>Yes. sloopDX loads standard DX7 32-voice bulk dumps (.syx, 4104 bytes) into 8 banks, 256 voices, from the web editor or a command line tool.</p></details>
+    <details><summary>Can I edit DX7 voices on the FM-1?</summary><p>Yes: algorithm, feedback and every operator's level, ratio, detune, envelope and keyboard scaling, on the device and in the web editor.</p></details>
+    <details><summary>Can I go back to the original FM-1 firmware?</summary><p>Yes, with M-VAVE's own updater (M-UPGRADE) and the official firmware, or from the installer page.</p></details>
+    <details><summary>Is it safe?</summary><p>It is unofficial firmware, free and without warranty, installed at your own risk. Back up your projects first and do not unplug the FM-1 while it writes.</p></details>
+  </div>
 </div></section>
 
 <footer><div class="wrap">

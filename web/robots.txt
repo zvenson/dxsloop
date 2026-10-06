@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /impressum.html
+Sitemap: https://dx7.designburgapps.com/sitemap.xml
