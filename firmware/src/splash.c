@@ -21,17 +21,50 @@ static void sloopdx_logo_draw(uint32_t y0)
     }
 }
 
-/* the boot screen in the DX7's colours: the wordmark and the 32 algorithms, the version in the red LED,
- * where it comes from in the LCD's green */
+/* the boot screen in the DX7's colours: the wordmark, then an algorithm as the voice list draws it (sharp
+ * operator boxes, ui_voice.c ve_draw_alg), the version in the red LED */
+static void sloopdx_alg_frame(uint32_t alg)
+{
+    uint32_t pass;
+    char b[4];
+    const char *v = FELUCCA_VERSION;
+    if (v[0] == 's' && v[1] == 'l' && v[7] == ' ')
+        v += 8;                                         /* "sloopDX 1.4" -> "1.4" */
+    fmt_int(b, (int32_t)alg + 1);
+    for (pass = 0; pass < 2u; pass++) {                 /* 240 x 180 in two halves (the canvas holds 124 rows) */
+        cv_begin(240, 90, SPLASH_PANEL);
+        cv_oy = -90 * (int32_t)pass;
+        cv_text(4, 0, &FONT_S, "algorithm", RGB(206, 200, 194));
+        cv_text(4, 16, &FONT_L, b, RGB(255, 46, 34));
+        cv_text(236 - text_w(&FONT_S, v), 0, &FONT_S, v, RGB(230, 209, 185));
+        ve_draw_alg(alg, RGB(244, 192, 203));
+        cv_text(120 - text_w(&FONT_S, "based on sloop + felucca") / 2, 166, &FONT_S, "based on sloop + felucca", RGB(140, 132, 128));
+        cv_oy = 0;
+        cv_blit(0, 60u + 90u * pass);
+    }
+}
+
 static void sloopdx_splash(void)
 {
     lcd_fill(0, 0, 240, 240, SPLASH_PANEL);
-    sloopdx_logo_draw(4);
-    const char *v = FELUCCA_VERSION;
-    if (v[0] == 's' && v[1] == 'l' && v[7] == ' ')
-        v += 8;                                         /* "sloopDX 1.3" -> "1.3" under the wordmark */
-    cv_begin(240, 44, SPLASH_PANEL);
-    cv_text(120 - text_w(&FONT_S, v) / 2, 4, &FONT_S, v, RGB(255, 46, 34));
-    cv_text(120 - text_w(&FONT_S, "dx7 synth - based on felucca") / 2, 22, &FONT_S, "dx7 synth - based on felucca", RGB(186, 222, 112));
-    cv_blit(0, 194);
+    sloopdx_logo_draw(2);
+    sloopdx_alg_frame(0);
+}
+
+/* the boot screen held longer: the 32 algorithms go by as on a DX7 being browsed, then algorithm 1 stays */
+static void sloopdx_splash_run(void)
+{
+    uint32_t a, k;
+    for (a = 0; a < 32u; a++) {
+        sloopdx_alg_frame(a);
+        for (k = 0; k < 7u; k++) {                      /* ~70 ms a frame */
+            fm1_wdt_feed();
+            fm1_delay_ms(10);
+        }
+    }
+    sloopdx_alg_frame(0);
+    for (k = 0; k < 80u; k++) {                         /* then it stays ~0.8 s */
+        fm1_wdt_feed();
+        fm1_delay_ms(10);
+    }
 }

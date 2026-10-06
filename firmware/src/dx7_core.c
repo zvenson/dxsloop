@@ -9,7 +9,8 @@
  * Dexed, all off the sound path of a plain note: no portamento, no MTS / scale tuning, no pitch bend or
  * controllers (the caller passes its pitch offset), the LFO per note (Dexed: one per synth), the
  * feedback history cleared at note-on (Dexed leaves it from the last note: hits sound alike here).
- * With DX_LG_N 6 the render is bit-exact against Dexed (tests/dx7_exact_test.c). */
+ * With DX_LG_N 6 the render matches Dexed: 99 % of samples identical, the rest within 1-2 LSB, mostly where
+ * AMS uses a table for Dexed's float exp (tests/dx7_exact_test.cc). */
 #ifndef DX_LG_N
 #define DX_LG_N 5                /* SLOOP renders blocks of CTL = 32 samples */
 #endif

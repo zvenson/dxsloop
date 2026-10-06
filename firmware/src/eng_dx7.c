@@ -264,6 +264,13 @@ static dxv_t *dx_of(const track_t *t, const voice_t *v, uint32_t *pi, uint32_t *
 }
 
 static inline int dx_clampi(int x, int lo, int hi) { return x < lo ? lo : x > hi ? hi : x; }
+/* a DX7 rate moved by d (+: slower, -: faster); slower stops at floor (or at the rate itself, if that is lower).
+ * Rate 28 is about 3 s for a full swell, 22 about 8 s of release, 20 a long decay */
+static int dx_slower(int r, int d, int floor)
+{
+    int lo = r < floor ? r : floor;
+    return dx_clampi(r - d, d > 0 ? lo : 1, 99);
+}
 
 /* voice vi with the part's knobs applied: the quick knobs (EDIT: BRITE ATK DEC REL FDBK, -40..40, 0 = the
  * voice as programmed), the ENV page (ATK DEC REL 0 = as programmed, more = slower / longer; SUS 127 = as
@@ -291,13 +298,14 @@ static void dx_voice_build(const track_t *t, uint32_t vi, uint8_t *p)
         int carrier = (DX_ALG[alg][op] & 3) == 0;  /* (writes the output, not a bus) */
         if (!carrier && o[16])
             o[16] = (uint8_t)dx_clampi(o[16] + bright, 0, 99);
-        if (carrier) {
-            o[0] = (uint8_t)dx_clampi(o[0] - atk - eatk, 1, 99);
-            o[3] = (uint8_t)dx_clampi(o[3] - rel - erel, 1, 99);
+        if (carrier) {                            /* slower, but never below a usable rate: a voice that
+                                                   * already swells slowly must not go silent for minutes */
+            o[0] = (uint8_t)dx_slower(o[0], atk + eatk, 28);
+            o[3] = (uint8_t)dx_slower(o[3], rel + erel, 22);
             o[6] = (uint8_t)(o[6] * sus / 127);
         }
-        o[1] = (uint8_t)dx_clampi(o[1] - dec - edec, 1, 99);
-        o[2] = (uint8_t)dx_clampi(o[2] - dec - edec, 1, 99);
+        o[1] = (uint8_t)dx_slower(o[1], dec + edec, 20);
+        o[2] = (uint8_t)dx_slower(o[2], dec + edec, 20);
     }
     p[135] = (uint8_t)dx_clampi(p[135] + fb, 0, 7);
     if (pi < NPART && dx_opmute[pi] && dx_opmute_v[pi] != vi)
@@ -396,6 +404,12 @@ static void dx7_render(track_t *t, voice_t *v, int32_t *out, uint32_t n, const v
     /* the part's pitch (glide, LFO, tuning, pitch envelope) against the note the voice was started on;
      * 1/16 semitone -> Q24 log2 */
     int32_t pitch = ((m->pitch16 - (int32_t)dx_note0[pi][vi] * 16) * 349525) >> 2;
+    {   /* what pitch16 leaves out (voice.c puts it into inc): the fraction of 1/16 semitone (glide), the
+         * unison detune and the fine tuning, as inc / PITCH_INC - 1 in 1/4096; x 5909 = Q24 log2 */
+        int32_t base = (int32_t)PITCH_INC[m->pitch16], unit = base >> 12;
+        if (unit > 0)
+            pitch += ((int32_t)(m->inc - (uint32_t)base) / unit) * 5909;
+    }
     if (!d || n != DX_N)
         return;
     for (i = 0; i < DX_N; i++)

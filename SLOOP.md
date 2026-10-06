@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 1.3
+# sloopDX 1.4
 
-**SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and bit-exact against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
+**SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 1.3 (DX7 voice editing on the FM-1 and in the editor, in the DX7's colours; four drum kits with their own voices; the ENV page and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.4 (DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
 ### From SLOOP 2.3
 
@@ -252,7 +252,7 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 
 ## The DX7 engine
 
-Every synth track is a six-operator FM synthesizer: the DX7 voice of Dexed's msfa core, ported to integer arithmetic for the FM-1's chip and checked bit-exact against Dexed, so a patch sounds here as it does there. 32 algorithms, six operators each with a rate / level envelope, keyboard rate and level scaling, velocity sensitivity and amplitude modulation, a pitch envelope, an LFO with pitch and amp modulation and key sync, operator feedback, transpose. The three parts share **8 voices**; each part plays the whole keyboard (no split).
+Every synth track is a six-operator FM synthesizer: the DX7 voice of Dexed's msfa core, ported to integer arithmetic for the FM-1's chip and checked against Dexed (99 % of samples identical, the rest within 1-2 LSB), so a patch sounds here as it does there. 32 algorithms, six operators each with a rate / level envelope, keyboard rate and level scaling, velocity sensitivity and amplitude modulation, a pitch envelope, an LFO with pitch and amp modulation and key sync, operator feedback, transpose. The three parts share **8 voices**; each part plays the whole keyboard (no split).
 
 ### Voice edit (DX7)
 
@@ -428,7 +428,7 @@ The glow is a short pulse on every scan of the panel (about 900 times a second):
 | | |
 | --- | --- |
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
-| Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa, bit-exact |
+| Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
 | Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |

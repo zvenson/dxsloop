@@ -33,7 +33,7 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Editor ohne Sample-Seiten, KIT-Liste = 5 FM-Kits, DX7-Parameter, .syx-Upload im Library-Tab;
       `node web/test_web.mjs` läuft wieder in `tests/run_tests.sh`.
 - [x] Installer-Seite auf sloopDX (`web/index_pkg.html` Vorlage, `docs/` erzeugt mit
-      `python3 web/make_site.py build/felucca.fwsc 1.3 docs`); `docs/firmware/sloopdx-1.3.fwsc`.
+      `python3 web/make_site.py build/felucca.fwsc 1.4 docs`); `docs/firmware/sloopdx-1.4.fwsc`.
 - [x] GitHub Action `.github/workflows/build.yml` (Build, Tests, Artefakt, Release bei `v*`-Tag).
       Ob der Runner pkgman.jieliapp.com und gitee erreicht, zeigt der erste Lauf.
 - [x] `INSTALL-SLOOPDX.bat`, `build-sloopdx.ps1`, `OPEN-EDITOR.bat`, `tools/build_windows.py`.
@@ -62,12 +62,12 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
       mit Dexed/msfa (Apache-2.0), Sample-Lizenzen raus.
 - [x] ABOUT-Seite (`ui_menu.c`): `GITHUB.COM/ZVENSON/DXSLOOP`.
 - [ ] isod89 per Issue über den Fork informieren (guter Ton, keine Pflicht).
-- [ ] Versionierung: `FELUCCA_VERSION "sloopDX 1.3"` (`ui.c`), Paket FM-1_900; das erste Release mit
-      `./build.sh --release 1.3` (Identität FM-1_913) und Tag `v1.3`.
+- [ ] Versionierung: `FELUCCA_VERSION "sloopDX 1.4"` (`ui.c`), Paket FM-1_900; das erste Release mit
+      `./build.sh --release 1.4` (Identität FM-1_914) und Tag `v1.4`.
 
 ## Nicht vergessen
 
-- `tests/dx7ref/` prüft den DX7-Core bit-genau gegen Dexed; braucht Dexed-Quellen:
+- `tests/dx7ref/` prüft den DX7-Core gegen Dexed (Stand 2026-10-06: 98,97 % der Samples identisch, Rest 1-2 LSB); braucht Dexed-Quellen:
   `MSFA=<dexed>/Source/msfa sh tests/dx7ref/build.sh && build/host/dx7ref/dx7_exact_test 300`.
 - Nach jeder Klangänderung: `GOLDEN_UPDATE=1 sh tests/run_tests.sh`, Diff von `tests/golden.txt`
   ansehen, mit committen. Nach Änderungen an den Render-Schleifen: `BUDGET_UPDATE=1`.

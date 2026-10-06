@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-BLUE, GREEN, YELLOW, ORANGE = (40, 124, 255), (30, 204, 112), (255, 198, 24), (255, 98, 26)
+BLUE, GREEN, YELLOW, ORANGE = (0x42, 0xf5, 0xf5), (0xaf, 0xd9, 0xf4), (0xf4, 0xc0, 0xcb), (0xe6, 0xd1, 0xb9)   # sloopDX: cyan, light blue, pink, beige (the DX7's panel)
 WHITE, BLACK = (242, 242, 242), (0, 0, 0)
 HEX = lambda c: "#%02X%02X%02X" % c
 WAVE = [BLUE, GREEN, YELLOW, ORANGE]
@@ -94,7 +94,7 @@ def glyphs():
 
 GAP = 16
 DESC = 30                                             # the p's descender
-WORD_COLS = [WHITE] * 5 + [ORANGE] * 2                # "sloop" white, "DX" in the accent
+WORD_COLS = [WHITE] * 5 + [BLUE] * 2                  # "sloop" white, "DX" in the accent (cyan)
 
 
 def word_width(k):
@@ -197,7 +197,7 @@ def svg(kind):
 
 
 # ---- firmware splash ---------------------------------------------------------------------------
-SPLASH_W, SPLASH_H = 240, 188
+SPLASH_W, SPLASH_H = 240, 58
 SPLASH_K, SPLASH_KW = 0.54, 0.42
 
 
@@ -209,7 +209,7 @@ def rgb565(c):
 # the boot splash in the style of the DX7's panel: the dark panel, the wordmark (DX in mint), and the 32
 # algorithms as the DX7 prints them above its keys, drawn here from the firmware's own table (dx7_core.c
 # DX_ALG): carriers mint on the bottom row, modulators light blue above the operator they feed, feedback orange
-DX_PANEL, DX_LABEL, DX_MINT, DX_BLUE, DX_ORANGE = (46, 42, 43), (206, 200, 194), (72, 206, 186), (152, 190, 232), (246, 170, 110)
+DX_PANEL, DX_LABEL, DX_MINT, DX_BLUE, DX_ORANGE = (46, 42, 43), (206, 200, 194), (0x42, 0xf5, 0xf5), (0xaf, 0xd9, 0xf4), (0xf4, 0xc0, 0xcb)
 
 
 def dx_algs():
@@ -286,20 +286,16 @@ def draw_alg(d, fl, ox, oy, w, h, s):
 
 
 def splash_image():
+    """the wordmark alone (the algorithms are drawn by the firmware, pixel-sharp: splash.c)"""
     global WORD_COLS
     ss = 4
     im = Image.new("RGB", (SPLASH_W * ss, SPLASH_H * ss), DX_PANEL)
     d = ImageDraw.Draw(im)
     keep = WORD_COLS
-    WORD_COLS = [WHITE] * (len(keep) - 2) + [DX_MINT, DX_MINT]   # sloop in white, DX in mint
-    kw = 0.40 * ss
-    draw_word(d, (SPLASH_W * ss - word_width(kw)) / 2, 8 * ss + (CAP - XH) * kw, kw)
+    WORD_COLS = [WHITE] * (len(keep) - 2) + [DX_MINT, DX_MINT]   # sloop in white, DX in cyan
+    kw = 0.42 * ss
+    draw_word(d, (SPLASH_W * ss - word_width(kw)) / 2, 2 * ss + (CAP - XH) * kw, kw)
     WORD_COLS = keep
-    algs = dx_algs()
-    cw, ch, x0, y0 = 28, 28, 8, 70                   # 4 rows of 8, as the DX7's print runs in two rows of 16
-    for n, fl in enumerate(algs):
-        r, c = divmod(n, 8)
-        draw_alg(d, fl, (x0 + c * cw) * ss, (y0 + r * ch) * ss, (cw - 3) * ss, (ch - 3) * ss, ss)
     return im.resize((SPLASH_W, SPLASH_H), Image.LANCZOS)
 
 

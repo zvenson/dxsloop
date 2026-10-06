@@ -14,11 +14,11 @@ static int dx_bank_store(void);                          /* project.c: the user 
 #define DX_PANEL RGB(46, 42, 43)
 #define DX_TRACK RGB(70, 64, 65)
 #define DX_LABEL RGB(206, 200, 194)
-#define DX_MINT RGB(72, 206, 186)
-#define DX_BLUE RGB(152, 190, 232)
-#define DX_PINK RGB(238, 140, 138)
-#define DX_ORANGE RGB(246, 170, 110)
-#define DX_LCD RGB(186, 222, 112)
+#define DX_MINT RGB(66, 245, 245)                /* (cyan) */
+#define DX_BLUE RGB(175, 217, 244)
+#define DX_PINK RGB(244, 192, 203)
+#define DX_ORANGE RGB(230, 209, 185)              /* (beige) */
+#define DX_LCD RGB(230, 209, 185)
 #define DX_LED RGB(255, 46, 34)
 enum { VL_TOP, VL_OP, VL_PEG, VL_LFO, VL_NAME };
 enum { VK_PAR, VK_VOICE, VK_GROUP, VK_NAME, VK_COPY, VK_INIT, VK_STORE, VK_MORE, VK_OPON };

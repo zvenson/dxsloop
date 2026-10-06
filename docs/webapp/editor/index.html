@@ -79,8 +79,8 @@
   svg.env polyline { fill: none; stroke: var(--fg); stroke-width: 1.5; }
   /* the Voice tab in the DX7's colours: the panel, mint membrane keys, light blue operators, salmon and
      orange functions, the red LED, the green LCD */
-  #p-voice { --dxpanel: #2e2a2b; --dxtrack: #4a4344; --dxlabel: #cec8c2; --dxmint: #48ceba; --dxblue: #98bee8;
-             --dxpink: #ee8c8a; --dxorange: #f6aa6e; --dxlcd: #badf70; --dxled: #ff2e22;
+  #p-voice { --dxpanel: #2e2a2b; --dxtrack: #4a4344; --dxlabel: #cec8c2; --dxmint: #42f5f5; --dxblue: #afd9f4;
+             --dxpink: #f4c0cb; --dxorange: #e6d1b9; --dxlcd: #e6d1b9; --dxled: #ff2e22;
              background: var(--dxpanel); color: var(--dxlabel); padding: 12px 14px; border-radius: 3px; }
   #p-voice h2 { border-bottom-color: var(--dxmint); color: #fff; }
   #p-voice .dim, #p-voice h3 { color: #9a928c; }
@@ -1553,7 +1553,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.3 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.4 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : 8);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing (sloopDX) */

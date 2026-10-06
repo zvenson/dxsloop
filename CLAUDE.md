@@ -1,7 +1,7 @@
 # sloopDX
 
 SLOOP (fork of Felucca) for the M-VAVE FM-1, reduced to one engine: a DX7 (Dexed's msfa core ported
-to integer C, bit-exact) plus FM drums made with the same core. GPL-3.0. Branch `sloopdx`; `main` is
+to integer C, within 1 LSB of Dexed) plus FM drums made with the same core. GPL-3.0. Branch `sloopdx`; `main` is
 SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 
 ## Hard rules
@@ -39,7 +39,8 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
   After an intended sound change: `GOLDEN_UPDATE=1`, review `tests/golden.txt`, commit it.
 - Drums: `tests/drumkit_test.c` (every kit × lane, choke, burst, click, WAV demo).
 - .syx import: `tests/dx7_syx_test.c` (self-contained; pass a .syx path to test a real dump).
-- Bit-exactness against Dexed: `tests/dx7ref/` (needs Dexed's `Source/msfa`).
+- Against Dexed: `tests/dx7ref/` (needs Dexed's `Source/msfa` plus its tuning-library and MTS-ESP headers;
+  2026-10-06 vs Dexed master: 98.97 % of samples identical, the rest 1-2 LSB, worst -62 dB with AMS).
 - Web editor tests: `node web/test_web.mjs` (run by `run_tests.sh` when node exists). Bank upload CLI:
   `tests/bank_upload_test.py`.
 
