@@ -106,11 +106,12 @@
   footer a { color: var(--blue); }
   @media (max-width: 980px) { .hero .wrap, .grid { grid-template-columns: 1fr; } nav.bar .links a:not(.gh) { display: none; } }
 </style>
-<!-- Matomo (self-hosted, matomo.designburgapps.com; without cookies: no consent banner needed) -->
+<!-- Matomo (self-hosted, matomo.designburgapps.com): no cookies, IPs anonymised on the server, Do Not Track respected -->
 <script>
   var _paq = window._paq = window._paq || [];
   /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
   _paq.push(['disableCookies']);
+  _paq.push(['setDoNotTrack', true]);
   _paq.push(['trackPageView']);
   _paq.push(['enableLinkTracking']);
   (function() {
