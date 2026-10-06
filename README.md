@@ -31,18 +31,16 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 ## Status
 
-This is a work in progress. The host test suite passes (audio renders, voices, sequencer, UI, storage, update loader). It has not run on a device yet. Open items (the full list is in TODO.md):
+This is a work in progress. The firmware builds (RAM 81 KB of 96 KB) and the host test suite passes (audio renders, voices, sequencer, UI, storage, update loader, .syx import, bank upload, web pages). It has not run on a device yet. Open items (the full list is in TODO.md):
 
-- **RAM:** the DX7 state adds about 18 KB, and `tools/build.py` checks the limit at link time. If it is too much, the user bank moves to flash.
-- **CPU:** a real-chip measurement with all voices sounding is still missing.
-- **Loading a .syx bank on the device:** the editor command and the flash slot are not done yet. The import code and its test are.
-- **Web editor:** still SLOOP's; the sample pages need to come out.
+- **Device test:** CPU with all voices sounding, levels, and the .syx bank on a real FM-1.
+- **Voices:** the bass, clav and marimba voices are quiet (their level trims sit at the cap); the factory bank wants a pass by ear.
 
 ## Building
 
 See [BUILDING.md](BUILDING.md): the JieLi toolchain (`tools/get_toolchain.sh`) and three files of the AC79 SDK, then `./build.sh`. `tests/run_tests.sh` runs the host tests. To check the DX7 core against Dexed: `MSFA=<dexed>/Source/msfa sh tests/dx7ref/build.sh`.
 
-Install the resulting `.fwsc` with `python tools/fm1_install.py build/<name>.fwsc`. Going back works with M-VAVE's own updater (M-UPGRADE) and the official firmware.
+Install the resulting `.fwsc` with `python tools/fm1_install.py build/<name>.fwsc`, or from the browser: on Windows `INSTALL-SLOOPDX.bat` builds and opens the web installer (`OPEN-EDITOR.bat` opens the editor); the installer page in `docs/` (GitHub Pages) carries the current package. Going back works with M-VAVE's own updater (M-UPGRADE) and the official firmware.
 
 > Custom firmware is installed at your own risk. If an FM-1 no longer starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 

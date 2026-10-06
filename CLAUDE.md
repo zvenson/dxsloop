@@ -18,7 +18,9 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 
 - `firmware/src/dx7_core.c`: the DX7 voice (`dxv_t`, `dx_init`, `dx_compute`, envelopes, LFO).
 - `firmware/src/eng_dx7.c`: the engine (`ENG_DX7`): factory voices, user bank `dx_user` (packed .syx,
-  `dx_bank_load`, `dx_unpack`, `dx_sanitize`), macros BRITE/ATK/DEC/REL/FDBK, DC blocker.
+  `dx_bank_begin/write/end` for the editor's pieces, `dx_bank_load`, `dx_unpack`, `dx_sanitize`), macros
+  BRITE/ATK/DEC/REL/FDBK, DC blocker. Flash side of the bank: `project.c` (`dx_bank_boot/store/erase`,
+  storage objects `OBJ_DXBANK0/1` at 0xA0000). Editor cmds 34-38 in `editor.c` (protocol v6).
 - `firmware/src/drums.c`: FM drum track, 16 lanes, kits in `FM_KITS` (DX KIT, TIGHT, BOOM, METAL, USER).
 - `firmware/src/dx7_bank.h`: generated voices + `DX_DRUM[]` table (`tools/gen_dx7_bank.py`).
 - `firmware/src/engines.c`: `ENGINES[] = {&ENG_DX7}`, NENGINES 1 (`core.h`). Old engine numbers in
@@ -28,7 +30,7 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 ## Build and test
 
 - Firmware: `./build.sh` (needs the JieLi toolchain `tools/get_toolchain.sh` and the AC79 SDK, see
-  BUILDING.md). Syntax-only without the toolchain:
+  BUILDING.md). Builds: RAM about 81 KB of 96. Syntax-only without the toolchain:
   `cc -fsyntax-only -w -Ibuild/gen -Ifirmware/src -Ifirmware/hal -DFELUCCA_ID='"FM-1_909"' firmware/src/felucca.c`
 - Generated headers: `python3 tools/build.py` step `generate()`, or by hand
   `python3 tools/gen_logo.py build/gen/sloopdx_logo.h` etc. (`build/gen/` is needed by the host tests).
@@ -38,7 +40,8 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 - Drums: `tests/drumkit_test.c` (every kit × lane, choke, burst, click, WAV demo).
 - .syx import: `tests/dx7_syx_test.c` (self-contained; pass a .syx path to test a real dump).
 - Bit-exactness against Dexed: `tests/dx7ref/` (needs Dexed's `Source/msfa`).
-- Web editor tests (`node web/test_web.mjs`) are switched off until the editor is updated.
+- Web editor tests: `node web/test_web.mjs` (run by `run_tests.sh` when node exists). Bank upload CLI:
+  `tests/bank_upload_test.py`.
 
 ## Style
 

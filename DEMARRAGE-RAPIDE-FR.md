@@ -1,8 +1,8 @@
-<p align="center"><img src="assets/logo/sloop-logo.png" alt="SLOOP" width="360"></p>
+<p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="360"></p>
 
-# SLOOP 2.0 — démarrage rapide
+# sloopDX 1.0 — démarrage rapide
 
-**SLOOP** transforme le M-VAVE FM-1 en groovebox à jouer en live, pour tous les styles : trois synthés et une batterie de 16 sons sur les touches blanches, 9 moteurs de synthèse, 68 sons rangés par famille (basses, claviers, orgues, nappes, leads, plucks, stabs), 37 kits de batterie (808, 909, trap, phonk, house, techno, UK garage, jungle, amapiano, synthwave, chiptune, ambient…), tes propres samples, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues.
+**sloopDX** transforme le M-VAVE FM-1 en vrai synthé FM : trois synthés et une batterie de 16 sons sur les touches blanches, un seul moteur — une voix DX7 à six opérateurs (le cœur msfa de Dexed, porté en entier et identique au bit près), 17 sons d'usine et tes propres banques DX7 (.syx, 32 sons), cinq kits de batterie FM faits avec le même moteur, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues. Le reste — pistes, calques, séquenceur, mode chanson, effets — est celui de SLOOP.
 
 Le manuel complet (en anglais) : [SLOOP.md](SLOOP.md).
 
@@ -10,7 +10,7 @@ Le manuel complet (en anglais) : [SLOOP.md](SLOOP.md).
 
 ## Installer
 
-1. Double-clique **`INSTALL-SLOOP.bat`** dans le dossier SLOOP : il compile le firmware et ouvre l'installateur sur `http://localhost:8766/webapp/installer/`.
+1. Double-clique **`INSTALL-SLOOPDX.bat`** dans le dossier sloopDX : il compile le firmware et ouvre l'installateur sur `http://localhost:8766/webapp/installer/`.
 2. Dans **Chrome ou Edge**, branche le FM-1 en USB (câble de données, directement, sans hub).
 3. **INSTALL**, autorise le MIDI, attends *Done*. Garde la fenêtre noire ouverte jusque-là.
 
@@ -18,11 +18,11 @@ L'éditeur web : `http://localhost:8766/webapp/editor/` (ou **`OPEN-EDITOR.bat`*
 
 ## Un beat en soixante secondes
 
-1. **ALGORITHM** sur la piste **4** (orange, batterie). Les touches blanches jouent 16 sons : **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 charley**… **PRESETS** choisit le kit : essaie *808* ou *BOOMBAP*.
+1. **ALGORITHM** sur la piste **4** (orange, batterie). Les touches blanches jouent 16 sons : **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 charley**… **PRESETS** choisit le kit : essaie *TIGHT* ou *BOOM*.
 2. **REC** : *rec ready*. **Joue librement, à ton tempo** — pas de clic, pas de décompte. Garde **OCT−** enfoncé en frappant pour des ghost notes, **OCT+** pour des frappes fortes.
 3. **Appuie sur REC sur le « 1 » qui suit ta dernière mesure** : la boucle se ferme, sa durée fixe le tempo, les frappes se calent sur la grille et la boucle joue aussitôt.
 4. **REC** pendant la lecture : tu enregistres par-dessus (overdub). Maintiens **ARP** et garde la touche du charley : un roulement en 1/16, enregistré en ratchets.
-5. **ALGORITHM** sur la piste **1** (bleue, *808 BOOM*), **REC**, joue une basse. Maintiens **SCL** et appuie sur la tonalité du morceau (ex. ré) ; sur la piste 2, maintiens SCL et tourne **KNOB 1** sur *7TH* : chaque touche blanche joue un accord de la gamme.
+5. **ALGORITHM** sur la piste **1** (bleue, *FM BASS*), **REC**, joue une basse. Maintiens **SCL** et appuie sur la tonalité du morceau (ex. ré) ; sur la piste 2 (*EPIANO 1*), maintiens SCL et tourne **KNOB 1** sur *7TH* : chaque touche blanche joue un accord de la gamme.
 6. Maintiens **FX** + une touche blanche : un effet punch-in. Toujours FX enfoncé : **KNOB 2** = DUST (vinyle), **KNOB 3** = DUCK (pompe).
 7. Une erreur ? Maintiens **EDIT** et appuie sur **OCT−** : annuler.
 
@@ -68,7 +68,24 @@ Chaque bouton de fonction a deux vies. **Tapé** (appuyé puis relâché sans ri
 | **OCT− / OCT+** | synthés : octave (les deux : retour à 0) · batterie, maintenus : ghost / fort |
 | **HOME** | l'écran TRACKS · maintenu : menu (couleur, coupe-bas, zoom, calibration, à propos) · tapé pendant qu'un calque est maintenu : le verrouille |
 
-## La batterie : 16 sons sur les touches blanches
+## Le synthé DX7
+
+Chaque piste synthé est un DX7 : six opérateurs, 32 algorithmes, enveloppes, LFO, feedback — le même son que Dexed pour le même patch. **PRESETS** parcourt les 17 sons d'usine (EPIANO 1 et 2, FM BASS, SLAP BASS, SUB BASS, BRASS, STRINGS, GLASS PAD, BELLS, MARIMBA, ORGAN, CLAV, PLUCK, FLUTE, SAW LEAD, KOTO, INIT VOICE), puis tes presets utilisateur. **EDIT** (tapé) ouvre deux pages :
+
+| Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+| --- | --- | --- | --- | --- |
+| **VOICE** | **VOICE** : le patch (17 d'usine, puis U01–U32 de ta banque) | **BRITE** −40…+40 | **ATK** −40…+40 | **DEC** −40…+40 |
+| **SHAPE** | **REL** −40…+40 | **FDBK** −7…+7 | — | — |
+
+- **BRITE** : le niveau des modulateurs — à gauche sourd, à droite brillant.
+- **ATK** : l'attaque des porteuses ; **DEC** : la décroissance de tous les opérateurs ; **REL** : le relâchement des porteuses. À droite plus court, à gauche plus long.
+- **FDBK** : le feedback de l'algorithme, en plus de celui du patch — plus c'est haut, plus c'est dur.
+
+À 0, c'est le son tel qu'il a été programmé. Les réglages s'appliquent aux notes suivantes, comme sur le panneau d'un DX7. La page **ENV** ne fait que tenir la note : les enveloppes sont celles de la voix.
+
+**Ta banque DX7 (.syx) :** un bulk dump DX7 standard de 32 sons (4104 octets) se charge depuis l'éditeur web (onglet **Library**) ou avec `python3 tools/fm1_bank_upload.py banque.syx`. Les 32 sons apparaissent comme **U01–U32** avec leurs noms, restent en flash, et le kit **USER** joue les 16 premiers sur les touches blanches. La somme de contrôle est vérifiée et chaque valeur est ramenée dans sa plage.
+
+## La batterie : 16 sons FM sur les touches blanches
 
 | Touche | Son | Touche | Son | Touche | Son | Touche | Son |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -77,7 +94,9 @@ Chaque bouton de fonction a deux vies. **Tapé** (appuyé puis relâché sans ri
 | A3 | snare | E4 | charley pédale | B4 | tom aigu | F5 | conga |
 | B3 | clap | F4 | rim | C5 | crash | G5 | cloche |
 
-Une touche noire joue le son de la touche blanche à sa gauche (deux doigts sur un son pour les roulements rapides). Chaque frappe a un **niveau** — GHOST, SOFT, NORM (comme jouée), HARD — et un **ratchet** x1–x4 (la frappe répétée dans son pas).
+Chaque son est une voix DX7 (6 voix pour la batterie, 8 pour les synthés). Une touche noire joue le son de la touche blanche à sa gauche (deux doigts sur un son pour les roulements rapides). Chaque frappe a un **niveau** — GHOST, SOFT, NORM (comme jouée), HARD — et un **ratchet** x1–x4 (la frappe répétée dans son pas). Les charleys fermé et pédale coupent l'ouvert ; les kicks et les toms ont une chute de hauteur à la frappe ; le clap est quatre coups.
+
+**Cinq kits** (PRESETS sur la piste batterie) : **DX KIT** (classique), **TIGHT** (court, sec), **BOOM** (long, grave, chute plus profonde), **METAL** (plus haut, plus brillant), **USER** (les 16 premiers sons de ta banque .syx ; sans banque, le DX KIT).
 
 ## Enregistrer
 
@@ -87,7 +106,7 @@ Une touche noire joue le son de la touche blanche à sa gauche (deux doigts sur 
 | **À l'arrêt, projet avec des notes** | arme (*rec ready*) | **ta première note démarre la boucle et devient le pas 1** |
 | **À l'arrêt, projet vide** | arme (*play freely*) | une **prise libre** : la boucle suit ton jeu |
 
-**Prise libre :** joue librement ; l'écran montre les secondes et la boucle que ça donnerait (*2 bars · 92 bpm*). **REC sur le « 1 » qui suit ta dernière mesure** : SLOOP choisit 1, 2 ou 4 mesures au tempo le plus proche, cale tes notes et lance la boucle. **PLAY** abandonne la prise.
+**Prise libre :** joue librement ; l'écran montre les secondes et la boucle que ça donnerait (*2 bars · 92 bpm*). **REC sur le « 1 » qui suit ta dernière mesure** : sloopDX choisit 1, 2 ou 4 mesures au tempo le plus proche, cale tes notes et lance la boucle. **PLAY** abandonne la prise.
 
 Les notes vont au pas le plus proche **tel que tu l'as entendu** (la latence de ~12 ms est compensée). La lumière PLAY clignote à chaque temps : un métronome visuel. Clic audible : GLO → GLOBAL → CLICK.
 
@@ -115,7 +134,7 @@ Les notes vont au pas le plus proche **tel que tu l'as entendu** (la latence de 
 - **Annuler / rétablir :** EDIT + OCT− / OCT+ (un niveau : le dernier passage d'enregistrement, effacement, piste effacée, modification de pas ou de motif).
 - **Effacer une piste :** maintiens REC ; après 0,7 s un anneau se remplit ; tiens encore ~1,3 s. Relâche avant : rien. Annuler la ramène.
 - **Sauvegarder :** SAVE + touches 5–8 sauvent la boucle dans la section / le projet A–D (= SLOT 1–4).
-- **Sauvegarde automatique :** à l'arrêt, 2,5 s sans toucher (au plus toutes les 20 s), le projet en cours est gardé ; au rallumage, SLOOP revient comme tu l'as laissé.
+- **Sauvegarde automatique :** à l'arrêt, 2,5 s sans toucher (au plus toutes les 20 s), le projet en cours est gardé ; au rallumage, sloopDX revient comme tu l'as laissé.
 - **Nouveau projet :** SAVE → TOOLS → NEW (tourner sur GO).
 
 ## Le master : DUST, DUCK, FILT
@@ -141,13 +160,14 @@ L'écran **SONG** (SAVE tapé sur TRACKS, ou SAVE + touche 16) montre la chaîne
 
 Chrome ou Edge, FM-1 en USB, **Connect**. Il suit l'appareil en direct.
 
+- **Sound** : le patch et les potards BRITE / ATK / DEC / REL / FDBK, enveloppe, LFO, arp, envois.
 - **Sequencer** sur la piste batterie : une grille 16 sons × pas, avec le **kit**. Choisis un **niveau** (GHOST, SOFT, NORM, HARD) et un **roll** (x1–x4), puis clique : une frappe ; reclique (même niveau et roll) : effacée ; Maj+clic : un niveau plus fort.
-- **Settings → MASTER** : DUST, DUCK, FILT, ROLL. **Tracks** : les quatre tranches (volume, pan, mute ; SOLO et REC affichés). **Samples** : tes sons USR1–USR3 et le découpage CHOP.
+- **Library** : les presets utilisateur et ta **banque DX7** (.syx). **Settings → MASTER** : DUST, DUCK, FILT, ROLL. **Tracks** : les quatre tranches (volume, pan, mute ; SOLO et REC affichés).
 
 ## Secours
 
-- **Secours USB :** maintiens **OCT−** seul à l'allumage (*SLOOP USB RESCUE*), puis réinstalle.
+- **Secours USB :** maintiens **OCT−** seul à l'allumage (*USB RESCUE*), puis réinstalle.
 - **Installation interrompue :** le FM-1 reste en mode mise à jour ; relance INSTALL et il termine. Un paquet abîmé est refusé et le FM-1 attend un paquet correct.
 - **Retour au firmware officiel :** M-UPGRADE de M-VAVE et le firmware FM-1 de m-vave.com.
 
-SLOOP est libre (GPL-3.0), basé sur Felucca de Leo Kuroshita (Hügelton Instruments). M-VAVE et FM-1 sont des marques de leurs propriétaires ; SLOOP n'y est pas affilié.
+sloopDX est libre (GPL-3.0) : un fork de SLOOP (isod89), basé sur Felucca de Leo Kuroshita (Hügelton Instruments) ; le cœur DX7 est le moteur msfa de Dexed (Apache-2.0). M-VAVE et FM-1 sont des marques de leurs propriétaires, DX7 est une marque de Yamaha ; sloopDX n'est affilié à aucun d'eux et ne contient aucune donnée de sons Yamaha ou M-VAVE.

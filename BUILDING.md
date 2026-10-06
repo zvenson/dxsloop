@@ -1,4 +1,4 @@
-# Building SLOOP
+# Building sloopDX
 
 The build makes three files in `build/`:
 
@@ -8,13 +8,17 @@ The build makes three files in `build/`:
 | `loader/ota.bin` | the update loader |
 | `felucca.fwsc` | the installable package (app + loader) |
 
+The DX7 tables (`firmware/src/dx7_tables.h`) and the factory voices (`firmware/src/dx7_bank.h`)
+are generated on the host and committed, so the target never needs floating point; regenerate
+them with `tools/gen_dx7_tables.c` and `tools/gen_dx7_bank.py` only when you change them.
+
 ## Windows (WSL)
 
-`INSTALL-SLOOP.bat` builds in a WSL distribution and opens the installer on
+`INSTALL-SLOOPDX.bat` builds in a WSL distribution and opens the installer on
 `http://localhost:8766/webapp/installer/`. It needs Python 3 with Pillow on Windows, a WSL
 distribution with the JieLi toolchain, and the three SDK files (below) in `build/deps/ac79`.
-Set `SLOOP_WSL_DISTRO` (default `Ubuntu`) and `SLOOP_TOOLCHAIN` (a Linux path, default
-`/root/.jieli/toolchain`) if yours differ.
+Set `SLOOPDX_WSL_DISTRO` (default `Ubuntu`) and `SLOOPDX_TOOLCHAIN` (a Linux path, default
+`/root/.jieli/toolchain`) if yours differ. The site it serves is built into `build/sloopdx-site`.
 
 ## Prerequisites (macOS)
 
@@ -47,48 +51,53 @@ On Linux x86-64 the toolchain runs natively and Docker is not needed.
 ```
 
 `JIELI_TOOLCHAIN` and `AC79_SDK` override the default locations
-(`~/.jieli/toolchain`, `~/fw-AC79_AIoT_SDK`).
+(`~/.jieli/toolchain`, `~/fw-AC79_AIoT_SDK`). The link step checks the RAM budget
+(.data + .bss ≤ 96 KB; the DX7 state is about 18 KB of it).
 
-`./build.sh --release 0.9-beta` makes a release build: the package identity becomes
-`FM-1_909` and the version string `0.9-BETA`; the package is `build/felucca-0.9-beta.fwsc`.
+`./build.sh --release 1.0` makes a release build: the package identity becomes
+`FM-1_910` and the version string `1.0 BETA` (`tools/build.py` adds BETA unless the release
+name has it); the package is `build/felucca-1.0.fwsc`. A plain build has the identity `FM-1_900`.
 
 Build options (environment, `0` or `1`; defaults in `firmware/src/felucca.c`):
 
 | Flag | Default | |
 | --- | --- | --- |
-| `FELUCCA_FLASH` | 1 | settings, presets and projects in flash |
+| `FELUCCA_FLASH` | 1 | settings, presets, projects and the DX7 user bank in flash |
 | `FELUCCA_OTA` | 1 | update entry (needs `FELUCCA_FLASH`) |
 | `FELUCCA_CDC` | 1 | USB serial console |
 | `FELUCCA_UART` | 0 | TRS MIDI IN (not tested on hardware) |
 
-## Samples
-
-The CC0 instrument samples that the SAMPLE engine uses are in `assets/samples-cc0/`
-(Versilian Studios, see `ATTRIBUTION.txt` there). `tools/fetch_cc0.py` downloads them
-again from the source repositories. Without that folder the build still works and the
-SAMPLE engine has only the generated drum kit.
-
 ## Tests
 
 ```
-tests/run_tests.sh
+sh tests/run_tests.sh
 ```
 
 Runs the host tests (flash storage, user presets, MIDI parser, update entry, update
-loader, a DSP render, the 4-track mix, project formats, the SLICER, the regression suite,
-the command-line installer) and, with Node.js, the web page tests. Run it after `./build.sh`
-(it uses `build/` and needs `AC79_SDK` set as for the build).
+loader, a DSP render, the 4-track mix, project formats, the SLICER, the FM drum kits
+(`tests/drumkit_test.c`: every kit × lane, choke, burst, click, a WAV demo), the .syx import
+(`tests/dx7_syx_test.c`), the regression suite, the command-line installer) and, when Node.js
+is installed, the web page tests (`node web/test_web.mjs`). Run it after `./build.sh` (it uses
+`build/` and needs `AC79_SDK` set as for the build).
 
-The regression suite (`tests/regress.c`) renders every engine and preset and compares a
+The regression suite (`tests/regress.c`) renders every voice and preset and compares a
 hash of each render with `tests/golden.txt`; it also checks levels, voices and the CPU
 cost (`tests/cpu_baseline.txt`, `tests/target_budget.txt`). After an intended change of
 the sound, `GOLDEN_UPDATE=1 sh tests/run_tests.sh` rewrites the hashes; `BUDGET_UPDATE=1`
 does the same for the cost files.
 
+The DX7 core is checked bit-exact against Dexed with `tests/dx7ref/`, which needs a
+checkout of Dexed's `Source/msfa`:
+
+```
+MSFA=<dexed>/Source/msfa sh tests/dx7ref/build.sh && build/host/dx7ref/dx7_exact_test 300
+```
+
 ## Install
 
-On Windows, `INSTALL-SLOOP.bat` builds and opens the web installer (Chrome or Edge). The
-`.fwsc` of each release is on the GitHub releases page.
+On Windows, `INSTALL-SLOOPDX.bat` builds and opens the web installer (Chrome or Edge). The
+`.fwsc` of each release is on the GitHub releases page, and the installer page on GitHub
+Pages (`docs/`) carries the current one.
 
 From the command line (needs `pip3 install mido python-rtmidi`):
 
@@ -101,10 +110,13 @@ Or, to install your own build from the web installer, make a local copy of the s
 (Web MIDI needs a secure context):
 
 ```
-python3 web/make_site.py build/felucca.fwsc dev /tmp/felucca-site
-cd /tmp/felucca-site && python3 -m http.server 8000
+python3 web/make_site.py build/felucca.fwsc dev /tmp/sloopdx-site
+cd /tmp/sloopdx-site && python3 -m http.server 8000
 # open http://localhost:8000/webapp/installer/
 ```
+
+A DX7 bank (.syx, 32 voices) goes to the device from the editor's Library tab or with
+`python3 tools/fm1_bank_upload.py bank.syx`.
 
 Installing firmware is at your own risk. If an install fails and the FM-1 no longer
 starts, recovery needs [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).

@@ -1,37 +1,20 @@
-<p align="center"><img src="assets/logo/sloop-logo.png" alt="SLOOP" width="480"></p>
+<p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# SLOOP 2.2
+# sloopDX 1.0
 
-**A live groovebox firmware for the M-VAVE FM-1 — for any style.** Four tracks — three synths and a drum machine with 16 sounds on the white keys — nine synthesis engines, 68 sounds, 37 drum kits (808, 909, trap, phonk, house, techno, UK garage, jungle, amapiano, reggaeton, synthwave, chiptune, ambient, jazz…), your own samples, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
+**SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and bit-exact against Dexed), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
-SLOOP is free and open source (GPL-3.0), based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments.
+sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.2, running on the FM-1. Still a beta: install at your own risk, and please report what you find (GitHub issues).
+> **Status:** 1.0, work in progress. The host test suite passes; it has not run on a device yet. Install at your own risk, and please report what you find (GitHub issues).
 
-### New in 2.2
+### What changed from SLOOP 2.2
 
-- **A new drum engine.** Every synthesised drum is now built like on the classic machines: a tuned body with a pitch drop and a hold, a second partial for the drum heads, a click for the attack, noise through a resonant filter, drive. Softer hits are darker as well as quieter. The 32 synthesised kits are rebuilt on it, each with 16 sounds of its own — new: **PHONK** (melodic cowbell), **AMAPIANO** (log drum), **GARAGE**, **D.HOUSE**. Kits 1–5 are now a sampled **ACOUSTIC** kit (CC0 studio recordings) and its treatments. Every kit is level-matched. See [Drum kits](#drum-kits).
-- **68 sounds, browsed by kind.** PRESETS goes through basses, keys, organs, pads, leads, plucks and bells, stabs; the kind is shown next to the name. 14 new: 808 SLIDE, ACID 303, PLUGG BASS, SUPERSAW, M1 PIANO, AFRO KEYS, GRAND PNO, KALIMBA, PLUGG BELL, GLASS PAD, SAW PAD, RAVE STAB, DUB CHORD, HOUSE ORGN. Every factory sound is level-matched: the same LEVEL gives the same loudness. See [The sound bank](#the-sound-bank).
-- **A real grand piano.** GRAND PNO is a Steinway recorded note by note (CC0); long notes fade as on the real one. DUSTY PNO and LOFI KEYS are the same piano through an old sampler.
-- **Lock a layer.** Hold a layer button and tap HOME: the layer stays open with the button let go, both hands free (FX with one hand on the keys and the other on FILTER / DUST / DUCK). Any other button lets it go. See [The panel](#the-panel-tap-hold-layers).
-- **Stereo effects.** The chorus is stereo, and the reverb is new: a feedback delay network, dense and wide, with no metallic ring.
-- **More reliable.** Saves that fail are retried (*SAVE ERROR: RETRYING*) and everything is saved before an update; the end of a song gives your loop back; swing never plays a step twice; SONG REC counts bars right; a voice retriggered in UNISON, TRIO or PHASE no longer clicks; NEW PROJECT and saving a user preset wait until the song stops; the installer refuses a damaged package before writing it; the button lights no longer flicker.
-
-### New in 2.1
-
-- **Songs, live:** hold SAVE — keys 1–4 play sections A–D on the next bar, keys 5–8 save the loop into them, key 14 records the song as you play it (each section and its bars). See [Song mode](#song-mode).
-- **Landmarks on the keys:** while a layer is held, and on the drum track, keys 1, 5, 9 and 13 glow dimly — the first key of each row of the 4 × 4 grid on the screen. What is on (an effect, a step, a sound) stays fully lit.
-
-### New in 2.0
-
-- **Hold a button, touch a key.** Every function button is a *layer*: hold it and the 16 white keys and the four knobs change job, the screen shows how. Tap it and its pages open as before.
-- **16 drum sounds on the white keys**, black keys double them. **OCT− / OCT+ held** = ghost / hard hits. Hits keep their level and a **ratchet** (x1–x4) in the pattern.
-- **Note repeat** (ARP + key), **erase as it plays** (EDIT + key), **steps under your fingers** (SEQ + key, Elektron style), **one-key chords in the song's key** (SCL), **mute / solo / tap tempo** (GLO).
-- **Undo / redo** (EDIT + OCT− / OCT+), **hold REC to clear**, and an **autosave** that brings your beat back at power-on.
-- **MPC swing** (50–75 %), a sample-accurate clock (no drift, any tempo), tighter glides for the 808s.
-- **Master:** **DUST** (an old sampler and a record: bits, rate, crackle), **DUCK** (the kick pumps the synths), **FILT** (DJ filter: low-pass ← OFF → high-pass).
-- **Web editor:** the drum track as a 16-lane grid with levels and ratchets, the kit, the master page.
-- **Safer updates:** the installer checks the package's SHA-256 and only resumes SLOOP's own update loader; the loader checks the package CRC before it starts the new firmware, and refuses a flash chip it does not know.
+- **One engine: DX7.** Six operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch. See [The DX7 engine](#the-dx7-engine).
+- **17 factory voices** in the DX7 tradition — designed here, not copied — and **your own banks**: a standard 32-voice bulk dump (.syx) loads as U01–U32. See [Your own DX7 bank](#your-own-dx7-bank-syx).
+- **Macro knobs on every voice:** BRITE, ATK, DEC, REL, FDBK — the knobs a DX7 never had.
+- **FM drums.** The drum track plays 16 FM drums built with the same engine, in five kits: DX KIT, TIGHT, BOOM, METAL and USER (the first 16 voices of your bank as the lanes). See [Drum kits](#drum-kits).
+- **Gone:** the sample engines, the sample sets, the user sample slots, the other eight engines and the 37 sample and drum-synth kits. Everything else of SLOOP — layers, free takes, swing, song mode, DUST, DUCK, undo, projects, user presets — is as it was.
 
 ---
 
@@ -48,32 +31,33 @@ SLOOP is free and open source (GPL-3.0), based on [Felucca](https://github.com/h
 9. [Master: DUST, DUCK, FILT](#master-dust-duck-filt)
 10. [Punch-in effects](#punch-in-effects)
 11. [Screens](#screens)
-12. [The sound bank](#the-sound-bank)
-13. [Drum kits](#drum-kits)
-14. [Your own samples](#your-own-samples-usr1usr3)
-15. [Song mode](#song-mode)
-16. [The web editor](#the-web-editor)
-17. [Sound design pages](#sound-design-pages)
-18. [Specifications](#specifications)
-19. [Rescue, going back, credits](#rescue-going-back-credits)
+12. [The DX7 engine](#the-dx7-engine)
+13. [The factory voices](#the-factory-voices)
+14. [Your own DX7 bank (.syx)](#your-own-dx7-bank-syx)
+15. [Drum kits](#drum-kits)
+16. [Song mode](#song-mode)
+17. [The web editor](#the-web-editor)
+18. [Sound design pages](#sound-design-pages)
+19. [Specifications](#specifications)
+20. [Rescue, going back, credits](#rescue-going-back-credits)
 
 ---
 
 ## Install
 
-1. Double-click **`INSTALL-SLOOP.bat`** in the SLOOP folder. It builds the firmware and opens the installer at `http://localhost:8766/webapp/installer/`.
+1. Double-click **`INSTALL-SLOOPDX.bat`** in the sloopDX folder. It builds the firmware and opens the installer at `http://localhost:8766/webapp/installer/`.
 2. In **Chrome or Edge**, connect the FM-1 to the computer by USB (a data cable, directly — no hub).
 3. Press **INSTALL**, allow MIDI access, and wait for *Done*. Keep the black window open until then.
 
-The FM-1 restarts on the SLOOP logo. The editor is at `http://localhost:8766/webapp/editor/` (or **`OPEN-EDITOR.bat`**).
+The FM-1 restarts on the sloopDX logo. The editor is at `http://localhost:8766/webapp/editor/` (or **`OPEN-EDITOR.bat`**). On Linux and macOS, see [BUILDING.md](BUILDING.md) (`./build.sh`, then `python3 tools/fm1_install.py build/felucca.fwsc`).
 
 ## Sixty seconds to a beat
 
-1. **ALGORITHM** to track **4** (orange, drums). The white keys play 16 sounds: **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 hat**, D4 open hat… **PRESETS** picks a kit: try *808* or *BOOMBAP*.
+1. **ALGORITHM** to track **4** (orange, drums). The white keys play 16 sounds: **F3 kick**, G3 kick 2, A3 snare, B3 clap, **C4 hat**, D4 open hat… **PRESETS** picks a kit: try *TIGHT* or *BOOM*.
 2. Press **REC**: *rec ready*. **Play a beat freely, at your own tempo** — no click, no count-in. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard ones.
 3. **Press REC on the "1" after your last bar.** The loop closes: its length sets the tempo, the hits snap to the grid, the loop plays at once.
 4. **REC** again while it plays: you record on top (overdub). Hold **ARP** and hold the hat key: a 1/16 hat roll, recorded as ratchets.
-5. Turn **ALGORITHM** to track **1** (blue, *808 BOOM*), **REC**, play a bass line. Hold **SCL** and press the key of your song (e.g. D); on track 2 hold SCL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
+5. Turn **ALGORITHM** to track **1** (blue, *FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song (e.g. D); on track 2 (*EPIANO 1*) hold SCL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
 6. Hold **FX** and press a white key for a punch-in effect; still holding FX, turn **KNOB 2** for DUST, **KNOB 3** for DUCK.
 7. Made a mistake? Hold **EDIT** and press **OCT−**: undo.
 
@@ -116,7 +100,7 @@ Other controls:
 | **SAVE** | on TRACKS: the SONG screen · elsewhere: the SAVE pages |
 | **EDIT + OCT− / OCT+** | undo / redo |
 | **ALGORITHM** | select the track (on every page) |
-| **PRESETS** | the selected track's sound, or the drum kit |
+| **PRESETS** | the selected track's voice, or the drum kit |
 | **SELECT** | tempo (always, even inside a layer) |
 | **OCT− / OCT+** | synth tracks: octave (both: back to 0) · drum track, held: ghost / hard hits |
 | **HOME** | the TRACKS screen · hold: menu (colour, low cut, zoom, calibration, about) · tapped while a layer is held: lock it open |
@@ -124,7 +108,7 @@ Other controls:
 
 ## The drum track
 
-Track 4 plays **16 sounds, one per white key** from the lowest F to the highest G; a black key plays the sound of the white key on its left (two fingers on one sound, for fast rolls).
+Track 4 plays **16 sounds, one per white key** from the lowest F to the highest G; a black key plays the sound of the white key on its left (two fingers on one sound, for fast rolls). Every sound is a DX7 voice of its own, rendered by the same engine as the synth tracks.
 
 | Key | Sound | Key | Sound | Key | Sound | Key | Sound |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -133,11 +117,11 @@ Track 4 plays **16 sounds, one per white key** from the lowest F to the highest 
 | A3 | snare | E4 | pedal hat | B4 | hi tom | F5 | conga |
 | B3 | clap | F4 | rim | C5 | crash | G5 | cowbell |
 
-**Levels:** every hit has one of four levels — **GHOST**, **SOFT**, **NORM** (as played), **HARD**. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard hits; they are recorded so. **Ratchets:** a hit can repeat x1–x4 inside its step (ARP rolls record them; SEQ + a step + KNOB 3 sets them). The closed and pedal hats choke the open one.
+**Levels:** every hit has one of four levels — **GHOST**, **SOFT**, **NORM** (as played), **HARD**. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard hits; they are recorded so. **Ratchets:** a hit can repeat x1–x4 inside its step (ARP rolls record them; SEQ + a step + KNOB 3 sets them). The closed and pedal hats choke the open one. The kicks and toms have a pitch sweep at the hit, the clap is four hits in a row.
 
 ## Recording
 
-SLOOP records live and layers every pass on top of the last (overdub). Notes go to the nearest step **as you heard it**: the time between a key and its sound (~12 ms) is taken back, so what you play on the beat lands on the beat. Chords are kept on the synth tracks (up to 4 notes a step); held notes become ties.
+sloopDX records live and layers every pass on top of the last (overdub). Notes go to the nearest step **as you heard it**: the time between a key and its sound (~12 ms) is taken back, so what you play on the beat lands on the beat. Chords are kept on the synth tracks (up to 4 notes a step); held notes become ties.
 
 | When | REC does | Then |
 | --- | --- | --- |
@@ -148,7 +132,7 @@ SLOOP records live and layers every pass on top of the last (overdub). Notes go 
 **Free take — the loop follows you.** On an empty project there is no tempo yet, so you set it by playing:
 
 1. REC, then play freely. The screen shows *free take*, the seconds, and the loop it would make right now (*2 bars · 92 bpm*).
-2. **Press REC on the "1" after your last bar.** The time from your first note to that press is the loop: SLOOP picks 1, 2 or 4 bars at the tempo nearest the one set (within 3 % the set tempo is kept), writes your notes into it with their lengths and levels, and plays it at once. All four tracks take that length.
+2. **Press REC on the "1" after your last bar.** The time from your first note to that press is the loop: sloopDX picks 1, 2 or 4 bars at the tempo nearest the one set (within 3 % the set tempo is kept), writes your notes into it with their lengths and levels, and plays it at once. All four tracks take that length.
 3. **PLAY** during a free take drops it. A take closes by itself after 24 s.
 
 - While recording the REC light is solid and the track shows a red *rec*. Turn ALGORITHM and the take moves to the next track without stopping.
@@ -190,7 +174,7 @@ The 16 white keys are the 16 steps of the page; the lit ones play. The first fou
 - **KNOB 3 KEYS**: OFF (all keys chromatic), SNAP (every key rounded to the scale), WHITE (the white keys walk the scale, the black keys are silent).
 - **KNOB 4 TRANSPOSE** the selected track, ±24 semitones.
 
-Changing a sound (PRESETS, a user preset) never changes the key, the chord mode, the pattern or the mix of its track.
+Changing a voice (PRESETS, a user preset) never changes the key, the chord mode, the pattern or the mix of its track.
 
 ### GLO — mix
 
@@ -203,14 +187,14 @@ Changing a sound (PRESETS, a user preset) never changes the key, the chord mode,
 - **Undo / redo:** hold EDIT, press OCT− / OCT+. One level: the last recording pass, erase, clear, step or pattern edit; redo takes it back again.
 - **Clear a track:** hold REC. After 0.7 s the press is cancelled and a ring fills; keep holding ~1.3 s more and the selected track is cleared (*TRACK 2 CLEARED*). Let go before: nothing. Undo brings it back.
 - **Save:** SAVE + keys 5–8 save the loop into section / project A–D (= SLOT 1–4); SAVE → PROJECT has SLOT, LOAD, SAVE too.
-- **Autosave:** when the transport is stopped and you have not touched anything for 2.5 s (at most every 20 s), the working project is kept in flash; at power-on SLOOP comes back exactly as you left it.
+- **Autosave:** when the transport is stopped and you have not touched anything for 2.5 s (at most every 20 s), the working project is kept in flash; at power-on sloopDX comes back exactly as you left it.
 - **New project:** SAVE → TOOLS → NEW (turn to GO): the four tracks back to their power-on sounds, empty patterns (undoable).
 
 ## Master: DUST, DUCK, FILT
 
 On the whole mix, after the tracks' sends (FX + KNOB 1–3, or GLO → MASTER):
 
-- **DUST** 0–100 %: the mix through an old sampler and a record — drive into a soft clip, a lower sample rate (down to ~11 kHz), fewer bits (down to 8), a low-pass closing to ~3 kHz, and while the transport plays a little hiss and crackle (a stopped SLOOP is silent).
+- **DUST** 0–100 %: the mix through an old sampler and a record — drive into a soft clip, a lower sample rate (down to ~11 kHz), fewer bits (down to 8), a low-pass closing to ~3 kHz, and while the transport plays a little hiss and crackle (a stopped sloopDX is silent).
 - **DUCK** 0–100 %: every kick pumps the synth tracks down and back over an 1/8 note — the sidechain sound, in time at any tempo.
 - **FILT**: a DJ filter. Left of centre a low-pass closing, right a high-pass opening, centre OFF. It glides (no zipper noise).
 - **ROLL** (GLO → MASTER): the note-repeat rate of ARP + key.
@@ -232,69 +216,81 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 
 ## Screens
 
-- **TRACKS** (HOME) — the performance view: tempo, swing, transport, bar.beat; each track with its sound, its steps, the playhead, mute / solo / rec badges and its level. Dials: *swing · level · steps · pan* (KNOB 2 on a muted track unmutes it).
+- **TRACKS** (HOME) — the performance view: tempo, swing, transport, bar.beat; each track with its voice, its steps, the playhead, mute / solo / rec badges and its level. Dials: *swing · level · steps · pan* (KNOB 2 on a muted track unmutes it).
 - **Layers** — while a layer button is held: 16 tiles (the white keys) and the knobs' dials, in the layer's colour.
 - **DRUMS** (EDIT or SEQ tapped on TRACKS with the drum track) — **grid**: the 16 sounds × 16 steps, levels as shades, ratchets as notches; dials *sound · step · hit · level*. **kit**: 16 pads that flash on every hit; dials *kit · level · reverb · pan*. EDIT / SEQ tapped switches grid ↔ kit.
+- **EDIT** (tapped on a synth track) — the DX7 pages **VOICE** and **SHAPE**: the voice and its macro knobs. See [The DX7 engine](#the-dx7-engine).
 - **REC READY / FREE TAKE** — while REC is armed, and during a free take: the seconds and the loop it makes.
 - **Holds** — the ring of REC (clear) while held.
 - **SONG** — the section chain.
 - **Sound pages** (ENV, LFO, FX, SCL, EDIT, ARP, SEQ, GLO, SAVE) — the full synth, colour-coded.
 
-## The sound bank
+## The DX7 engine
 
-68 starting points for any style: house and techno, hip-hop, trap and plugg, drum & bass, amapiano, synthwave, lo-fi, ambient, soul. Every one is a full patch on one of the nine engines: change it, save your own (32 user presets), or load your own samples. **PRESETS** browses them on a synth track **by kind** — basses, keys, organs, pads, leads, plucks and bells, stabs — the kind shown next to the name (the engine follows); your own presets come after. Every sound is level-matched: they all come out as loud at the same LEVEL. SLOOP starts (on a new project) at **90 BPM** with *808 BOOM* on track 1, *RHODES* on track 2, *LOFI FLUTE* on track 3 and the 808 kit on track 4.
+Every synth track is a six-operator FM synthesizer: the DX7 voice of Dexed's msfa core, ported to integer arithmetic for the FM-1's chip and checked bit-exact against Dexed, so a patch sounds here as it does there. 32 algorithms, six operators each with a rate / level envelope, keyboard rate and level scaling, velocity sensitivity and amplitude modulation, a pitch envelope, an LFO with pitch and amp modulation and key sync, operator feedback, transpose. The three parts share **8 voices**; each part plays the whole keyboard (no split).
 
-| Kind | Sounds (engine) |
-| --- | --- |
-| **Bass** | 808 BOOM, 808 DIRTY, 808 SLIDE, SUB BASS, PLUGG BASS — they slide between held notes, two octaves under the keys · REESE, WOBBLE, ACID 303 (the resonant acid line, sliding where notes overlap), FUNK BASS (ANALOG) · FM BASS (DIGITAL) · CZ BASS (PHASE) · FAT BASS (TRIO) · WOW BASS (VOICE) · GB BASS (LOFI) · UP BASS, DEEP BASS (SAMPLE: a real upright) |
-| **Keys** | RHODES, DX RHODES, WURLI, M1 PIANO (the house piano), AFRO KEYS (afro house, amapiano), CLAV (DIGITAL) · GRAND PNO (SAMPLE: a Steinway grand; long notes fade as on the real one), DUSTY PNO, LOFI KEYS (the same grand through an old sampler) · SOFT KEYS (PHASE) |
-| **Organ** | SOUL ORGAN, GOSPEL, JAZZ ORGAN, DIRTY B3, HOUSE ORGN (the 90s house organ: bass lines and chords) (WHEEL) |
-| **Pad** | WARM PAD, DARK STR, ATMOS PAD (ANALOG) · SAW PAD (TRIO) · GLASS PAD (DIGITAL) · CZ STRING (PHASE) · LOFI CLOUD, VIBE HAZE (GRAIN) · CHOIR AAH, SOUL OOH (VOICE) |
-| **Lead** | SUPERSAW (eight detuned saws: trance, EDM), G-FUNK LD (ANALOG) · SYNC LEAD, HOOVER (TRIO) · TALKBOX (VOICE) · GAME LEAD (LOFI) · LOFI FLUTE (SAMPLE) · FLUTE DUST (GRAIN) |
-| **Pluck & bell** | TRAP PLUCK (ANALOG) · RESO PLUCK (PHASE) · PLUGG BELL, TRAP BELL, MUSIC BOX, KALIMBA, MARIMBA (DIGITAL) · VIBES (SAMPLE) · 8BIT ARP (LOFI) |
-| **Stab** | MIN STAB, MIN7 STAB, RAVE STAB, DUB CHORD (dub techno, into the delay) (TRIO: one key plays the chord) · SYN BRASS (ANALOG) · CZ BRASS (PHASE) · HORN STAB, STRING STB (SAMPLE) |
-| **FX** | SCRATCH — scratch, backspin, rewind across the keys · GM KIT (SAMPLE) |
+**EDIT** on a synth track opens two pages:
 
-The sampled sounds (SAMPLE engine, **SET**: PIANO (a grand), BASS, VIBES, HORNS, STRGS, FLUTE, SCRCH, PERC) are free recordings (CC0: Versilian Studios VSCO-2 CE and VCSL, Sonic Pi), retuned and coloured like a record through an old sampler.
+| Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+| --- | --- | --- | --- | --- |
+| **VOICE** | **VOICE** — the patch: the 17 factory voices, then U01–U32 of your bank | **BRITE** −40…+40 | **ATK** −40…+40 | **DEC** −40…+40 |
+| **SHAPE** | **REL** −40…+40 | **FDBK** −7…+7 | — | — |
+
+The macro knobs are the panel a DX7 never had. They move the patch's own values, so 0 is always *the voice as programmed*, and they work the same on every voice, factory or yours:
+
+- **BRITE** — the output levels of the modulators (the operators that are not carriers): left dull, right bright. On an electric piano it is the tine; on a bass, the growl.
+- **ATK** — the first rate of the carrier envelopes: right faster, left a slower swell.
+- **DEC** — the second and third rates of every operator: right shorter and more percussive, left longer.
+- **REL** — the fourth (release) rate of the carriers: right shorter, left a longer tail.
+- **FDBK** — the feedback of the algorithm's feedback operator, added to the patch's own (0–7): more is harsher, from a sine to a saw.
+
+They change the voice for the notes that follow, as the panel of a DX7 does. The voice brings its own envelopes: the track's **ENV** page only keeps the note open (its release is the voice's), so use REL and DEC to shape the tail. **PRESETS** on a synth track goes through the 17 factory voices with their sends (chorus, delay, reverb) set to suit them; your own settings save as user presets (32), as in SLOOP. At power-on, on a new project: **90 BPM**, *FM BASS* on track 1, *EPIANO 1* on track 2, *STRINGS* on track 3 and the DX KIT on track 4.
+
+## The factory voices
+
+17 voices in the DX7 tradition, designed for sloopDX (no Yamaha data is in the firmware):
+
+| Voice | | Voice | |
+| --- | --- | --- | --- |
+| EPIANO 1 | the tine electric piano | ORGAN | organ (all six operators as carriers) |
+| EPIANO 2 | softer, more bell in it | CLAV | clav |
+| FM BASS | the FM bass | PLUCK | short pluck |
+| SLAP BASS | slap bass | FLUTE | flute |
+| SUB BASS | sine sub | SAW LEAD | lead |
+| BRASS | brass | KOTO | plucked string |
+| STRINGS | strings | INIT VOICE | the DX7's blank patch: one sine |
+| GLASS PAD | glassy pad | | |
+| BELLS | bells | | |
+| MARIMBA | marimba | | |
+
+## Your own DX7 bank (.syx)
+
+sloopDX loads a standard **DX7 32-voice bulk dump** — a `.syx` file of 4104 bytes, the format every DX7 editor, librarian and the DX7 itself write. The 32 voices appear as **U01–U32** after the factory voices, named as in the bank, and the **USER** drum kit plays the first 16 of them. The header, length and checksum are checked and every parameter is clamped to its DX7 range, so a strange file cannot crash the engine. The bank is kept in flash and is there at the next power-on; one bank at a time.
+
+To load a bank:
+
+- from the **web editor**, tab **Library**: open or drop the `.syx`; or
+- from the command line: `python3 tools/fm1_bank_upload.py bank.syx` (FM-1 on USB; needs `pip3 install mido python-rtmidi`; the script is being written now).
+
+While a bank uploads, U01–U32 play INIT VOICE and the USER kit plays the DX KIT; when it is accepted they switch over. A bank that fails its checksum is refused and the old one stays empty. Single-voice dumps (163 bytes) are not loaded; put the voice into a 32-voice bank with any DX7 librarian first.
 
 ## Drum kits
 
-37 kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the editor. 1–5 are a sampled acoustic kit (CC0 recordings of a real snare, hi-hat, toms and cymbals) and its treatments; 6–37 are synthesised, so they cost almost no memory. Every synthesised kit has 16 sounds of its own, one per white key — KICK 2 and SNARE 2 are other sounds, not the same one retuned (the long 808 in TRAP, the log drum in AMAPIANO, the rumble in TECHNO). Each sound is built like on the classic machines: a tuned body with a pitch drop and a hold before it fades, a second partial for the drum heads, a click for the attack, noise through a resonant filter, drive. Softer hits are darker as well as quieter. The levels are measured: every kit is as loud as the others, each sound at its place in the mix.
+Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the editor. Each kit is the same 16 FM drum voices with a treatment: envelope rates, tuning, modulator level and the depth of the pitch sweep. The USER kit is yours.
 
-| # | Kit | Style | # | Kit | Style |
-| --- | --- | --- | --- | --- | --- |
-| 1 | ACOUSTIC | studio | 20 | ELECTRO | electro |
-| 2 | DEEP | soft | 21 | DISCO | disco |
-| 3 | TIGHT | punchy | 22 | GARAGE | UK garage |
-| 4 | BRIGHT | bright | 23 | JUNGLE | drum & bass |
-| 5 | DUST | dusty | 24 | DUBSTEP | bass music |
-| 6 | 808 | hip hop | 25 | DEMBOW | reggaeton |
-| 7 | 909 | house | 26 | AMAPIANO | amapiano (log drum) |
-| 8 | 606 | acid | 27 | AFRO | afrobeat |
-| 9 | 80S | 80s pop | 28 | LATIN | latin |
-| 10 | VINTAGE | rhythm box | 29 | TRIBAL | tribal |
-| 11 | TRAP | trap | 30 | SYNTHWV | synthwave |
-| 12 | DRILL | UK drill | 31 | CHIP | chiptune |
-| 13 | BOOMBAP | hip hop | 32 | ARCADE | video game |
-| 14 | LO-FI | lo-fi | 33 | GLITCH | glitch |
-| 15 | PHONK | phonk (melodic cowbell) | 34 | INDUSTR | industrial |
-| 16 | HOUSE | house | 35 | HYPER | hyperpop |
-| 17 | D.HOUSE | deep house | 36 | AMBIENT | ambient |
-| 18 | TECHNO | techno | 37 | JAZZ | jazz (brushes) |
-| 19 | MINIMAL | minimal | | | |
+| # | Kit | Style | What it does |
+| --- | --- | --- | --- |
+| 1 | DX KIT | classic | the voices as designed: an 808-style kick, a punch kick, snare, a four-hit clap, closed / open / pedal hat, rim, tight snare, two toms, crash, ride, shaker, conga, cowbell |
+| 2 | TIGHT | punchy | shorter decays, a little higher, less sweep |
+| 3 | BOOM | deep | longer, lower, darker, with a deeper pitch drop on the kicks and toms |
+| 4 | METAL | bright | higher and with more modulation: a brighter, more metallic kit |
+| 5 | USER | DX7 bank | the first 16 voices of your loaded .syx bank, one per lane in the order above (F3 = voice 1 … G5 = voice 16); without a bank it plays the DX KIT |
 
-The kit is saved with projects and song sections. MIDI notes in on the drum channel (10) play the nearest of the 16 sounds.
-
-## Your own samples (USR1–USR3)
-
-Three slots of about 7.4 s each hold your own sounds, played by a synth track: engine **SAMPLE**, **SET** = USR1 / USR2 / USR3. Load them from the web editor, tab **Samples**:
-
-- **Files:** up to 16 WAV per slot (any rate, mono or stereo). The note each one plays at its own speed is in its name (`KEYS_C4.wav`, C4 = 60).
-- **CHOP:** open or drop a recording (WAV, MP3, AIFF…) and cut it into up to 16 chops, one per key — live with **TAP** (or the space bar) while it plays (*snap to the hit* puts each tap on its attack), **Find hits**, **Grid** or **Equal parts**; then **Send to USR1/2/3**, or **Download WAVs**.
+The drum track has **6 voices** of its own, so a busy pattern never steals from the synths. The kit is saved with projects and song sections. MIDI notes in on the drum channel (10) play the nearest of the 16 sounds (GM drum map).
 
 ## Song mode
 
-A song is up to 16 steps of 4 sections, **A–D** (each holds the four tracks: sounds, patterns, kit). Make it live, by playing:
+A song is up to 16 steps of 4 sections, **A–D** (each holds the four tracks: voices, patterns, kit). Make it live, by playing:
 
 1. Make a loop (the verse). Hold **SAVE** and press the **5th white key** (*save A*). Change the loop (the chorus) and save it into **B** with the 6th key, a bridge into **C**, an end into **D**. Saving over a used section asks for the key again within 3 s.
 2. **Play the sections live:** hold SAVE and press white key **1–4**. Playing, the section starts on the next bar, every track from its first step, always in time; stopped, it becomes the loop at once.
@@ -307,37 +303,39 @@ The **SONG screen** (SAVE tapped on TRACKS, or SAVE + key 16) shows the chain an
 
 Open it from the installer page, or with **`OPEN-EDITOR.bat`** (`http://localhost:8766/webapp/editor/`), in Chrome or Edge with the FM-1 on USB, and press **Connect**. It follows the device live (turn a knob on the FM-1, the editor moves).
 
-- **Sound** — every parameter of the selected track, the engines and presets, files.
+- **Sound** — every parameter of the selected track: the voice and the macro knobs, envelope, LFO, arp, sends.
 - **Sequencer** — the pattern settings and the steps. On the **drum track**: a grid of the 16 sounds × the steps, with the **kit**. Choose a **level** (GHOST, SOFT, NORM, HARD) and a **roll** (x1–x4), then click: a hit; click it again (same level and roll): cleared; Shift+click: one level louder.
 - **Tracks** — the four channel strips (level, pan, mute; SOLO and REC shown as on the device).
-- **Library**, **Samples** (with CHOP), **Projects**, **Settings** (GLOBAL, **MASTER**: DUST, DUCK, FILT, ROLL; DRUMS).
+- **Library** — the user presets, and your **DX7 bank**: open or drop a `.syx`, see U01–U32 by name, erase the bank.
+- **Projects**, **Settings** (GLOBAL, **MASTER**: DUST, DUCK, FILT, ROLL; DRUMS).
 
-The protocol is documented in [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) (v5).
+The protocol is documented in [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) (v6: the bank upload).
 
 ## Sound design pages
 
-The full Felucca engine is underneath: nine synthesis engines (analog, 4-op FM, phase distortion, lo-fi chip, sampler, formant voice, three-oscillator, tonewheel organ, granular), envelopes (with a pitch punch for the 808s), LFO, arpeggiator, scales and chords, glide and voice modes, per-track drive and slicer, chorus / delay / reverb sends (a stereo chorus, a tempo delay, a stereo reverb built as a feedback delay network: dense, no metallic ring), 32 user presets, 4 projects.
+Underneath, SLOOP's synth voice is still there around the DX7: envelope and LFO pages (the ENV page is a gate for the DX7 voice; the track's LFO adds pitch modulation on top of the voice's own), arpeggiator, scales and chords, glide and voice modes (POLY, MONO, LEGATO, UNISON), per-track drive and slicer, chorus / delay / reverb sends (a stereo chorus, a tempo delay, a stereo reverb built as a feedback delay network: dense, no metallic ring), 32 user presets, 4 projects.
 
 ## Specifications
 
 | | |
 | --- | --- |
-| Tracks | 3 synth parts (8 voices shared) + drums (16 sounds, 6 voices) |
-| Sounds | 68 presets on 9 engines (browsed by kind, level-matched), 8 sampled sets (CC0), 3 slots for your own samples |
+| Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
+| Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa, bit-exact |
+| Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |
-| Drum kits | 37 (5 sampled, 32 synthesised, 16 sounds each) |
+| Drum kits | 5 FM kits (DX KIT, TIGHT, BOOM, METAL, USER), 16 sounds each |
 | Effects | 16 punch-in effects; master DUST, DUCK, DJ filter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb; master limiter |
 | Recording | live, quantised as heard (latency-compensated), overdub; records at once while playing; free take sets loop length and tempo |
-| Memory | undo / redo, 4 projects, 32 user presets, autosave of the working project, song of 4 sections × 16 steps × 1–64 bars |
-| Audio | 44.1 kHz, fixed-point DSP |
-| MIDI | USB class-compliant in / out; channels 1–3 the synths, 10 the drums |
+| Memory | undo / redo, 4 projects, 32 user presets, one DX7 bank, autosave of the working project, song of 4 sections × 16 steps × 1–64 bars |
+| Audio | 44.1 kHz, fixed-point DSP (no floating point on the chip) |
+| MIDI | USB class-compliant in / out; channels 1–3 the synths, 10 the drums; DX7 bulk dumps via the editor protocol |
 | Update | over USB from the browser (package SHA-256 and CRC checked) |
 
 ## Rescue, going back, credits
 
-- **USB rescue:** hold **OCT−** alone while switching on (*SLOOP USB RESCUE*), then install again.
+- **USB rescue:** hold **OCT−** alone while switching on (*USB RESCUE*), then install again.
 - **Interrupted install:** the FM-1 stays in update mode; press Install again and it finishes. A damaged package is refused, and the FM-1 keeps waiting for a good one.
 - **Back to the official firmware:** M-VAVE's updater, M-UPGRADE, and the FM-1 firmware from m-vave.com.
-- **Credits:** SLOOP is based on Felucca by Leo Kuroshita (@kurogedelic), Hügelton Instruments — engines, sequencer, editor and installer. Font: Terminus (SIL OFL 1.1). Samples: Versilian Studios VSCO-2 CE and VCSL, Sonic Pi (all CC0). PHASE: CrispyZebra (GPL). VOICE after klattsch (MIT). Interface ideas after teenage engineering's pocket operators and EP-133, Elektron's step entry and Akai's MPC (swing, note repeat, erase) — SLOOP is not affiliated with any of them.
-- **Licence:** GPL-3.0, no warranty. M-VAVE and FM-1 are trademarks of their owners; SLOOP is not affiliated with them. Drum kit names describe styles; they do not refer to any product.
+- **Credits:** sloopDX (the DX7 engine port, the FM drums, the fork) is by Sven Trogus. It is a fork of SLOOP by isod89, which is based on Felucca by Leo Kuroshita (@kurogedelic), Hügelton Instruments — sequencer, UI, effects, storage, editor and installer. The DX7 core is the msfa engine of Dexed (Apache-2.0; © 2012 Google Inc., 2016–2025 Pascal Gauthier). Font: Terminus (SIL OFL 1.1). Interface ideas after teenage engineering's pocket operators and EP-133, Elektron's step entry and Akai's MPC (swing, note repeat, erase) — sloopDX is not affiliated with any of them.
+- **Licence:** GPL-3.0, no warranty (see [LICENSING.md](LICENSING.md)). M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with any of them, and contains no Yamaha or M-VAVE voice data.
