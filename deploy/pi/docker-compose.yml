@@ -1,0 +1,13 @@
+# sloopDX site on the Pi: nginx serves the static site (docs/, the GitHub Pages folder) on the
+# docker network only; cloudflared (the existing tunnel) routes dx7.designburgapps.com to it.
+#   ~/docker/sloopdx-site: git clone https://github.com/zvenson/dxsloop.git repo && docker compose up -d
+#   update: ./update.sh (git pull + nginx reload)
+services:
+  web:
+    image: nginx:alpine
+    container_name: sloopdx-site
+    restart: unless-stopped
+    volumes:
+      - ./repo/docs:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [default]
