@@ -1,13 +1,13 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-only
      Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments -->
-<!-- Felucca web editor. One file, no libraries. Protocol: EDITOR_PROTOCOL.md.
+<!-- sloopDX web editor (SLOOP's, reduced to the DX7 engine). One file, no libraries. Protocol: EDITOR_PROTOCOL.md.
      Add ?mock=1 to the URL to use a built-in simulated device. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SLOOP Editor</title>
+<title>sloopDX editor</title>
 <style>
   /* Fukiai: Hügelton Instruments' icon font (MIT, FUKIAI-LICENSE.txt). Icons are text in .ic spans;
      they stay hidden until the face has loaded (html.fk), so a missing font never shows boxes. */
@@ -62,26 +62,6 @@
     #steps input[type=number] { width: 42px; }
     #steps th, #steps td { padding-right: 3px; }
   }
-  .smp { margin: 0 0 14px; padding: 6px 0 0; border-top: 1px solid var(--line); }
-  .smp.over { outline: 1px solid var(--fg); outline-offset: 2px; }
-  .smp .head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
-  .smp .head b { font-weight: 600; min-width: 40px; }
-  .smp progress { width: 160px; height: 6px; accent-color: var(--fg); }
-  .smp table { margin: 4px 0; }
-  .smp input.name { width: 80px; text-transform: uppercase; }
-  .smp input.root { width: 48px; }
-  .smp .bad { text-decoration: underline wavy; }
-  .chop canvas.wave { display: block; width: 100%; height: 150px; margin: 6px 0; border: 1px solid var(--line); cursor: default; touch-action: none; }
-  .chop canvas.wave:focus { outline: 1px solid var(--fg); }
-  .chop .head { margin: 3px 0; }
-  .chop .sep { width: 8px; }
-  .chop input.num { width: 56px; }
-  .chop input[type=range] { width: 90px; accent-color: var(--fg); }
-  .chop button.tap { min-width: 72px; }
-  .chop .chops { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
-  .chop .chip { background: none; color: var(--fg); border: 1px solid var(--line); padding: 1px 6px; }
-  .chop .chip.on { background: var(--fg); color: var(--bg); }
-  .chop .chip.off { color: var(--dim); text-decoration: line-through; }
   footer { margin-top: 24px; font-size: 11px; color: var(--dim); }
   .row.pushed .v { font-weight: 600; }
   /* librarian: local library and the device's user bank side by side, stacked on a phone */
@@ -91,6 +71,9 @@
   .list { height: 260px; overflow: auto; border: 1px solid var(--line); resize: vertical; }
   .list table { width: 100%; table-layout: fixed; }
   .list th { position: sticky; top: 0; background: var(--bg); padding: 1px 6px; }
+  /* DX7 user bank: a drop zone for the .syx */
+  .drop { border: 1px dashed var(--line); padding: 10px; margin: 0 0 8px; text-align: center; color: var(--dim); cursor: pointer; }
+  .drop.over, .drop:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; color: var(--fg); }
   .list td { padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .list tr[data-id], .list tr[data-slot] { cursor: pointer; }
   .list tr.sel td { background: var(--fg); color: var(--bg); }
@@ -175,7 +158,7 @@
 <body>
 <main>
   <button class="lang" id="lang"></button>
-  <h1>SLOOP Editor</h1>
+  <h1>sloopDX editor</h1>
   <p class="dim"><a href="../installer/" style="color:inherit" data-t="installer"></a></p>
   <!-- always visible: connection, version, sync mode, the tabs and (Sound / Sequencer / Tracks) the track selector -->
   <header class="top">
@@ -191,7 +174,6 @@
       <button role="tab" data-tab="sequencer" data-t="tabSeq" data-ic="symbol_grid"></button>
       <button role="tab" data-tab="tracks" data-t="tabTracks" data-ic="ui_slider_vertical"></button>
       <button role="tab" data-tab="library" data-t="library" data-ic="symbol_books"></button>
-      <button role="tab" data-tab="samples" data-t="samples" data-ic="symbol_waves"></button>
       <button role="tab" data-tab="projects" data-t="projects" data-ic="symbol_folder"></button>
       <button role="tab" data-tab="settings" data-t="tabSettings" data-ic="symbol_cog"></button>
     </nav>
@@ -283,15 +265,22 @@
             <span class="dim" data-t="dndHelp"></span>
           </p>
         </div>
+        <!-- v6: the DX7 user bank (U01..U32 of VOICE, the USER drum kit) -->
+        <h2 data-t="dxBank" data-ic="symbol_waves" style="margin-top:12px"></h2>
+        <p class="dim" id="dxhint"></p>
+        <div id="dxpane" hidden>
+          <p class="dim" data-t="dxHelp"></p>
+          <div class="drop" id="dxdrop" tabindex="0" role="button"><span data-t="dxDrop"></span></div>
+          <p class="bar">
+            <button id="dxchoose" data-t="dxChoose" data-ic="symbol_folder_open"></button>
+            <input type="file" id="dxfile" accept=".syx,application/octet-stream" hidden>
+            <button id="dxerase" data-t="erase" data-ic="symbol_trash"></button>
+            <span id="dxstatus"></span>
+          </p>
+          <div class="list" id="dxlist"></div>
+        </div>
       </div>
     </div>
-  </section>
-
-  <section class="panel" id="p-samples" data-tab="samples" data-dev hidden>
-    <h2 data-t="samples" data-ic="symbol_waves"></h2>
-    <p class="dim" data-t="smpHelp"></p>
-    <div class="smp chop" id="chop"></div>
-    <div id="smpslots"></div>
   </section>
 
   <section class="panel" id="p-projects" data-tab="projects" data-dev hidden>
@@ -308,7 +297,7 @@
     </div>
   </section>
 
-  <footer>SLOOP, based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. GPL-3.0.<br>
+  <footer>sloopDX, based on SLOOP and Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. The DX7 engine is Dexed's msfa core. GPL-3.0.<br>
     <span data-t="foot"></span> M-VAVE and FM-1 are trademarks of their respective owners.<br>
     <a href="FUKIAI-LICENSE.txt" data-t="iconsCredit"></a></footer>
 </main>
@@ -318,12 +307,13 @@
 /* ---------------------------------------------------------------- protocol --- */
 const HDR = [0x7D, 0x46, 0x4C];
 const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 7, PRESET: 8, PROJECT: 9, NAMES: 10,
-  SMP_BEGIN: 11, SMP_WRITE: 12, SMP_END: 13, SMP_ERASE: 14, SMP_INFO: 15,
+  SMP_BEGIN: 11, SMP_WRITE: 12, SMP_END: 13, SMP_ERASE: 14, SMP_INFO: 15,   /* SLOOP's sample slots: sloopDX has none (never sent) */
   UP_LIST: 16, UP_GET: 17, UP_PUT: 18, UP_STORE: 19, UP_LOAD: 20, UP_ERASE: 21,
   WATCH: 22, CHANGED: 23, RELOAD: 24, PING: 25, STEP_CHANGED: 26,
   TRACK: 27, TRACK_MIX: 28, TRACK_DUMP: 29, TRACK_STEP: 30,
   TRACK_PARAM: 31, TRACK_CHANGED: 32,
-  DRUM_STEP: 33 };
+  DRUM_STEP: 33,
+  BANK_BEGIN: 34, BANK_WRITE: 35, BANK_END: 36, BANK_INFO: 37, BANK_ERASE: 38 };
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -414,16 +404,6 @@ const parse = {
     try { o.titles.push(r.s(), r.s()); } catch (e) { o.titles = []; }   /* older firmware: no page titles */
     return o;
   },
-  [CMD.SMP_BEGIN](a) { const r = new Reader(a); return { slot: r.b(), rc: r.b() }; },
-  [CMD.SMP_WRITE](a) { const r = new Reader(a); return { slot: r.b(), offset: r.b() | (r.b() << 7) | (r.b() << 14), rc: r.b() }; },
-  [CMD.SMP_END](a) { return parse[CMD.SMP_BEGIN](a); },
-  [CMD.SMP_ERASE](a) { return parse[CMD.SMP_BEGIN](a); },
-  [CMD.SMP_INFO](a) {
-    const r = new Reader(a);
-    const o = { nslots: r.b(), slotKiB: r.b(), slots: [] };
-    for (let i = 0; i < o.nslots; i++) o.slots.push({ zones: r.b(), name: r.s(), kib: r.b() });
-    return o;
-  },
   [CMD.UP_LIST](a) {
     const r = new Reader(a);
     const o = { start: r.b(), count: r.b(), total: r.b(), slots: [] };
@@ -438,10 +418,10 @@ const parse = {
     for (let i = 0; i < UP.PAT; i++) o.pattern.push([r.b(), r.b()]);
     return o;
   },
-  [CMD.UP_PUT](a) { return parse[CMD.SMP_BEGIN](a); },
-  [CMD.UP_STORE](a) { return parse[CMD.SMP_BEGIN](a); },
-  [CMD.UP_LOAD](a) { return parse[CMD.SMP_BEGIN](a); },
-  [CMD.UP_ERASE](a) { return parse[CMD.SMP_BEGIN](a); },
+  [CMD.UP_PUT](a) { const r = new Reader(a); return { slot: r.b(), rc: r.b() }; },
+  [CMD.UP_STORE](a) { return parse[CMD.UP_PUT](a); },
+  [CMD.UP_LOAD](a) { return parse[CMD.UP_PUT](a); },
+  [CMD.UP_ERASE](a) { return parse[CMD.UP_PUT](a); },
   [CMD.WATCH](a) { return { on: new Reader(a).b() }; },
   [CMD.CHANGED](a) { return parse[CMD.GET](a); },
   [CMD.RELOAD](a) { const r = new Reader(a); return { engine: r.b(), preset: r.b(), track: r.i < a.length ? r.b() : 0 }; },
@@ -483,6 +463,17 @@ const parse = {
   /* v4: a parameter of any track (the selection stays), and its push for a track that is not selected */
   [CMD.TRACK_PARAM](a) { const r = new Reader(a); return { track: r.b(), id: r.b(), value: r.v() }; },
   [CMD.TRACK_CHANGED](a) { return parse[CMD.TRACK_PARAM](a); },
+  /* v6 (sloopDX): the DX7 user bank */
+  [CMD.BANK_BEGIN](a) { return { rc: new Reader(a).b() }; },
+  [CMD.BANK_WRITE](a) { const r = new Reader(a); return { offset: r.b() | (r.b() << 7), rc: r.b() }; },
+  [CMD.BANK_END](a) { return { rc: new Reader(a).b() }; },
+  [CMD.BANK_INFO](a) {
+    const r = new Reader(a);
+    const o = { ok: r.b(), names: [] };
+    for (let i = 0; i < DX7.VOICES; i++) o.names.push(r.s());
+    return o;
+  },
+  [CMD.BANK_ERASE](a) { return { rc: new Reader(a).b() }; },
 };
 
 /* a name the device accepts: printable ASCII, 1..12 characters */
@@ -513,17 +504,12 @@ const req = {
   preset: (e, p) => [CMD.PRESET, [e & 0x7F, p & 0x7F]],
   project: (op, slot) => { if (![0, 1, 2].includes(op)) throw new Error("bad PROJECT op"); return [CMD.PROJECT, [op, slot & 3]]; },   /* 0 load, 1 save, 2 query */
   names: (e) => [CMD.NAMES, [e & 0x7F]],
-  smpBegin: (s) => [CMD.SMP_BEGIN, [s & 0x7F]],
-  smpWrite: (s, off, bytes) => [CMD.SMP_WRITE, [s & 0x7F, off & 0x7F, (off >> 7) & 0x7F, (off >> 14) & 0x7F, ...pack7(bytes)]],
-  smpEnd: (s, hdr) => [CMD.SMP_END, [s & 0x7F, ...pack7(hdr)]],
-  smpErase: (s) => [CMD.SMP_ERASE, [s & 0x7F]],
-  smpInfo: () => [CMD.SMP_INFO, []],
   upList: (start, count) => [CMD.UP_LIST, [start & 0x7F, Math.max(1, Math.min(UP.LIST_MAX, count | 0))]],
   upGet: (s) => [CMD.UP_GET, [s & 0x7F]],
   /* patch: {engine, name, p: P_COUNT values, pattern: 16 x [note, flags]} */
   upPut: (s, pt) => [CMD.UP_PUT, [s & 0x7F, pt.engine & 0x7F, ...strEnc(upName(pt.name)), ...pt.p.flatMap((v) => v14enc(v ?? 0)),
     ...Array.from({ length: UP.PAT }, (_, i) => { const x = (pt.pattern || [])[i] || [0, 0]; return [x[0] & 0x7F, x[1] & 7]; }).flat()]],
-  upStore: (s, name) => [CMD.UP_STORE, [s & 0x7F, ...strEnc(name ? upName(name) : "")]],   /* "": the device names it ("ANALOG 07") */
+  upStore: (s, name) => [CMD.UP_STORE, [s & 0x7F, ...strEnc(name ? upName(name) : "")]],   /* "": the device names it ("DX7 07") */
   upLoad: (s) => [CMD.UP_LOAD, [s & 0x7F]],
   upErase: (s) => [CMD.UP_ERASE, [s & 0x7F]],
   /* on: 1 = pushes; 3 = also TRACK_CHANGED (v4 firmware answers 3, older firmware 1) */
@@ -536,15 +522,61 @@ const req = {
   trackStep: (tr, i, st) => [CMD.TRACK_STEP, st ? [tr & 0x7F, ...req.stepSet(i, st)[1]] : [tr & 0x7F, i & 0x7F]],
   /* v4: get (v == null) or set parameter id (P_*) of track tr, clamped as SET */
   trackParam: (tr, id, v) => [CMD.TRACK_PARAM, v == null ? [tr & 0x7F, id & 0x7F] : [tr & 0x7F, id & 0x7F, ...v14enc(v)]],
+  /* v6: the DX7 user bank. bytes: 1..512 voice bytes of the dump (7 bit, as they are) at offset 0..4095 */
+  bankBegin: () => [CMD.BANK_BEGIN, []],
+  bankWrite: (off, bytes) => [CMD.BANK_WRITE, [off & 0x7F, (off >> 7) & 0x7F, ...Array.from(bytes, (x) => x & 0x7F)]],
+  bankEnd: (checksum) => [CMD.BANK_END, [checksum & 0x7F]],
+  bankInfo: () => [CMD.BANK_INFO, []],
+  bankErase: () => [CMD.BANK_ERASE, []],
 };
+
+/* ----------------------------------------------------------- DX7 bank --- */
+/* A DX7 32-voice bulk dump (.syx): F0 43 0n 09 20 00, 32 x 128 packed voice bytes, a checksum, F7.
+   The checksum is (128 - sum of the voice bytes mod 128) mod 128. The uploader checks the file itself
+   (the device checks again), then sends it in 8 x 512 bytes. tools/gen_dx7_bank.py / eng_dx7.c keep
+   the same layout; the voice name is bytes 118..127 of each voice. */
+const DX7 = { SYX_LEN: 4104, DATA_OFF: 6, DATA_LEN: 4096, VOICES: 32, VOICE_LEN: 128, NAME_OFF: 118, NAME_LEN: 10, CHUNK: 512 };
+function dx7Checksum(data) {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i] & 0x7F;
+  return (128 - (sum % 128)) % 128;
+}
+/* a voice name as the device shows it: bytes 118..127, non-printable -> space, trailing spaces trimmed */
+function dx7VoiceName(voice) {
+  let s = "";
+  for (let i = 0; i < DX7.NAME_LEN; i++) { const c = voice[DX7.NAME_OFF + i] ?? 32; s += c >= 32 && c < 127 ? String.fromCharCode(c) : " "; }
+  return s.replace(/ +$/, "");
+}
+const dx7BankNames = (data) => Array.from({ length: DX7.VOICES }, (_, i) => dx7VoiceName(data.subarray(i * DX7.VOICE_LEN, (i + 1) * DX7.VOICE_LEN)));
+/* the file -> {data (4096 voice bytes), checksum, names}; throws an Error whose .code is
+   "length", "header", "byte" (a data byte over 127) or "checksum" */
+function dx7CheckSyx(buf) {
+  const d = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  const fail = (code, detail) => { const e = new Error(code + (detail ? " " + detail : "")); e.code = code; e.detail = detail; throw e; };
+  if (d.length !== DX7.SYX_LEN) fail("length", String(d.length));
+  if (d[0] !== 0xF0 || d[1] !== 0x43 || (d[2] & 0xF0) !== 0x00 || d[3] !== 0x09 || d[4] !== 0x20 || d[5] !== 0x00 || d[DX7.SYX_LEN - 1] !== 0xF7) fail("header");
+  const data = d.subarray(DX7.DATA_OFF, DX7.DATA_OFF + DX7.DATA_LEN);
+  for (let i = 0; i < data.length; i++) if (data[i] > 0x7F) fail("byte", String(DX7.DATA_OFF + i));
+  const checksum = d[DX7.DATA_OFF + DX7.DATA_LEN];
+  if (checksum > 0x7F || dx7Checksum(data) !== checksum) fail("checksum");
+  return { data, checksum, names: dx7BankNames(data) };
+}
+/* a .syx from 32 voices (128 bytes each; short ones padded with 0): for tests and exports */
+function dx7MakeSyx(voices) {
+  const out = new Uint8Array(DX7.SYX_LEN);
+  out.set([0xF0, 0x43, 0x00, 0x09, 0x20, 0x00]);
+  for (let i = 0; i < DX7.VOICES; i++) { const v = voices[i] || []; for (let k = 0; k < DX7.VOICE_LEN && k < v.length; k++) out[DX7.DATA_OFF + i * DX7.VOICE_LEN + k] = v[k] & 0x7F; }
+  out[DX7.DATA_OFF + DX7.DATA_LEN] = dx7Checksum(out.subarray(DX7.DATA_OFF, DX7.DATA_OFF + DX7.DATA_LEN));
+  out[DX7.SYX_LEN - 1] = 0xF7;
+  return out;
+}
 
 /* which reply belongs to which request (the device echoes these) */
 function replyMatches(cmd, args, a) {
   switch (cmd) {
     case CMD.GET: case CMD.SET: case CMD.DESC: return a[0] === args[0] && a[1] === args[1];
-    case CMD.STEP_GET: case CMD.STEP_SET: case CMD.NAMES:
-    case CMD.SMP_BEGIN: case CMD.SMP_END: case CMD.SMP_ERASE: return a[0] === args[0];
-    case CMD.SMP_WRITE: return a[0] === args[0] && a[1] === args[1] && a[2] === args[2] && a[3] === args[3];
+    case CMD.STEP_GET: case CMD.STEP_SET: case CMD.NAMES: return a[0] === args[0];
+    case CMD.BANK_WRITE: return a[0] === args[0] && a[1] === args[1];
     case CMD.PROJECT: return a[0] === args[0] && a[1] === args[1];
     case CMD.UP_LIST: case CMD.UP_GET: case CMD.UP_PUT: case CMD.UP_STORE: case CMD.UP_LOAD: case CMD.UP_ERASE:
     case CMD.TRACK_MIX: case CMD.TRACK_DUMP: case CMD.DRUM_STEP: return a[0] === args[0];
@@ -690,324 +722,6 @@ function fmtValue(d, v) {
   }
 }
 
-/* ---------------------------------------------------------- user samples --- */
-/* A port of tools/sampleio.py (read_any_wav, resample, to_int16, ima_encode, user_slot),
-   byte for byte: web/test_web.mjs compares them. */
-const SMP = { SLOT_SIZE: 0x14000, DATA_OFF: 512, RATE: 22050, HDR_LEN: 32 + 16 * 28, MAX_ZONES: 16 };
-SMP.MAX_DATA = SMP.SLOT_SIZE - SMP.DATA_OFF;
-
-/* groups of up to 7 bytes, each preceded by their top bits */
-function pack7(b) {
-  const out = [];
-  for (let i = 0; i < b.length; i += 7) {
-    const g = Array.from(b.slice(i, i + 7));
-    out.push(g.reduce((m, x, j) => m | (((x >> 7) & 1) << j), 0));
-    for (const x of g) out.push(x & 0x7F);
-  }
-  return out;
-}
-function unpack7(a) {
-  const out = [];
-  for (let i = 0; i < a.length; i += 8) {
-    const top = a[i];
-    for (let j = 0; j < 7 && i + 1 + j < a.length; j++) out.push(a[i + 1 + j] | (((top >> j) & 1) << 7));
-  }
-  return Uint8Array.from(out);
-}
-
-const CRC_TABLE = (() => {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
-  return t;
-})();
-function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
-
-const IMA_STEP = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88,
-  97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658,
-  724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660,
-  4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818,
-  18500, 20350, 22385, 24623, 27086, 29794, 32767];
-const IMA_IDX = [-1, -1, -1, -1, 2, 4, 6, 8];
-/* IMA ADPCM, 4 bit, low nibble first, from predictor 0 / index 0 -> {data, pred, idx} (state at loopStart) */
-function imaEncode(s, loopStart = 0) {
-  let pred = 0, idx = 0, atLoop = [0, 0];
-  const nib = new Uint8Array(s.length + (s.length & 1));
-  for (let n = 0; n < s.length; n++) {
-    if (n === loopStart) atLoop = [pred, idx];
-    const step = IMA_STEP[idx];
-    let diff = s[n] - pred, code = 0;
-    if (diff < 0) { code = 8; diff = -diff; }
-    let vd = step >> 3;
-    if (diff >= step) { code |= 4; diff -= step; vd += step; }
-    if (diff >= step >> 1) { code |= 2; diff -= step >> 1; vd += step >> 1; }
-    if (diff >= step >> 2) { code |= 1; vd += step >> 2; }
-    pred = Math.max(-32768, Math.min(32767, code & 8 ? pred - vd : pred + vd));
-    idx = Math.max(0, Math.min(88, idx + IMA_IDX[code & 7]));
-    nib[n] = code;
-  }
-  const out = new Uint8Array(nib.length >> 1);
-  for (let k = 0; k < nib.length; k += 2) out[k >> 1] = nib[k] | (nib[k + 1] << 4);
-  return { data: out, pred: atLoop[0], idx: atLoop[1] };
-}
-
-/* WAV: PCM 8/16/24/32 or float, any channel count, mixed to mono -> {sr, x} (gen_samples.read_any_wav) */
-function parseWav(buf) {
-  const d = new Uint8Array(buf), v = new DataView(d.buffer, d.byteOffset, d.byteLength);
-  const id = (i) => String.fromCharCode(d[i], d[i + 1], d[i + 2], d[i + 3]);
-  if (d.length < 12 || id(0) !== "RIFF" || id(8) !== "WAVE") throw new Error("not a WAV file");
-  let i = 12, fmt = null, data = null;
-  while (i + 8 <= d.length) {
-    const cid = id(i), n = v.getUint32(i + 4, true);
-    if (cid === "fmt ") {
-      let tag = v.getUint16(i + 8, true);
-      const ch = v.getUint16(i + 10, true), sr = v.getUint32(i + 12, true), bits = v.getUint16(i + 22, true);
-      if (tag === 0xFFFE) tag = v.getUint16(i + 32, true);
-      fmt = { tag, ch, sr, bits };
-    } else if (cid === "data") {
-      data = [i + 8, Math.min(d.length, i + 8 + n)];
-      break;
-    }
-    i += 8 + n + (n & 1);
-  }
-  if (!fmt || !data) throw new Error("WAV without fmt/data");
-  const { tag, ch, sr, bits } = fmt, bps = bits >> 3, frame = bps * ch;
-  if (!(tag === 1 || tag === 3) || !bps || !ch) throw new Error("unsupported WAV format");
-  const nfr = Math.floor((data[1] - data[0]) / frame), x = new Float64Array(nfr);
-  for (let f = 0; f < nfr; f++) {
-    let acc = 0;
-    for (let c = 0; c < ch; c++) {
-      const o = data[0] + f * frame + c * bps;
-      let s;
-      if (tag === 3) s = bps === 4 ? v.getFloat32(o, true) : v.getFloat64(o, true);
-      else if (bps === 2) s = v.getInt16(o, true) / 32768;
-      else if (bps === 3) s = (((d[o] | (d[o + 1] << 8) | (d[o + 2] << 16)) << 8) >> 8) / 8388608;
-      else if (bps === 4) s = v.getInt32(o, true) / 2147483648;
-      else s = (d[o] - 128) / 128;
-      acc += s;
-    }
-    x[f] = acc / ch;
-  }
-  return { sr, x };
-}
-
-/* gen_samples.resample: moving average over the ratio, then linear interpolation */
-function resample(x, sr, to) {
-  if (sr === to) return Array.from(x);
-  if (sr > to) {
-    const k = Math.max(1, pyRound(sr / to));
-    if (k > 1) {
-      const y = new Array(x.length);
-      for (let i = 0; i < x.length; i++) { let s = 0; for (let j = i; j < Math.min(x.length, i + k); j++) s += x[j]; y[i] = s / k; }
-      x = y;
-    }
-  }
-  const step = sr / to, out = [];
-  let p = 0;
-  while (p < x.length - 1) { const i = Math.floor(p), f = p - i; out.push(x[i] * (1 - f) + x[i + 1] * f); p += step; }
-  return out;
-}
-function pyRound(v) { const f = Math.floor(v), r = v - f; return r > 0.5 ? f + 1 : r < 0.5 ? f : (f % 2 ? f + 1 : f); }
-
-/* mono float -> int16, peak normalised to 30000 */
-function normalize(x) {
-  let pk = 1e-9;
-  for (const v of x) pk = Math.max(pk, Math.abs(v));
-  return Int16Array.from(x, (v) => Math.max(-32768, Math.min(32767, Math.trunc(v / pk * 30000))));
-}
-
-/* root from a file name like "piano_C4" or "F#3" (C4 = 60), else 60 (sampleio.note_from_name) */
-function rootFromName(name) {
-  const m = /(?<![A-Za-z])([A-G])([#b]?)(-?\d)(?!\d)/.exec(name);
-  if (!m) return 60;
-  const n = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + (parseInt(m[3], 10) + 1) * 12;
-  return Math.max(0, Math.min(127, n));
-}
-
-/* zones: [{s: Int16Array (22050 Hz), root, lo?, hi?}] -> {hdr (480 B), data, zones} (sampleio.user_slot) */
-function buildSlot(name, zonesIn) {
-  const zones = [], parts = [];
-  let len = 0;
-  for (const z of zonesIn) {
-    const e = imaEncode(z.s, 0);
-    zones.push({ off: len, n: z.s.length, ls: 0, le: z.s.length - 1, root: z.root, lo: z.lo ?? null, hi: z.hi ?? null, pred: e.pred, idx: e.idx });
-    parts.push(e.data);
-    len += e.data.length;
-  }
-  const data = new Uint8Array(len);
-  let o = 0;
-  for (const p of parts) { data.set(p, o); o += p.length; }
-  if (len > SMP.MAX_DATA) throw new Error(`too long: ${len} B (max ${SMP.MAX_DATA} B)`);
-  if (!zones.length || zones.length > SMP.MAX_ZONES) throw new Error("1..16 files per slot");
-  zones.sort((a, b) => a.root - b.root);
-  zones.forEach((z, j) => {
-    if (z.lo == null) {
-      z.lo = j === 0 ? 0 : Math.floor((zones[j - 1].root + z.root) / 2) + 1;
-      z.hi = j === zones.length - 1 ? 127 : Math.floor((z.root + zones[j + 1].root) / 2);
-    }
-  });
-  const hdr = new Uint8Array(SMP.HDR_LEN), v = new DataView(hdr.buffer);
-  v.setUint32(0, 0x504D5346, true);
-  v.setUint16(4, 1, true);
-  hdr[6] = zones.length;
-  const nm = String(name).toUpperCase().replace(/[^\x20-\x7E]/g, "").slice(0, 8);
-  for (let i = 0; i < nm.length; i++) hdr[8 + i] = nm.charCodeAt(i);
-  v.setUint32(16, len, true);
-  v.setUint32(20, crc32(data), true);
-  const rate = pyRound(SMP.RATE / 44100 * 65536);
-  zones.forEach((z, j) => {
-    const b = 32 + j * 28;
-    [z.off, z.n, z.ls, z.le, rate].forEach((x, k) => v.setUint32(b + k * 4, x >>> 0, true));
-    v.setInt16(b + 20, z.root * 16, true);
-    v.setInt16(b + 22, z.pred, true);
-    hdr[b + 24] = z.idx; hdr[b + 25] = z.lo; hdr[b + 26] = z.hi; hdr[b + 27] = 0;
-  });
-  return { hdr, data, zones };
-}
-
-/* ------------------------------------------------------------------- chop --- */
-/* Chopping a recording into a slot (the CHOP block of the samples tab). All at SMP.RATE, positions
-   in samples. These are pure: test_web.mjs runs them. */
-const CHOP = { HOP: 128, MAX: 16, FADE_IN: 22, FADE_OUT: 132, PRE: 32 };   /* 5.8 ms frames; fades 1 / 6 ms; start 1.5 ms early */
-
-/* onset novelty per frame: the rise of the log energy of the signal's first difference (the attack
-   of a hit, not its body), over the louder of the two frames before */
-function chopNovelty(x) {
-  const H = CHOP.HOP, F = Math.ceil(x.length / H), L = new Float64Array(F), P = new Float64Array(F), nov = new Float64Array(F);
-  let top = 1e-12, ptop = 1e-12;
-  for (let f = 0; f < F; f++) {
-    let e = 0, p = 0;
-    for (let i = f * H, n = Math.min(x.length, i + H); i < n; i++) { const d = x[i] - (i ? x[i - 1] : 0); e += d * d; p += x[i] * x[i]; }
-    L[f] = e;
-    P[f] = p;
-    if (e > top) top = e;
-    if (p > ptop) ptop = p;
-  }
-  for (let f = 0; f < F; f++) { L[f] = Math.log10(L[f] / top + 1e-9); P[f] = Math.log10(P[f] / ptop + 1e-9); }   /* 0 = the loudest */
-  for (let f = 0; f < F; f++) {
-    const before = Math.max(f ? L[f - 1] : -9, f > 1 ? L[f - 2] : -9);
-    nov[f] = L[f] > -3.5 ? Math.max(0, L[f] - before) : 0;              /* (under -35 dB: no hit) */
-  }
-  nov.level = P;                                                         /* (log10 power, 0 = the loudest frame) */
-  return nov;
-}
-
-/* the first sample of the hit in frame f: where the signal first reaches 30 % of its peak over the
-   frames f-1..f+2, then PRE samples earlier (the attack is kept whole) */
-function chopAttack(x, f) {
-  const H = CHOP.HOP, a = Math.max(0, (f - 1) * H), b = Math.min(x.length, (f + 3) * H);
-  let pk = 0;
-  for (let i = a; i < b; i++) pk = Math.max(pk, Math.abs(x[i]));
-  for (let i = a; i < b; i++) if (Math.abs(x[i]) >= 0.3 * pk) return Math.max(0, i - CHOP.PRE);
-  return a;
-}
-
-/* hits: sens 1 (only the hardest and loudest) .. 10 (every small one); at least 60 ms apart. A hit is a
-   sharp rise (nov over thr) to a level (its loudest frame within 3) over the gate */
-function chopHits(x, nov, sens) {
-  const k = Math.max(1, Math.min(10, sens)), thr = 0.15 + (10 - k) * 0.08, gate = -(0.5 + k * 0.35);
-  const gap = Math.round(0.06 * SMP.RATE / CHOP.HOP), L = nov.level;
-  const out = [];
-  let last = -1e9;
-  for (let f = 0; f < nov.length - 1; f++) {        /* (a hit on the very first frame counts too) */
-    if (nov[f] < thr || (f && nov[f] < nov[f - 1]) || nov[f] < nov[f + 1]) continue;
-    if (L && Math.max(L[f], L[Math.min(L.length - 1, f + 1)], L[Math.min(L.length - 1, f + 2)]) < gate) continue;
-    if (f - last < gap) {
-      if (out.length && nov[f] > nov[last]) { out[out.length - 1] = chopAttack(x, f); last = f; }
-      continue;
-    }
-    out.push(chopAttack(x, f));
-    last = f;
-  }
-  return out;
-}
-
-/* a tap at pos (as heard) moved to the hit it meant: the strongest attack within +-win s, if any */
-function chopSnap(x, nov, pos, win = 0.05) {
-  const H = CHOP.HOP, w = Math.round(win * SMP.RATE / H), c = Math.round(pos / H);
-  let best = -1, bv = 0.12;
-  for (let f = Math.max(1, c - w); f <= Math.min(nov.length - 1, c + w); f++) if (nov[f] > bv) { bv = nov[f]; best = f; }
-  return best < 0 ? Math.max(0, Math.min(x.length - 1, Math.round(pos))) : chopAttack(x, best);
-}
-
-/* markers every `beats` beats at bpm from start to end */
-function chopGrid(start, end, bpm, beats) {
-  const step = SMP.RATE * 60 / bpm * beats, out = [];
-  for (let p = start; p < end - step * 0.25 && out.length < 64; p += step) out.push(Math.round(p));
-  return out;
-}
-
-/* n equal parts of start..end */
-function chopEqual(start, end, n) {
-  return Array.from({ length: n }, (_, i) => Math.round(start + (end - start) * i / n));
-}
-
-/* the chops of sorted markers: each to the next marker (the last to the end), cut at maxLen samples
-   when maxLen > 0 -> [{start, end}] (all of them; the slot takes CHOP.MAX) */
-function chopList(marks, total, maxLen = 0) {
-  return marks.map((m, i) => {
-    let e = i + 1 < marks.length ? marks[i + 1] : total;
-    if (maxLen > 0) e = Math.min(e, m + maxLen);
-    return { start: m, end: Math.max(m + 1, e) };
-  });
-}
-
-/* chops -> slot zones {s (Int16Array, one gain for all: their levels are kept), root, lo, hi, fname}.
-   mode 0: one key each from key0 (each key plays its chop at its own speed, the keys between are silent)
-   mode 1: the chop `sel` alone over the whole keyboard, at its own speed on key0 */
-function chopZones(x, chops, key0, mode = 0, sel = 0) {
-  const use = mode === 1 ? [chops[Math.max(0, Math.min(chops.length - 1, sel))]] : chops.slice(0, CHOP.MAX);
-  let pk = 1e-9;
-  for (const c of use) for (let i = c.start; i < c.end; i++) pk = Math.max(pk, Math.abs(x[i]));
-  return use.map((c, j) => {
-    const n = c.end - c.start, s = new Int16Array(n), fi = Math.min(CHOP.FADE_IN, n >> 2), fo = Math.min(CHOP.FADE_OUT, n >> 2);
-    for (let i = 0; i < n; i++) {
-      let g = 1;
-      if (i < fi) g = i / fi;
-      if (i >= n - fo) g = Math.min(g, (n - i) / fo);
-      s[i] = Math.max(-32768, Math.min(32767, Math.trunc(x[c.start + i] / pk * 30000 * g)));
-    }
-    const key = Math.min(127, key0 + (mode === 1 ? 0 : j));
-    return { s, root: key, lo: mode === 1 ? 0 : key, hi: mode === 1 ? 127 : key,
-      fname: `CHOP${String((mode === 1 ? sel : j) + 1).padStart(2, "0")}_${NOTE_NAMES[key % 12]}${Math.floor(key / 12) - 1}.wav` };
-  });
-}
-
-/* a mono 16-bit WAV at SMP.RATE */
-function wavFile(s) {
-  const b = new Uint8Array(44 + s.length * 2), v = new DataView(b.buffer);
-  const str = (o, t) => { for (let i = 0; i < t.length; i++) b[o + i] = t.charCodeAt(i); };
-  str(0, "RIFF"); v.setUint32(4, 36 + s.length * 2, true); str(8, "WAVEfmt "); v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, SMP.RATE, true); v.setUint32(28, SMP.RATE * 2, true);
-  v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, "data"); v.setUint32(40, s.length * 2, true);
-  for (let i = 0; i < s.length; i++) v.setInt16(44 + i * 2, s[i], true);
-  return b;
-}
-
-/* files [{name, data: Uint8Array}] -> a ZIP (stored, no compression) */
-function zipStore(files) {
-  const parts = [], dir = [];
-  let off = 0;
-  for (const f of files) {
-    const nm = new TextEncoder().encode(f.name), crc = crc32(f.data), h = new Uint8Array(30 + nm.length), v = new DataView(h.buffer);
-    v.setUint32(0, 0x04034B50, true); v.setUint16(4, 20, true); v.setUint32(14, crc, true);
-    v.setUint32(18, f.data.length, true); v.setUint32(22, f.data.length, true); v.setUint16(26, nm.length, true); h.set(nm, 30);
-    const c = new Uint8Array(46 + nm.length), w = new DataView(c.buffer);
-    w.setUint32(0, 0x02014B50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint32(16, crc, true);
-    w.setUint32(20, f.data.length, true); w.setUint32(24, f.data.length, true); w.setUint16(28, nm.length, true);
-    w.setUint32(42, off, true); c.set(nm, 46);
-    parts.push(h, f.data);
-    dir.push(c);
-    off += h.length + f.data.length;
-  }
-  const size = dir.reduce((a, c) => a + c.length, 0), end = new Uint8Array(22), e = new DataView(end.buffer);
-  e.setUint32(0, 0x06054B50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
-  e.setUint32(12, size, true); e.setUint32(16, off, true);
-  const out = new Uint8Array(off + size + 22);
-  let o = 0;
-  for (const p of [...parts, ...dir, end]) { out.set(p, o); o += p.length; }
-  return out;
-}
-
 /* -------------------------------------------------------------- librarian --- */
 /* A patch (library entry, user preset):
      {name, engine (index), engineName, p: [P_COUNT values by parameter id, null = unknown],
@@ -1022,7 +736,7 @@ function zipStore(files) {
        "paramLabels": ["LVL", "ATK", ...],      one key per parameter id: the DESC label, "#2", "#3" appended to
                                                 a repeated label (PIT, PIT#2), and "E0".."E7" for the engine
                                                 parameters (their labels depend on the engine)
-       "engines": ["ANALOG", ...],              engine names by index
+       "engines": ["DX7"],                      engine names by index
        "exported": "2026-10-03T12:00:00.000Z",
        "patches": [{ "name", "engine", "engineName", "params": [pCount numbers or null],
                      "pattern": [[note, flags] x 16] or null, "tags": [...], "created", "modified",
@@ -1159,6 +873,26 @@ const bank = {
   async load(rq, slot) { return parse[CMD.UP_LOAD](await rq(req.upLoad(slot), { timeout: 1000 })).rc; },
   async erase(rq, slot) { return parse[CMD.UP_ERASE](await rq(req.upErase(slot), FLASH_OPT)).rc; },
 };
+/* the DX7 user bank (v6). upload: the checked file (dx7CheckSyx) -> rc of BANK_END (0 ok, 1 checksum, 2 flash),
+   or the rc of the step that failed as {step, rc}; progress(k, n) after each BANK_WRITE */
+const dxbank = {
+  async upload(rq, syx, progress) {
+    const { data, checksum } = syx;
+    let rc = parse[CMD.BANK_BEGIN](await rq(req.bankBegin(), { timeout: 1000, retries: 0 })).rc;
+    if (rc) throw Object.assign(new Error("BANK_BEGIN rc " + rc), { step: "begin", rc });
+    const n = Math.ceil(data.length / DX7.CHUNK);
+    for (let k = 0; k < n; k++) {
+      const off = k * DX7.CHUNK;
+      const w = parse[CMD.BANK_WRITE](await rq(req.bankWrite(off, data.subarray(off, off + DX7.CHUNK)), { timeout: 1000, retries: 1 }));
+      if (w.rc) throw Object.assign(new Error(`BANK_WRITE at ${off} rc ${w.rc}`), { step: "write", rc: w.rc });
+      if (progress) progress(k + 1, n);
+    }
+    rc = parse[CMD.BANK_END](await rq(req.bankEnd(checksum), { timeout: 2500, retries: 0 })).rc;
+    return rc;
+  },
+  async info(rq, opt) { return parse[CMD.BANK_INFO](await rq(req.bankInfo(), opt)); },
+  async erase(rq) { return parse[CMD.BANK_ERASE](await rq(req.bankErase(), FLASH_OPT)).rc; },
+};
 
 /* the current sound: DUMP + the first 16 steps */
 async function capturePatch(rq, info, name) {
@@ -1223,8 +957,9 @@ const mixer = {
 };
 
 /* ------------------------------------------------------------ mock device --- */
-/* Implements the protocol like firmware/src/editor.c, with tables copied from params.c
-   and the engine sources. Used with ?mock=1 (add &legacy=1 for a firmware without cmds 16..26).
+/* Implements the protocol like firmware/src/editor.c, with tables copied from params.c, eng_dx7.c
+   (the DX7 engine, its 17 presets, dx7_bank.h DX_SYNTH_NAME_LIST) and drums.c (the 5 FM kits).
+   Used with ?mock=1 (add &legacy=1 for a firmware without cmds 16..26).
    opt: {legacy: no user bank / WATCH, v3: no TRACK_PARAM / TRACK_CHANGED (firmware 0.8),
          auto: false = no simulated knobs (tests drive sim.*),
          watchMs: how long WATCH lasts after the last request (3000), slots: user bank size (32)} */
@@ -1254,15 +989,15 @@ function makeMockDevice(opt = {}) {
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
     E("MIDI", NDASH, 0), E("SYNC", NDASH, 0), E("ROUT", NDASH, 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
-    E("ENG", ["ANALOG", "DIGITAL", "PHASE", "LOFI", "SAMPLE", "VOICE", "TRIO", "WHEEL",
-      "GRAIN"], 0), E("SET", NGO, 0),
+    E("ENG", ["DX7"], 0), E("SET", NGO, 0),
     E("CLRSQ", NGO, 0), E("INIT", NGO, 0),
     D("CH", F.INT, 0, 16, 10), D("LVL", F.INT, 0, 127, 100), D("REV", F.INT, 0, 127, 16),
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.FILT, -64, 63, 0),
     E("ROLL", ["1/8", "1/16", "1/32", "32T", "1/64"], 1), E("NEW", NGO, 0),
   ];
-  /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES; 5 = 808, the power-on kit) */
-  const KIT = E("KIT", ["ACOUSTIC", "DEEP", "TIGHT", "BRIGHT", "DUST", "808", "909", "606", "80S", "VINTAGE", "TRAP", "DRILL", "BOOMBAP", "LO-FI", "PHONK", "HOUSE", "D.HOUSE", "TECHNO", "MINIMAL", "ELECTRO", "DISCO", "GARAGE", "JUNGLE", "DUBSTEP", "DEMBOW", "AMAPIANO", "AFRO", "LATIN", "TRIBAL", "SYNTHWV", "CHIP", "ARCADE", "GLITCH", "INDUSTR", "HYPER", "AMBIENT", "JAZZ"], 0);
+  /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
+     first 16 voices of the DX7 user bank) */
+  const KIT = E("KIT", ["DX KIT", "TIGHT", "BOOM", "METAL", "USER"], 0);
   /* a GM note -> its drum lane (drums.c LANE_OF_GM: 35..81) */
   const LANE_OF_GM = [1, 0, 7, 2, 3, 8, 9, 4, 9, 6, 9, 5, 10, 10, 11, 10, 12, 11, 12, 13, 11, 15, 11, 13, 12, 14, 14, 14, 14, 14,
     14, 14, 15, 15, 13, 13, 15, 15, 13, 13, 7, 7, 7, 14, 14, 15, 15];
@@ -1294,60 +1029,23 @@ function makeMockDevice(opt = {}) {
     x.rat = a.length >= 11 ? (a[10] & 0x7F) | (((a[9] >> 1) & 1) << 7) : 0;
   };
   const NONE = D("-", F.INT, 0, 0, 0);
-  const RATIO = [".5", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "14", "16"];
-  const P = (name, e, env = [10, 70, 90, 60], mono = 0, pat = 0) => ({ name, e, env, mono, pat });
+  /* the DX7's VOICE enum: the 17 factory voices (dx7_bank.h DX_SYNTH_NAME_LIST), then U01..U32, renamed after
+     the user bank's voices once one is uploaded (BANK_END) */
+  const DX_SYNTH = ["EPIANO 1", "EPIANO 2", "FM BASS", "SLAP BASS", "SUB BASS", "BRASS", "STRINGS", "GLASS PAD", "BELLS", "MARIMBA",
+    "ORGAN", "CLAV", "PLUCK", "FLUTE", "SAW LEAD", "KOTO", "INIT VOICE"];
+  const uName = (i) => "U" + String(i + 1).padStart(2, "0");
+  const VOICE_NAMES = DX_SYNTH.concat(Array.from({ length: DX7.VOICES }, (_, i) => uName(i)));
+  /* a preset: its voice, the FX sends (DST CHO DLY REV, eng_dx7.c FX(...)), mono, and a demo pattern (mock only) */
+  const P = (name, voice, fx, mono = 0, pat = 0) => ({ name, e: [voice, 0, 0, 0, 0, 0, 0, 0], env: [0, 0, 127, 0], fx, mono, pat });
   const ENG = [
-    { name: "ANALOG", titles: ["OSC", "FLT"], edit: [E("WAVE", ["SAW", "SQR", "TRI", "SIN", "PWM"], 0), D("DTN", F.INT, 0, 127, 10, null, "ct"), D("MIX", F.PCT, 0, 127, 64),
-        D("NOIS", F.PCT, 0, 127, 0), D("CUT", F.CUTOFF, 0, 127, 90), D("RES", F.PCT, 0, 127, 30), D("DRV", F.PCT, 0, 127, 0), D("KTR", F.PCT, 0, 127, 64)],
-      presets: [P("808 BOOM", [3, 0, 0, 0, 127, 0, 48, 0], [0, 112, 0, 52], 1), P("808 DIRTY", [3, 0, 0, 0, 96, 12, 118, 30], [0, 108, 0, 46], 1),
-        P("SUB BASS", [3, 0, 0, 0, 127, 0, 10, 0], [0, 60, 118, 24], 1), P("REESE", [0, 22, 64, 0, 56, 22, 36, 40], [0, 70, 118, 28], 1),
-        P("WOBBLE", [0, 9, 64, 0, 38, 72, 62, 30], [0, 64, 127, 22], 1, 1), P("FUNK BASS", [1, 6, 50, 0, 50, 30, 22, 64], [0, 55, 62, 20], 1),
-        P("G-FUNK LD", [2, 0, 0, 0, 92, 0, 10, 64], [6, 70, 112, 46], 1), P("TRAP PLUCK", [0, 8, 64, 0, 30, 35, 0, 64], [0, 58, 0, 45], 0),
-        P("SYN BRASS", [0, 10, 64, 0, 45, 20, 16, 64], [12, 70, 96, 35], 0), P("WARM PAD", [4, 12, 64, 6, 52, 8, 0, 32], [75, 90, 115, 90], 0),
-        P("DARK STR", [0, 18, 64, 0, 48, 6, 0, 32], [60, 90, 118, 85], 0), P("ATMOS PAD", [4, 25, 64, 20, 60, 15, 0, 32], [90, 100, 120, 100], 0)] },
-    { name: "DIGITAL", titles: ["OPS", "MOD"], edit: [E("ALG", ["1", "2", "3", "4", "5", "6", "7", "8"], 0), E("R2", RATIO, 1), E("R3", RATIO, 1), E("R4", RATIO, 1),
-        D("IDX", F.PCT, 0, 127, 60), D("MDEC", F.TIME, 0, 127, 60), D("FB", F.PCT, 0, 127, 0), NONE],
-      presets: [P("RHODES", [4, 1, 1, 14, 26, 35, 0, 0], [0, 85, 35, 55], 0), P("DX RHODES", [4, 1, 1, 14, 85, 45, 0, 0], [0, 82, 40, 55], 0),
-        P("WURLI", [4, 1, 2, 3, 62, 35, 8, 0], [0, 75, 30, 45], 0), P("CLAV", [3, 1, 3, 5, 90, 25, 20, 0], [0, 50, 20, 18], 0),
-        P("TRAP BELL", [4, 8, 1, 4, 80, 70, 0, 0], [0, 92, 0, 70], 0), P("MUSIC BOX", [4, 4, 3, 9, 45, 75, 0, 0], [0, 90, 0, 75], 0),
-        P("MARIMBA", [4, 4, 1, 1, 60, 30, 0, 0], [0, 80, 0, 60], 0), P("FM BASS", [0, 1, 1, 1, 34, 40, 8, 0], [0, 60, 70, 25], 1)] },
-    { name: "PHASE", titles: ["PHS", "LINE"], edit: [E("WAVE", ["SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"], 0),
-        E("WAVE2", ["--", "SAW", "SQR", "PLS", "DSIN", "SPLS", "RSAW", "RTRI", "RTRP"], 0), D("DCW", F.PCT, 0, 127, 60), D("ENV", F.PCT, 0, 127, 64),
-        D("DTN", F.INT, 0, 127, 0, null, "ct"), E("LINE", ["MIX", "RING"], 0), D("SUB", F.PCT, 0, 127, 0), NONE],
-      presets: [P("CZ BASS", [5, 0, 28, 70, 0, 0, 40, 0], [0, 60, 50, 22], 1), P("SOFT KEYS", [3, 0, 40, 70, 0, 0, 0, 0], [0, 80, 20, 50], 0),
-        P("CZ STRING", [0, 4, 50, 40, 12, 0, 0, 0], [50, 90, 105, 75], 0), P("RESO PLUCK", [5, 0, 60, 60, 0, 0, 0, 0], [0, 70, 30, 60], 0, 1),
-        P("CZ BRASS", [0, 0, 30, 90, 0, 0, 0, 0], [8, 70, 90, 40], 0)] },
-    { name: "LOFI", titles: ["CHIP", "MOTN"], edit: [E("CHIP", ["4BIT", "4B/2", "8BIT", "1BIT", "STEP"], 0), E("WAVE", ["PLS", "TRI", "SAW", "NOIS", "WRAM"], 0), D("DUTY", F.INT, 0, 127, 64),
-        D("CRSH", F.PCT, 0, 127, 0), D("SWP", F.PCT, 0, 127, 0), D("VIB", F.PCT, 0, 127, 0), E("ARP", ["OFF", "OCT", "MAJ", "MIN"], 0), D("TONE", F.PCT, 0, 127, 127)],
-      presets: [P("GAME LEAD", [0, 0, 32, 0, 0, 20, 0, 127], [0, 60, 90, 30], 1), P("GB BASS", [1, 1, 0, 0, 0, 0, 0, 90], [0, 50, 70, 20], 1),
-        P("8BIT ARP", [2, 0, 96, 0, 0, 0, 2, 110], [0, 60, 80, 40], 0)] },
-    { name: "SAMPLE", titles: ["SET", "TONE"], edit: [E("SET", ["PIANO", "BASS", "VIBES", "HORNS", "STRGS", "FLUTE", "SCRCH", "PERC", "USR1", "USR2", "USR3"], 0), D("TUNE", F.SEMI, -24, 24, 0), D("BITS", F.INT, 0, 127, 0),
-        E("LOOP", NONOFF, 1), D("CUT", F.INT, 0, 127, 127), NONE, D("DRV", F.PCT, 0, 127, 0), NONE],
-      presets: [P("DUSTY PNO", [0, 0, 20, 1, 104, 0, 14, 0], [0, 127, 127, 52], 0), P("UP BASS", [1, 0, 0, 1, 118, 0, 12, 0], [0, 127, 127, 26], 1),
-        P("VIBES", [2, 0, 0, 1, 127, 0, 0, 0], [0, 127, 127, 72], 0), P("HORN STAB", [3, 0, 0, 1, 120, 0, 20, 0], [0, 127, 127, 22], 0),
-        P("STRING STB", [4, 0, 0, 1, 122, 0, 10, 0], [0, 127, 127, 26], 0), P("LOFI FLUTE", [5, 0, 12, 1, 100, 0, 0, 0], [12, 80, 120, 60], 1),
-        P("SCRATCH", [6, 0, 0, 1, 127, 0, 8, 0], [0, 127, 127, 18], 0), P("GM KIT", [7, 0, 0, 0, 127, 0, 0, 0], [0, 127, 127, 60], 0),
-        P("LOFI KEYS", [0, 0, 45, 1, 78, 0, 30, 0], [0, 127, 110, 60], 0), P("DEEP BASS", [1, -12, 0, 1, 90, 0, 40, 0], [0, 127, 127, 30], 1)] },
-    { name: "VOICE", titles: ["VOWL", "TONE"], edit: [D("VOWL", F.INT, 0, 127, 0), D("VOWL2", F.INT, 0, 127, 64), D("TALK", F.TIME, 0, 127, 0),
-        D("SHIFT", F.SEMI, -12, 12, 0), D("BUZZ", F.PCT, 0, 127, 64), D("BRTH", F.PCT, 0, 127, 10), D("Q", F.PCT, 0, 127, 64), D("RAND", F.PCT, 0, 127, 0)],
-      presets: [P("CHOIR AAH", [0, 0, 0, 0, 40, 22, 60, 0], [85, 90, 115, 95], 0), P("SOUL OOH", [110, 0, 0, 0, 30, 30, 55, 0], [70, 90, 115, 90], 0),
-        P("TALKBOX", [32, 95, 60, 0, 100, 4, 75, 0], [4, 70, 110, 40], 1), P("WOW BASS", [95, 0, 68, 0, 100, 0, 80, 0], [0, 70, 70, 30], 1)] },
-    { name: "TRIO", titles: ["OSC", "TONE"], edit: [E("WAVE", ["SAW3", "PLS3", "PPT", "SST", "TRI3", "S&T", "P&S", "P+N", "NOIS", "SYNC", "SYNCP", "SYNC3",
-        "RING", "RING3", "R+S", "R+SP"], 0), D("INT2", F.SEMI, -24, 24, 0), D("INT3", F.SEMI, -24, 24, -12), D("DTN", F.INT, 0, 50, 6, null, "ct"),
-        E("MODE", ["LP", "BP", "HP", "NOT"], 0), D("CUT", F.CUTOFF, 0, 127, 80), D("RES", F.PCT, 0, 127, 40), D("PW", F.PCT, 0, 127, 64)],
-      presets: [P("FAT BASS", [0, 0, -12, 9, 0, 62, 45, 64], [0, 62, 60, 25], 1), P("MIN STAB", [0, 3, 7, 6, 0, 80, 20, 64], [0, 50, 0, 30], 0),
-        P("MIN7 STAB", [3, 3, 10, 5, 0, 75, 15, 64], [0, 60, 20, 40], 0), P("SYNC LEAD", [9, 9, 0, 0, 0, 82, 30, 64], [2, 70, 100, 40], 1),
-        P("HOOVER", [0, 0, -12, 40, 0, 70, 20, 64], [10, 70, 110, 40], 1)] },
-    { name: "WHEEL", titles: ["BARS", "TONE"], edit: [E("REG", ["FLUTE", "MELLO", "HOLLW", "SMOOT", "3BAR", "BLUES", "GOSPL", "ROCK",
-        "TOPS", "CLARI", "REED", "STRNG", "CHAPL", "BRITE", "BASS", "FULL"], 4), D("SUB", F.INT, -8, 8, 0), D("BODY", F.INT, -8, 8, 0), D("TOP", F.INT, -8, 8, 0),
-        E("PERC", ["OFF", "2ND", "3RD", "2SOFT", "3SOFT", "2SLOW", "3SLOW"], 0), D("CLICK", F.PCT, 0, 127, 40), D("DRV", F.PCT, 0, 127, 0), E("ROTR", ["OFF", "SLOW", "FAST"], 1)],
-      presets: [P("SOUL ORGAN", [3, 0, 0, 0, 0, 25, 10, 1], [0, 64, 127, 40], 0), P("GOSPEL", [6, 0, 0, 0, 1, 60, 40, 2], [0, 64, 127, 45], 0),
-        P("JAZZ ORGAN", [4, 0, 0, 0, 2, 50, 8, 1], [0, 64, 127, 40], 0), P("DIRTY B3", [5, 0, 0, 0, 0, 60, 90, 2], [0, 64, 127, 40], 0)] },
-    { name: "GRAIN", titles: ["GRAN", "SPRY"], edit: [E("SRC", ["PIANO", "BASS", "VIBES", "HORNS", "STRGS", "FLUTE", "SCRCH", "PERC", "USR1", "USR2", "USR3"], 0),
-        D("POS", F.PCT, 0, 127, 32), D("SIZE", F.PCT, 0, 127, 80), D("DENS", F.PCT, 0, 127, 80),
-        D("PTCH", F.SEMI, -24, 24, 0), D("SPRD", F.PCT, 0, 127, 30), D("RAND", F.PCT, 0, 127, 10), D("TONE", F.PCT, 0, 127, 127)],
-      presets: [P("LOFI CLOUD", [0, 45, 95, 85, 0, 35, 12, 80], [70, 90, 120, 90], 0), P("VIBE HAZE", [2, 30, 100, 90, 0, 25, 10, 90], [50, 100, 120, 95], 0),
-        P("FLUTE DUST", [5, 50, 108, 72, 0, 10, 10, 85], [50, 100, 127, 100], 0)] },
+    { name: "DX7", titles: ["VOICE", "SHAPE"], edit: [E("VOICE", VOICE_NAMES, 0), D("BRITE", F.INT, -40, 40, 0), D("ATK", F.INT, -40, 40, 0),
+        D("DEC", F.INT, -40, 40, 0), D("REL", F.INT, -40, 40, 0), D("FDBK", F.INT, -7, 7, 0), NONE, NONE],
+      presets: [P("EPIANO 1", 0, [0, 30, 12, 26], 0, 3), P("EPIANO 2", 1, [0, 40, 15, 30]), P("FM BASS", 2, [0, 0, 8, 10], 1, 2),
+        P("SLAP BASS", 3, [0, 0, 8, 10], 1), P("SUB BASS", 4, [0, 0, 0, 6], 1, 1), P("BRASS", 5, [0, 20, 15, 35]),
+        P("STRINGS", 6, [0, 50, 20, 55], 0, 5), P("GLASS PAD", 7, [0, 50, 25, 60]), P("BELLS", 8, [0, 20, 30, 55], 0, 7),
+        P("MARIMBA", 9, [0, 0, 20, 30]), P("ORGAN", 10, [10, 40, 0, 30]), P("CLAV", 11, [0, 20, 15, 20], 0, 6),
+        P("PLUCK", 12, [0, 20, 30, 35], 0, 4), P("FLUTE", 13, [0, 20, 20, 45], 1), P("SAW LEAD", 14, [0, 20, 30, 30], 1, 9),
+        P("KOTO", 15, [0, 10, 25, 40]), P("INIT VOICE", 16, [0, 0, 0, 0])] },
   ];
   /* demo patterns of the mock only (the LIVE firmware has no factory patterns: a preset never writes the
      sequencer); used to seed the mock's user presets and track 1 as if they had been recorded */
@@ -1370,14 +1068,14 @@ function makeMockDevice(opt = {}) {
   /* four tracks (firmware v3); engine / preset / p / step below are the selected track's */
   const NTRK = 4, TRK_DRUM = 3;
   const newTrack = (i) => ({ engine: 0, preset: 0, drum: i === TRK_DRUM,
-    p: TP.map((d) => d.def).concat(i === TRK_DRUM ? [5, 0, 0, 0, 0, 0, 0, 0] : new Array(8).fill(0)),
+    p: TP.map((d) => d.def).concat(new Array(8).fill(0)),
     step: Array.from({ length: NSTEP }, () => ({ n: 0, notes: [0, 0, 0, 0], time: 2, flags: 0, vel: 0, lvl: 0, rat: 0 })),
     dstep: i === TRK_DRUM ? Array.from({ length: NSTEP }, emptyDrum) : null });
   const st = {
     tracks: [0, 1, 2, 3].map(newTrack), sel: 0, rec: 0, solo: 0,
     g: GP.map((d) => d.def),
     slots: [null, null, null, null],
-    smp: [0, 1, 2].map(() => ({ flash: new Uint8Array(SMP.SLOT_SIZE).fill(0xFF), zones: 0, name: "", len: 0, next: SMP.DATA_OFF })),
+    dx: { data: null, pending: null },               /* the DX7 user bank (4096 voice bytes) and an upload in progress */
     bank: new Array(opt.slots || 32).fill(null),     /* user presets: {engine, name, p, pattern} */
     watch: false, v4: false, lastReq: 0,
   };
@@ -1405,7 +1103,7 @@ function makeMockDevice(opt = {}) {
     for (let i = 0; i < 8; i++) st.p[P_E0 + i] = pr.e[i];
     [1, 2, 3, 4].forEach((id, k) => { st.p[id] = pr.env[k]; });
     st.p[37] = pr.mono ? 2 : 0;
-    st.p[33] = 0; st.p[34] = 24; st.p[35] = 28; st.p[36] = 36;
+    [33, 34, 35, 36].forEach((id, k) => { st.p[id] = pr.fx[k]; });
     for (let i = P_SLCR; i < P_CHORD; i++) st.p[i] = TP[i].def;   /* a factory preset turns the SLICER off (CHORD stays: the key) */
     if (demo && pr.pat && seqEmpty()) loadPattern(pr.pat - 1);
   }
@@ -1418,12 +1116,12 @@ function makeMockDevice(opt = {}) {
   const clearSteps = () => st.step.forEach((s) => Object.assign(s, { n: 0, notes: [0, 0, 0, 0], time: 2, flags: 0, vel: 0, lvl: 0, rat: 0 }));
   const snapshot = (name) => ({ engine: st.engine, name, p: st.p.slice(), pattern: patternFromSteps(st.step) });
   /* a few user presets to start with */
-  [[0, 0, 0, "MY LEAD"], [1, 1, 1, "GLASS BELL"], [2, 2, 3, "PHASE RESO"], [5, 3, 2, "8BIT ARP"]].forEach(([slot, e, p, name]) => {
+  [[0, 0, 14, "MY LEAD"], [1, 0, 8, "GLASS BELL"], [2, 0, 2, "ACID BASS"], [5, 0, 11, "FUNK CLAV"]].forEach(([slot, e, p, name]) => {
     setEngine(e); clearSteps(); applyPreset(p, true);
     st.bank[slot] = snapshot(name);
     clearSteps();
   });
-  [[1, 1, 5], [2, 3, 0]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); clearSteps(); });   /* MUSIC BOX, GAME LEAD */
+  [[1, 0, 8], [2, 0, 14]].forEach(([i, e, p]) => { st.sel = i; setEngine(e); applyPreset(p); clearSteps(); });   /* BELLS, SAW LEAD */
   /* a mix to look at: pads left, lead right, and a GM drum pattern on track 4 */
   st.tracks[1].p[39] = -24; st.tracks[2].p[39] = 20; st.tracks[2].p[0] = 92; st.tracks[TRK_DRUM].p[39] = 0;
   /* a boom bap beat on the 16 lanes: kick 0, snare 2, clap 3, hat 4, open hat 5; a ghost snare, a hat roll (x2) */
@@ -1438,9 +1136,14 @@ function makeMockDevice(opt = {}) {
   st.sel = 0;
   setEngine(0);
   clearSteps();
-  applyPreset(4, true);                             /* WOBBLE, a recorded-looking pattern on track 1 (mock only) */
+  applyPreset(4, true);                             /* SUB BASS, a recorded-looking pattern on track 1 (mock only) */
   const project = () => JSON.parse(JSON.stringify({ tracks: st.tracks, sel: st.sel, g: st.g }));
   st.slots[0] = project();
+  /* the user bank -> U01..U32 of VOICE (eng_dx7.c dx_user_name; empty names stay Unn) */
+  function dxNames() {
+    const names = st.dx.data ? dx7BankNames(st.dx.data) : [];
+    for (let i = 0; i < DX7.VOICES; i++) VOICE_NAMES[DX_SYNTH.length + i] = names[i] || uName(i);
+  }
 
   function handle(cmd, a) {
     const out = [];
@@ -1518,10 +1221,10 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA SLOOP 2.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(5);
+        if (v5) b(6);                               /* v6: the protocol version (sloopDX: the DX7 user bank) */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1635,50 +1338,42 @@ function makeMockDevice(opt = {}) {
         b(a[0]); b(ENG[a[0]].presets.length); ENG[a[0]].presets.forEach((p) => s(p.name));
         ENG[a[0]].titles.forEach(s);
         break;
-      /* user sample slots: the header is checked like the firmware's ed_smp_end() */
-      case CMD.SMP_BEGIN: case CMD.SMP_ERASE: {
-        if (a.length < 1 || a[0] >= 3) return null;
-        const u = st.smp[a[0]];
-        if (cmd === CMD.SMP_ERASE) u.flash.fill(0xFF); else u.flash.fill(0xFF, 0, 4096);
-        u.zones = 0; u.name = ""; u.len = 0; u.next = SMP.DATA_OFF;
-        b(a[0]); b(0);
+      /* v6: the DX7 user bank, as eng_dx7.c dx_bank_* behind editor.c: BEGIN empties it, WRITE fills the
+         upload, END checks the checksum of the 4096 voice bytes and keeps it (or leaves it empty) */
+      case CMD.BANK_BEGIN:
+        st.dx.pending = new Uint8Array(DX7.DATA_LEN);
+        st.dx.data = null;
+        dxNames();
+        b(0);
         break;
-      }
-      case CMD.SMP_WRITE: {
-        if (a.length < 5 || a[0] >= 3) return null;
-        const u = st.smp[a[0]], off = a[1] | (a[2] << 7) | (a[3] << 14), dat = unpack7(a.slice(4));
+      case CMD.BANK_WRITE: {
+        if (a.length < 2) return null;
+        const off = a[0] | (a[1] << 7), dat = a.slice(2);
         let rc = 0;
-        if (off < SMP.DATA_OFF || (off & 0xFF) || !dat.length || off + dat.length > SMP.SLOT_SIZE || dat.length > 256) rc = 1;
-        else {
-          if (!(off & 0xFFF)) u.flash.fill(0xFF, off, off + 4096);
-          u.flash.set(dat, off);
-          u.next = off + dat.length;
-        }
-        b(a[0]); b(off); b(off >> 7); b(off >> 14); b(rc);
+        if (!st.dx.pending || !dat.length || dat.length > DX7.CHUNK || off + dat.length > DX7.DATA_LEN) rc = 1;
+        else st.dx.pending.set(dat, off);
+        b(a[0]); b(a[1]); b(rc);
         break;
       }
-      case CMD.SMP_END: {
-        if (a.length < 2 || a[0] >= 3) return null;
-        const u = st.smp[a[0]], hd = unpack7(a.slice(1)), dv = new DataView(hd.buffer);
-        let rc = 0;
-        if (hd.length < SMP.HDR_LEN || dv.getUint32(0, true) !== 0x504D5346 || dv.getUint16(4, true) !== 1) rc = 2;
-        else if (!hd[6] || hd[6] > 16) rc = 5;
-        else {
-          const len = dv.getUint32(16, true);
-          if (len > SMP.MAX_DATA) rc = 1;
-          else if (crc32(u.flash.subarray(SMP.DATA_OFF, SMP.DATA_OFF + len)) !== dv.getUint32(20, true)) rc = 3;
-          else {
-            u.flash.set(hd, 0);
-            u.zones = hd[6]; u.len = len;
-            u.name = String.fromCharCode(...hd.slice(8, 16)).replace(/\0.*$/, "");
-          }
-        }
-        b(a[0]); b(rc);
+      case CMD.BANK_END: {
+        if (a.length < 1) return null;
+        let rc = 1;
+        if (st.dx.pending && dx7Checksum(st.dx.pending) === a[0]) { st.dx.data = st.dx.pending; rc = 0; }
+        st.dx.pending = null;
+        dxNames();
+        b(rc);
         break;
       }
-      case CMD.SMP_INFO:
-        b(3); b(SMP.SLOT_SIZE / 1024);
-        st.smp.forEach((u) => { b(u.zones); s(u.zones ? u.name : ""); b(u.zones ? Math.ceil(u.len / 1024) : 0); });
+      case CMD.BANK_INFO: {
+        const names = st.dx.data ? dx7BankNames(st.dx.data) : [];
+        b(st.dx.data ? 1 : 0);
+        for (let i = 0; i < DX7.VOICES; i++) s(names[i] || "");
+        break;
+      }
+      case CMD.BANK_ERASE:
+        st.dx.data = null; st.dx.pending = null;
+        dxNames();
+        b(0);
         break;
       default:
         return null;
@@ -1698,7 +1393,7 @@ function makeMockDevice(opt = {}) {
       busy = true;
       watching();                                   /* a lapsed WATCH ends before this request counts */
       st.lastReq = Date.now();
-      const flash = [CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE].includes(f.cmd) && !opt.legacy;
+      const flash = [CMD.UP_PUT, CMD.UP_STORE, CMD.UP_ERASE, CMD.BANK_END, CMD.BANK_ERASE].includes(f.cmd) && !opt.legacy;
       setTimeout(() => {
         busy = false;
         const r = handle(f.cmd, f.a);
@@ -1706,7 +1401,7 @@ function makeMockDevice(opt = {}) {
         const ra = r ? r.slice(5, -1) : [];
         if (r && ((f.cmd === CMD.SET && f.a[0] === 1 && f.a[1] === G_ENGSEL) || f.cmd === CMD.PRESET
           || (f.cmd === CMD.PROJECT && f.a[0] === 0 && ra[2]) || (f.cmd === CMD.UP_LOAD && !ra[1]))) reloadPush();
-      }, f.cmd === CMD.SMP_ERASE ? 900 : f.cmd === CMD.SMP_BEGIN ? 120 : flash ? 150 : f.cmd === CMD.SMP_WRITE ? 25 + Math.random() * 10 : 4 + Math.random() * 12);
+      }, flash ? 150 : 4 + Math.random() * 12);
     },
   };
   /* WATCH ends by itself watchMs after the last request */
@@ -1848,7 +1543,7 @@ const TEXT = {
     foot: "Chrome か Edge で使えます。", iconsCredit: "アイコン: Fukiai（MIT）Hügelton Instruments",
     nomidi: "このブラウザでは使えません。Chrome か Edge で開いてください。",
     denied: "MIDI（SysEx）の使用が許可されませんでした。",
-    nodevice: "SLOOP が見つかりません。USB で接続して、もう一度押してください。",
+    nodevice: "sloopDX が見つかりません。USB で接続して、もう一度押してください。",
     connecting: "接続中", reading: "読み込み中 ", steploading: "ステップを読み込み中 ",
     ready: "接続しました", disconnected: "切断されました", lost: "FM-1 が外されました",
     noreply: "応答がありません", error: "エラー: ", busy: "処理中",
@@ -1856,20 +1551,15 @@ const TEXT = {
     savedSlot: "保存しました: スロット ", loadedSlot: "読み込みました: スロット ", emptySlot: "空のスロットです: ",
     confirmSave: "スロット {n} に上書き保存しますか？", confirmLoad: "スロット {n} を読み込みますか？ 今の音色とパターンは置き換わります。",
     confirmClear: "シーケンスを全部消しますか？", confirmInit: "音色を初期化しますか？",
-    samples: "サンプル", smpHelp: "WAV をドロップするか選んでください。1 スロットに 16 ファイルまで、モノ 22050 Hz の ADPCM で合計約 7 秒。SAMPLE エンジンの SET（または SLICE エンジンの SRC）で USR1〜USR3 を選ぶと鳴ります。",
-    zones: "ゾーン", smpName: "名前", chooseFiles: "ファイルを選ぶ", upload: "書き込む", erase: "消去", clearList: "リストを消す",
-    file: "ファイル", root: "ルート", keys: "鍵盤", length: "長さ", remove: "外す",
-    chopOpen: "音を開く", chopHelp: "録音（WAV、MP3、AIFF…）を開くかドロップし、チョップを決めてスロットへ。1 キーに 1 チョップ。",
-    chopDrop: "ここに録音をドロップ、またはクリック", chopPlay: "▶ 再生", chopStop: "■ 停止", chopTap: "TAP",
-    chopSnap: "アタックに吸着", chopClear: "マーカーを消去", chopHits: "アタック検出", chopSens: "感度",
-    chopGrid: "グリッド", chopEqual: "等分", chopKey: "最初のキー", chopModeKeys: "1 キーに 1 チョップ",
-    chopModeOne: "選択チョップを鍵盤全体に", chopMax: "最大長", chopTo: "送信先", chopZip: "WAV をダウンロード",
-    chopChops: "チョップ", chopTooLong: "スロットに入りません", chopTooMany: "（最大 16 チョップ。残りは使われません）",
-    chopLoaded: "読み込みました: ", chopSent: "チョップを書き込みました ",
-    chopHint: "スペース: 再生中に TAP（停止中は再生/停止）· 1–9 0: 試聴 · ダブルクリック: 追加 · ドラッグ: 移動 · ← →: 微調整 · Del: 削除 · ホイール: ズーム",
-    smpTooBig: "大きすぎます", smpDecodeFail: "読み込めません: ", smpUploading: "書き込み中 USR", smpDone: "書き込みました USR",
-    smpFail: "サンプルの書き込みに失敗しました: ", smpErased: "消去しました USR",
-    confirmErase: "USR{n} を消去しますか？", confirmUpload: "USR{n} に書き込みますか？ 今の内容は消えます。",
+    erase: "消去",
+    dxBank: "本体の DX7 ユーザーバンク",
+    dxHelp: "DX7 の 32 音色バルクダンプ（.syx、4104 バイト）を書き込みます。その音色は VOICE の U01〜U32 として、最初の 16 音色は USER ドラムキットとして鳴ります。",
+    dxDrop: "ここに .syx をドロップ、またはクリック", dxChoose: ".syx を選ぶ", dxNoBank: "バンクなし", voices: "音色",
+    dxConnect: "FM-1 を接続すると DX7 バンクを書き込めます。", dxNone: "このファームウェアには DX7 ユーザーバンクがありません。",
+    dxUploading: "バンクを書き込み中 ", dxDone: "バンクを書き込みました: ", dxFail: "バンクを書き込めません: ", dxErased: "バンクを消去しました",
+    dxBadLen: "DX7 バンクではありません（4104 バイトのはずが {n} バイト）", dxBadHdr: "DX7 の 32 音色ダンプではありません（ヘッダー F0 43 0n 09 20 00）",
+    dxBadByte: "127 を超えるデータバイトがあります", dxBadSum: "チェックサムが合いません", dxRefused: "本体がチェックサムを拒否しました",
+    confirmDxUpload: "「{name}」を書き込みますか？ 今のバンクは置き換わります。", confirmDxErase: "DX7 ユーザーバンクを消去しますか？",
     layout: "（ファームウェアのパラメーター数が想定と違うため、簡易表示にしています）",
     ctlHelp: "スライダーはクリックしてからホイールか矢印キーで微調整（Shift で 10 ずつ）、ダブルクリックで初期値。",
     live: "● リアルタイム", polling: "○ ポーリング（古いファームウェア）",
@@ -1892,9 +1582,9 @@ const TEXT = {
     putDone: "本体に書き込みました: スロット ", storedSlot: "本体に保存しました: スロット ", erasedSlot: "消去しました: スロット ",
     loadedUser: "読み込みました: ", reloaded: "本体で音色が変わったので読み直しました", readingBank: "スロットを読み込み中",
     badEngine: "このファームウェアにないエンジンです: ", flashFail: "書き込みに失敗しました（rc {rc}）",
-    installer: "SLOOP インストーラー",
+    installer: "sloopDX インストーラー",
     tabSeq: "シーケンサー", tabTracks: "トラック", tabSettings: "設定",
-    needDevice: "FM-1 を接続すると編集できます。", smpNone: "このファームウェアにはユーザーサンプルのスロットがありません。",
+    needDevice: "FM-1 を接続すると編集できます。",
     bankConnect: "FM-1 を接続すると本体のユーザープリセットも扱えます。", bankNone: "このファームウェアにはユーザープリセットがありません。",
     drumNote: "ドラムトラックにはエンジンもプリセットもありません。レベル・パン・ミュートは「トラック」、キットとパターンは「シーケンサー」で。",
     drumGridHelp: "クリック：ヒット／消去（同じレベルとロールなら）。Shift＋クリック：ヒットを一段強く（GHOST・SOFT・NORM・HARD）。白鍵 F3〜G5 の 16 音。",
@@ -1905,7 +1595,7 @@ const TEXT = {
     level: "レベル", pan: "パン", mute: "ミュート", rec: "REC", selectTrack: "選択", selectedTrack: "選択中",
     projHelp: "プロジェクトは本体の状態をまとめて保存します: 4 トラックの音色とパターン、選択中のトラック、グローバル設定。",
     system: "システム", firmware: "ファームウェア", sync: "同期", tracksN: "トラック", stepsN: "ステップ数", enginesL: "エンジン",
-    smpSlots: "サンプルスロット", userBank: "ユーザープリセット", none: "なし",
+    dxBankL: "DX7 バンク", userBank: "ユーザープリセット", none: "なし",
   },
   en: {
     other: "日本語", connect: "Connect", disconnect: "Disconnect", mock: "Mock device (no hardware)",
@@ -1919,7 +1609,7 @@ const TEXT = {
     foot: "Works in Chrome or Edge.", iconsCredit: "Icons: Fukiai (MIT), Hügelton Instruments",
     nomidi: "This browser cannot do it. Open the page in Chrome or Edge.",
     denied: "MIDI (SysEx) access was not allowed.",
-    nodevice: "SLOOP not found. Connect the FM-1 by USB and press Connect again.",
+    nodevice: "sloopDX not found. Connect the FM-1 by USB and press Connect again.",
     connecting: "Connecting", reading: "Reading ", steploading: "Reading steps ",
     ready: "Connected", disconnected: "Disconnected", lost: "The FM-1 was unplugged",
     noreply: "No reply from the device", error: "Error: ", busy: "Busy",
@@ -1927,20 +1617,15 @@ const TEXT = {
     savedSlot: "Saved to slot ", loadedSlot: "Loaded slot ", emptySlot: "Empty slot: ",
     confirmSave: "Overwrite slot {n}?", confirmLoad: "Load slot {n}? The current sound and pattern will be replaced.",
     confirmClear: "Clear the whole sequence?", confirmInit: "Reset the sound to the engine defaults?",
-    samples: "Samples", smpHelp: "Drop or choose WAV files. Up to 16 files per slot, stored as mono 22050 Hz ADPCM (about 7 s in all). Select USR1–USR3 with SET on the SAMPLE engine (or SRC on the SLICE engine).",
-    zones: "zones", smpName: "Name", chooseFiles: "Choose files", upload: "Upload", erase: "Erase", clearList: "Clear list",
-    file: "File", root: "Root", keys: "Keys", length: "Length", remove: "Remove",
-    chopOpen: "Open a sound", chopHelp: "Open or drop a recording (WAV, MP3, AIFF…), mark the chops, send them to a slot: one chop per key.",
-    chopDrop: "Drop a recording here, or click", chopPlay: "▶ Play", chopStop: "■ Stop", chopTap: "TAP",
-    chopSnap: "snap to the hit", chopClear: "Clear markers", chopHits: "Find hits", chopSens: "sensitivity",
-    chopGrid: "Grid", chopEqual: "Equal parts", chopKey: "First key", chopModeKeys: "one key per chop",
-    chopModeOne: "selected chop, whole keyboard", chopMax: "max length", chopTo: "Send to", chopZip: "Download WAVs",
-    chopChops: "chops", chopTooLong: "too long for a slot", chopTooMany: "(16 chops at most: the rest are left out)",
-    chopLoaded: "Loaded: ", chopSent: "Chops in ",
-    chopHint: "space: TAP while it plays (play/stop when stopped) · 1–9 0: listen · double-click: add · drag: move · ← →: nudge · Del: remove · wheel: zoom",
-    smpTooBig: "too large", smpDecodeFail: "Cannot read: ", smpUploading: "Uploading USR", smpDone: "Uploaded USR",
-    smpFail: "Sample upload failed: ", smpErased: "Erased USR",
-    confirmErase: "Erase USR{n}?", confirmUpload: "Write to USR{n}? Its current contents will be replaced.",
+    erase: "Erase",
+    dxBank: "DX7 user bank on the device",
+    dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE, the first 16 as the USER drum kit.",
+    dxDrop: "Drop a .syx here, or click", dxChoose: "Choose .syx", dxNoBank: "no bank", voices: "voices",
+    dxConnect: "Connect the FM-1 to upload a DX7 bank.", dxNone: "This firmware has no DX7 user bank.",
+    dxUploading: "Uploading the bank ", dxDone: "Bank uploaded: ", dxFail: "Cannot upload the bank: ", dxErased: "Bank erased",
+    dxBadLen: "not a DX7 bank (4104 bytes expected, {n} found)", dxBadHdr: "not a DX7 32-voice dump (header F0 43 0n 09 20 00)",
+    dxBadByte: "a data byte over 127", dxBadSum: "checksum mismatch", dxRefused: "the device refused the checksum",
+    confirmDxUpload: "Upload \"{name}\"? The current bank will be replaced.", confirmDxErase: "Erase the DX7 user bank?",
     layout: "(The firmware has a different parameter count; showing a plain list.)",
     ctlHelp: "Sliders: click, then fine-tune with the wheel or arrow keys (Shift: steps of 10); double-click resets.",
     live: "● Live", polling: "○ Polling (older firmware)",
@@ -1963,9 +1648,9 @@ const TEXT = {
     putDone: "Written to the device: slot ", storedSlot: "Stored on the device: slot ", erasedSlot: "Erased slot ",
     loadedUser: "Loaded ", reloaded: "The sound changed on the device: read again", readingBank: "Reading the slots",
     badEngine: "This firmware has no such engine: ", flashFail: "Write failed (rc {rc})",
-    installer: "SLOOP installer",
+    installer: "sloopDX installer",
     tabSeq: "Sequencer", tabTracks: "Tracks", tabSettings: "Settings",
-    needDevice: "Connect the FM-1 to edit.", smpNone: "This firmware has no user sample slots.",
+    needDevice: "Connect the FM-1 to edit.",
     bankConnect: "Connect the FM-1 to see its user presets too.", bankNone: "This firmware has no user presets.",
     drumNote: "The drum track has no engine or presets. Level, pan and mute: Tracks; the kit and the pattern: Sequencer.",
     drumGridHelp: "Click: a hit / clear it (same level and roll). Shift+click: a hit one level louder (GHOST, SOFT, NORM, HARD). The 16 sounds of the white keys F3..G5.",
@@ -1976,7 +1661,7 @@ const TEXT = {
     level: "Level", pan: "Pan", mute: "Mute", rec: "REC", selectTrack: "Select", selectedTrack: "Selected",
     projHelp: "A project keeps the whole device state: the sound and pattern of all four tracks, the selected track and the global settings.",
     system: "System", firmware: "Firmware", sync: "Sync", tracksN: "Tracks", stepsN: "Steps", enginesL: "Engines",
-    smpSlots: "Sample slots", userBank: "User presets", none: "none",
+    dxBankL: "DX7 bank", userBank: "User presets", none: "none",
   },
 };
 let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
@@ -1994,13 +1679,14 @@ function applyLang() {
   renderLib();
   renderBank();
   renderPanels();
-  if (dev) { renderSlots(); renderStepHead(); renderSamples(); renderTrackbar(); renderMixer(); renderSysinfo(); }
+  renderDxBank();
+  if (dev) { renderSlots(); renderStepHead(); renderTrackbar(); renderMixer(); renderSysinfo(); }
 }
 $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
 
 /* ---------------------------------------------------------------- tabs --- */
 /* one panel at a time; the last one is remembered (localStorage) and in the URL hash (#sound ...) */
-const TABS = ["sound", "sequencer", "tracks", "library", "samples", "projects", "settings"];
+const TABS = ["sound", "sequencer", "tracks", "library", "projects", "settings"];
 const TAB_KEY = "felucca-editor-tab";
 const TRACK_TABS = new Set(["sound", "sequencer", "tracks"]);
 let tab = (() => {
@@ -2033,9 +1719,8 @@ function renderPanels() {
   let hint = "";
   for (const p of document.querySelectorAll(".panel")) {
     const mine = p.dataset.tab === want;
-    let show = mine && (!("dev" in p.dataset) || ready);
+    const show = mine && (!("dev" in p.dataset) || ready);
     if (mine && "dev" in p.dataset && !dev) hint = "needDevice";   /* (while connecting the status line says it) */
-    if (show && want === "samples" && !dev.smp) { show = false; hint = "smpNone"; }
     p.hidden = !show;
   }
   $("hint").hidden = !hint;
@@ -2169,6 +1854,7 @@ function disconnect(reasonKey = "disconnected") {
   renderLive();
   renderLib();
   renderBank();
+  renderDxBank();
   $("version").textContent = "";
   setLabel($("connect"), t("connect"));
   sayK(reasonKey);
@@ -2219,8 +1905,12 @@ async function load(d) {
       try { d.slotUsed[k] = parse[CMD.PROJECT](await d.link.request(req.project(2, k))).used; }
       catch (e) { if (e.message === "closed") throw e; }
     }
-    try { d.smp = parse[CMD.SMP_INFO](await d.link.request(req.smpInfo())); }
-    catch (e) { if (e.message === "closed") throw e; d.smp = null; }   /* older firmware, or no flash */
+    /* v6: the DX7 user bank (its names); older firmware: none */
+    d.dxbank = null;
+    if (d.info.proto >= 6) {
+      try { d.dxbank = await dxbank.info((r, o) => d.link.request(r, { ...o, quiet: true })); }
+      catch (e) { if (e.message === "closed") throw e; }
+    }
     d.keys = paramKeys(d.pdesc, d.info.pe0, d.info.pcount);
     await libAdopt(d);
     if (d.info.ntrk) d.sel = parse[CMD.TRACK](await d.link.request(req.track())).sel;   /* v3: the selected track */
@@ -2241,6 +1931,7 @@ async function load(d) {
     renderLive();
     renderLib();
     renderBank();
+    renderDxBank();
     renderSysinfo();
     sayK("ready");
   } finally { busy--; }
@@ -2277,7 +1968,6 @@ function buildUI() {
   buildGroups();
   updateBrowser();
   renderSlots();
-  renderSamples();
   renderSysinfo();
 }
 
@@ -2308,7 +1998,7 @@ function renderSysinfo() {
   const rows = [
     ["firmware", i.version], ["sync", t(dev.watch ? "live" : "polling")], ["enginesL", i.engines.join(", ")],
     ["tracksN", i.ntrk ? String(i.ntrk) : "1"], ["stepsN", String(i.nstep)],
-    ["smpSlots", dev.smp ? `${dev.smp.nslots} × ${dev.smp.slotKiB} KiB` : t("none")],
+    ["dxBankL", dev.dxbank && dev.dxbank.ok ? `${dev.dxbank.names.filter(Boolean).length} ${t("voices")}` : t("none")],
     ["userBank", dev.bank ? String(dev.bank.total) : t("none")],
   ];
   box.replaceChildren(...rows.map(([k, v]) => el("tr", {}, el("th", { text: t(k) }), el("td", { text: v }))));
@@ -2744,488 +2434,6 @@ $("clearseq").addEventListener("click", async () => {
     sayK("ready");
   } catch (err) { report(err); } finally { busy--; }
 });
-
-/* ---------------------------------------------------------- samples --- */
-const smpDraft = [0, 1, 2].map(() => ({ name: "", files: [] }));
-let smpBusy = false;
-const SMP_RC = { 1: "size", 2: "header", 3: "data CRC", 4: "flash", 5: "zones" };
-const kib = (n) => (n / 1024).toFixed(1);
-
-/* auto key split, as in buildSlot (for the preview) */
-function splitKeys(files) {
-  const z = files.map((f, i) => ({ i, root: f.root })).sort((a, b) => a.root - b.root);
-  const out = [];
-  z.forEach((x, j) => {
-    out[x.i] = [j === 0 ? 0 : Math.floor((z[j - 1].root + x.root) / 2) + 1, j === z.length - 1 ? 127 : Math.floor((x.root + z[j + 1].root) / 2)];
-  });
-  files.forEach((f, i) => { if (f.lo != null) out[i] = [f.lo, f.hi]; });   /* (chops: their own keys) */
-  return out;
-}
-
-const draftBytes = (d) => d.files.reduce((a, f) => a + ((f.s.length + 1) >> 1), 0);
-
-async function decodeFile(f) {
-  const buf = await f.arrayBuffer();
-  let x;
-  try {
-    const w = parseWav(buf);
-    x = resample(w.x, w.sr, SMP.RATE);
-  } catch (e) {                                     /* not a plain WAV: let the browser decode it */
-    const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    const ab = await new Ctx(1, 1, SMP.RATE).decodeAudioData(buf.slice(0));
-    x = new Float64Array(ab.length);
-    for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < d.length; i++) x[i] += d[i] / ab.numberOfChannels; }
-  }
-  if (!x.length) throw new Error("no audio");
-  return { fname: f.name, s: normalize(x), root: rootFromName(f.name.replace(/\.[^.]*$/, "")) };
-}
-
-async function addFiles(k, list) {
-  const d = smpDraft[k];
-  for (const f of list) {
-    try {
-      const z = await decodeFile(f);
-      if (d.files.length >= SMP.MAX_ZONES) break;
-      d.files.push(z);
-      if (!d.name) d.name = f.name.replace(/\.[^.]*$/, "").toUpperCase().replace(/[^\x20-\x7E]/g, "").slice(0, 8);
-    } catch (e) { sayK("smpDecodeFail", `${f.name} (${e.message})`); }
-  }
-  renderSamples();
-}
-
-function renderSamples() {
-  chopUI();                                         /* (once; then its send buttons follow the device) */
-  chopRender();
-  const box = $("smpslots");                        /* the tab says when there are no slots (renderPanels) */
-  if (!dev || !dev.smp) { box.replaceChildren(); return; }
-  const max = SMP.MAX_DATA;
-  box.replaceChildren(...dev.smp.slots.map((u, k) => {
-    const d = smpDraft[k];
-    const status = u.zones ? `${u.name || "—"}, ${u.zones} ${t("zones")}, ${u.kib} KiB` : t("empty");
-    const bar = el("progress", { max: dev.smp.slotKiB, value: u.kib, title: `${u.kib} / ${dev.smp.slotKiB} KiB` });
-    const file = el("input", { type: "file", accept: ".wav,audio/wav,audio/x-wav,audio/*", multiple: true, hidden: true });
-    file.addEventListener("change", () => { addFiles(k, [...file.files]); file.value = ""; });
-    const name = el("input", { type: "text", class: "name", maxlength: 8, value: d.name, spellcheck: "false", placeholder: "NAME" });
-    name.addEventListener("input", () => {
-      const v = name.value.toUpperCase().replace(/[^\x20-\x7E]/g, "").slice(0, 8);
-      if (v !== name.value) name.value = v;
-      d.name = v;
-    });
-    const bytes = draftBytes(d), tooBig = bytes > max;
-    const size = el("span", { class: tooBig ? "bad" : "dim",
-      text: d.files.length ? `${kib(bytes)} / ${kib(max)} KiB` + (tooBig ? " " + t("smpTooBig") : "") : "" });
-    const prog = el("progress", { max: 1, value: 0, hidden: true });
-    const blk = el("div", { class: "smp", "data-k": k },
-      el("div", { class: "head" }, el("b", { text: `USR${k + 1}` }), el("span", { text: status }), bar,
-        el("button", { ic: "symbol_trash", disabled: smpBusy || !u.zones, onclick: () => smpErase(k) }, t("erase"))),
-      el("div", { class: "head" }, el("span", { text: t("smpName") }), name,
-        el("button", { ic: "symbol_folder_open", disabled: smpBusy, onclick: () => file.click() }, t("chooseFiles")), file,
-        el("button", { ic: "symbol_upload", disabled: smpBusy || !d.files.length || tooBig || !d.name, onclick: () => smpUpload(k, prog) }, t("upload")),
-        d.files.length ? el("button", { text: t("clearList"), disabled: smpBusy, onclick: () => { d.files = []; renderSamples(); } }) : "",
-        size, prog));
-    if (d.files.length) {
-      const keys = splitKeys(d.files);
-      const tb = el("table", {}, el("tr", {}, el("th", { text: t("file") }), el("th", { text: t("root") }),
-        el("th", { text: t("keys") }), el("th", { text: t("length") }), el("th")));
-      d.files.forEach((f, i) => {
-        const root = el("input", { type: "text", class: "root", value: noteName(f.root), spellcheck: "false" });
-        root.addEventListener("change", () => {
-          const n = parseNote(root.value.trim());
-          if (n == null) { root.classList.add("bad"); return; }
-          f.root = n;
-          renderSamples();
-        });
-        tb.append(el("tr", {}, el("td", { text: f.fname }), el("td", {}, root),
-          el("td", { text: `${noteName(keys[i][0])}–${noteName(keys[i][1])}` }),
-          el("td", { text: `${(f.s.length / SMP.RATE).toFixed(2)} s` }),
-          el("td", {}, el("button", { text: t("remove"), disabled: smpBusy, onclick: () => { d.files.splice(i, 1); renderSamples(); } }))));
-      });
-      blk.append(tb);
-    }
-    blk.addEventListener("dragover", (e) => { e.preventDefault(); blk.classList.add("over"); });
-    blk.addEventListener("dragleave", () => blk.classList.remove("over"));
-    blk.addEventListener("drop", (e) => {
-      e.preventDefault();
-      blk.classList.remove("over");
-      if (!smpBusy && e.dataTransfer.files.length) addFiles(k, [...e.dataTransfer.files]);
-    });
-    return blk;
-  }));
-}
-
-async function smpInfo() { dev.smp = parse[CMD.SMP_INFO](await rq(req.smpInfo())); }
-
-async function smpUpload(k, prog, ask = true) {
-  const d = smpDraft[k];
-  let built, done = false;
-  try { built = buildSlot(d.name, d.files.map((f) => ({ s: f.s, root: f.root, lo: f.lo, hi: f.hi }))); }
-  catch (e) { sayK("smpFail", e.message); return false; }
-  if (ask && !confirm(t("confirmUpload").replace("{n}", k + 1))) return false;
-  const { hdr, data } = built;
-  busy++;
-  smpBusy = true;
-  renderSamples();
-  prog = $("smpslots").querySelector(`[data-k="${k}"] progress[max="1"]`);
-  prog.hidden = false;
-  try {
-    const t0 = performance.now();
-    let r = parse[CMD.SMP_BEGIN](await rq(req.smpBegin(k), { timeout: 1000, retries: 0 }));
-    if (r.rc) throw new Error("begin rc " + r.rc);
-    for (let off = 0; off < data.length; off += 256) {
-      const a = SMP.DATA_OFF + off;
-      const w = parse[CMD.SMP_WRITE](await rq(req.smpWrite(k, a, data.subarray(off, off + 256)), { timeout: 1000, retries: 1 }));
-      if (w.rc) throw new Error(`write at 0x${a.toString(16)} rc ${w.rc}`);
-      prog.value = (off + 256) / data.length;
-      sayK("smpUploading", `${k + 1}  ${kib(Math.min(data.length, off + 256))} / ${kib(data.length)} KiB`);
-    }
-    r = parse[CMD.SMP_END](await rq(req.smpEnd(k, hdr), { timeout: 2000, retries: 0 }));
-    if (r.rc) throw new Error(`end rc ${r.rc} (${SMP_RC[r.rc] || "?"})`);
-    sayK("smpDone", `${k + 1}  ${((performance.now() - t0) / 1000).toFixed(1)} s`);
-    done = true;
-  } catch (e) {
-    if (e.message !== "closed") sayK("smpFail", e.message);
-  } finally {
-    try { if (dev) await smpInfo(); } catch (e) { /* shown by the next action */ }
-    smpBusy = false;
-    busy--;
-    renderSamples();
-  }
-  return done;
-}
-
-async function smpErase(k) {
-  if (!dev || !confirm(t("confirmErase").replace("{n}", k + 1))) return;
-  busy++;
-  smpBusy = true;
-  renderSamples();
-  try {
-    const r = parse[CMD.SMP_ERASE](await rq(req.smpErase(k), { timeout: 2500, retries: 0 }));
-    if (r.rc) throw new Error("erase rc " + r.rc);
-    sayK("smpErased", String(k + 1));
-  } catch (e) {
-    if (e.message !== "closed") sayK("smpFail", e.message);
-  } finally {
-    try { if (dev) await smpInfo(); } catch (e) { /* ignore */ }
-    smpBusy = false;
-    busy--;
-    renderSamples();
-  }
-}
-
-/* ---------------------------------------------------------------- CHOP --- */
-/* Load a recording, mark the chops (live: TAP / space while it plays, each tap moved to the hit it
-   meant; or by hits, a tempo grid, equal parts; double-click adds, drag moves, Delete removes),
-   audition them (click, keys 1-9 0), then one chop per key into USR1..3 or as WAV files. */
-const CH = { x: null, nov: null, name: "", marks: [], sel: -1, v0: 0, v1: 1, ctx: null, src: null, t0: 0, raf: 0,
-  drag: -1, key0: 60, mode: 0, maxLen: 0, ui: null };
-const chR = () => SMP.RATE;
-const chSecs = (n) => (n / SMP.RATE).toFixed(2) + " s";
-
-function chopChops() { return CH.x ? chopList(CH.marks, CH.x.length, Math.round(CH.maxLen * SMP.RATE)) : []; }
-function chopUsed() {                                /* the chops the slot gets, and their samples */
-  const c = chopChops(), use = CH.mode === 1 ? (c[CH.sel] ? [c[CH.sel]] : c.slice(0, 1)) : c.slice(0, CHOP.MAX);
-  return { all: c, use, n: use.reduce((a, q) => a + (q.end - q.start), 0) };
-}
-
-async function chopDecode(buf) {                    /* any file the browser decodes -> mono Float64 at SMP.RATE */
-  try { const w = parseWav(buf); return resample(w.x, w.sr, SMP.RATE); } catch (e) { /* not a plain WAV */ }
-  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const ab = await new Ctx(1, 1, SMP.RATE).decodeAudioData(buf.slice(0));
-  const x = new Float64Array(ab.length);
-  for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < d.length; i++) x[i] += d[i] / ab.numberOfChannels; }
-  return x;
-}
-
-async function chopLoad(f) {
-  chopStop();
-  try {
-    const x = await chopDecode(await f.arrayBuffer());
-    if (!x.length) throw new Error("no audio");
-    CH.x = x;
-    CH.nov = chopNovelty(x);
-    CH.name = f.name.replace(/\.[^.]*$/, "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "CHOP";
-    CH.marks = [];
-    CH.sel = -1;
-    CH.v0 = 0;
-    CH.v1 = x.length;
-    sayK("chopLoaded", `${f.name} (${chSecs(x.length)})`);
-  } catch (e) { sayK("smpDecodeFail", `${f.name} (${e.message})`); }
-  chopRender();
-}
-
-function chopSetMarks(m) {
-  CH.marks = [...new Set(m.map((v) => Math.max(0, Math.min(CH.x.length - 1, Math.round(v)))))].sort((a, b) => a - b);
-  if (CH.sel >= CH.marks.length) CH.sel = CH.marks.length - 1;
-  chopRender();
-}
-function chopAdd(pos) {                              /* a new marker; one within 30 ms is moved there instead */
-  const near = CH.marks.findIndex((m) => Math.abs(m - pos) < 0.03 * chR());
-  const m = CH.marks.slice();
-  if (near >= 0) m[near] = pos; else m.push(pos);
-  chopSetMarks(m);
-  CH.sel = CH.marks.indexOf(Math.round(pos));
-  chopDraw();
-}
-
-/* ---- audio */
-function chopCtx() {
-  if (!CH.ctx) CH.ctx = new (window.AudioContext || window.webkitAudioContext)();
-  if (CH.ctx.state === "suspended") CH.ctx.resume();
-  return CH.ctx;
-}
-function chopBuffer(a, b) {
-  const ctx = chopCtx(), n = Math.max(1, b - a), buf = ctx.createBuffer(1, n, SMP.RATE), d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = CH.x[a + i];
-  return buf;
-}
-function chopStop() {
-  if (CH.src) { try { CH.src.stop(); } catch (e) { /* ended */ } CH.src = null; }
-  cancelAnimationFrame(CH.raf);
-  if (CH.ui) { CH.ui.play.textContent = t("chopPlay"); chopDraw(); }
-}
-/* play a..b; whole = the transport (a playhead, TAP marks), else an audition */
-function chopPlay(a, b, whole) {
-  if (!CH.x) return;
-  chopStop();
-  const ctx = chopCtx(), src = ctx.createBufferSource();
-  const g = ctx.createGain();
-  src.buffer = chopBuffer(a, b);
-  src.connect(g).connect(ctx.destination);
-  if (!whole) {                                     /* the fades the slot will have */
-    const n = b - a, fo = Math.min(CHOP.FADE_OUT, n >> 2) / SMP.RATE, now = ctx.currentTime + 0.005, end = now + n / SMP.RATE;
-    g.gain.setValueAtTime(1, now);
-    g.gain.setValueAtTime(1, Math.max(now, end - fo));
-    g.gain.linearRampToValueAtTime(0, end);
-  }
-  CH.t0 = ctx.currentTime + 0.005 - a / SMP.RATE;
-  src.start(ctx.currentTime + 0.005);
-  src.onended = () => { if (CH.src === src) { CH.src = null; if (whole) chopStop(); } };
-  CH.src = src;
-  CH.src.whole = whole;
-  if (whole) {
-    CH.ui.play.textContent = t("chopStop");
-    const tick = () => { chopDraw(); if (CH.src === src) CH.raf = requestAnimationFrame(tick); };
-    CH.raf = requestAnimationFrame(tick);
-  }
-}
-/* where the listener is now, in samples (what comes out of the speakers, not what is computed) */
-function chopHeard(ev) {
-  const ctx = CH.ctx;
-  let ct = ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
-  if (ev && ctx.getOutputTimestamp) {
-    const ts = ctx.getOutputTimestamp();
-    if (ts.performanceTime > 0) ct = ts.contextTime + (ev.timeStamp - ts.performanceTime) / 1000;
-  }
-  return (ct - CH.t0) * SMP.RATE;
-}
-function chopTap(ev) {                               /* TAP while it plays: a marker on the hit you meant */
-  if (!CH.src || !CH.src.whole) return;
-  const p = chopHeard(ev);
-  if (p < 0 || p >= CH.x.length) return;
-  chopAdd(CH.ui.snap.checked ? chopSnap(CH.x, CH.nov, p) : Math.round(p));
-}
-function chopAudition(i) {
-  const c = chopChops()[i];
-  if (!c) return;
-  CH.sel = i;
-  chopPlay(c.start, c.end, false);
-  chopRender();
-}
-
-/* ---- drawing (the page's own two colours) */
-function chopDraw() {
-  const u = CH.ui;
-  if (!u) return;
-  const cv = u.cv, dpr = window.devicePixelRatio || 1, W = Math.max(200, cv.clientWidth), Hh = 150;
-  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
-  const g = cv.getContext("2d"), cs = getComputedStyle(document.documentElement);
-  const FG = cs.getPropertyValue("--fg").trim(), DIM = cs.getPropertyValue("--dim").trim(), LINE = cs.getPropertyValue("--line").trim();
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.clearRect(0, 0, W, Hh);
-  if (!CH.x) { g.fillStyle = DIM; g.font = "12px sans-serif"; g.fillText(t("chopDrop"), 8, Hh / 2); return; }
-  const x = CH.x, v0 = CH.v0, span = CH.v1 - CH.v0, X = (p) => (p - v0) / span * W, mid = Hh / 2 + 6;
-  const { all: chops, use } = chopUsed();
-  chops.forEach((c, i) => {                          /* the chops: the selected one filled, unused ones hatched */
-    const a = X(c.start), b = X(c.end);
-    if (b < 0 || a > W) return;
-    if (i === CH.sel) { g.fillStyle = LINE; g.fillRect(a, 12, b - a, Hh - 12); }
-    if (!use.includes(c)) { g.strokeStyle = LINE; for (let q = Math.floor(a / 8) * 8; q < b; q += 8) { g.beginPath(); g.moveTo(q, Hh); g.lineTo(q + 8, 12); g.stroke(); } }
-  });
-  g.fillStyle = FG;
-  for (let px = 0; px < W; px++) {                   /* the wave: min / max per pixel */
-    const a = Math.floor(v0 + px / W * span), b = Math.min(x.length, Math.max(a + 1, Math.floor(v0 + (px + 1) / W * span)));
-    let lo = 0, hi = 0;
-    for (let i = a; i < b; i += Math.max(1, (b - a) >> 6)) { if (x[i] < lo) lo = x[i]; if (x[i] > hi) hi = x[i]; }
-    g.fillRect(px, mid - hi * (Hh / 2 - 8), 1, Math.max(1, (hi - lo) * (Hh / 2 - 8)));
-  }
-  g.font = "10px sans-serif";
-  CH.marks.forEach((m, i) => {                       /* the markers, numbered; the chop's key above */
-    const px = X(m);
-    if (px < -1 || px > W + 1) return;
-    g.fillStyle = FG;
-    g.fillRect(Math.round(px), 0, i === CH.sel ? 2 : 1, Hh);
-    const key = CH.mode === 1 ? "" : (i < CHOP.MAX ? " " + noteName(Math.min(127, CH.key0 + i)) : "");
-    g.fillText(String(i + 1) + key, px + 3, 10);
-  });
-  if (CH.src && CH.src.whole && CH.ctx) {            /* the playhead, as heard */
-    const p = X(chopHeard());
-    g.fillStyle = DIM;
-    g.fillRect(Math.round(p), 12, 1, Hh - 12);
-  }
-}
-
-/* ---- the block */
-function chopUI() {
-  const box = $("chop");
-  if (!box || CH.ui) return;
-  const u = CH.ui = {};
-  const file = el("input", { type: "file", accept: "audio/*,.wav,.mp3,.aif,.aiff,.flac,.ogg,.m4a", hidden: true });
-  file.addEventListener("change", () => { if (file.files[0]) chopLoad(file.files[0]); file.value = ""; });
-  u.info = el("span", { class: "dim" });
-  u.cv = el("canvas", { class: "wave", tabindex: "0", title: t("chopHint") });
-  u.play = el("button", { onclick: () => { if (CH.src && CH.src.whole) chopStop(); else if (CH.x) chopPlay(Math.round(CH.v0), CH.x.length, true); } }, t("chopPlay"));
-  u.tap = el("button", { class: "tap", onpointerdown: (e) => { e.preventDefault(); chopTap(e); } }, t("chopTap"));
-  u.snap = el("input", { type: "checkbox", checked: true });
-  u.sens = el("input", { type: "range", min: 1, max: 10, value: 5, title: t("chopSens") });
-  u.bpm = el("input", { type: "number", min: 40, max: 240, step: 0.1, value: 90, class: "num" });
-  u.div = el("select", {}, ...[["1 bar", 4], ["1/2", 2], ["1/4", 1], ["1/8", 0.5], ["1/16", 0.25]].map(([n, v]) => el("option", { value: v, text: n })));
-  u.div.value = "1";
-  u.n = el("select", {}, ...[2, 3, 4, 6, 8, 12, 16].map((n) => el("option", { value: n, text: String(n) })));
-  u.n.value = "8";
-  u.key = el("select", {}, ...Array.from({ length: 49 }, (_, i) => 36 + i).map((n) => el("option", { value: n, text: noteName(n) })));
-  u.key.value = String(CH.key0);
-  u.mode = el("select", {}, el("option", { value: 0, text: t("chopModeKeys") }), el("option", { value: 1, text: t("chopModeOne") }));
-  u.max = el("select", {}, ...[["—", 0], ["0.25 s", 0.25], ["0.5 s", 0.5], ["1 s", 1], ["2 s", 2]].map(([n, v]) => el("option", { value: v, text: n })));
-  u.meter = el("progress", { max: SMP.MAX_DATA * 2, value: 0 });
-  u.room = el("span", { class: "dim" });
-  u.list = el("div", { class: "chops" });
-  u.send = [0, 1, 2].map((k) => el("button", { ic: "symbol_upload", onclick: () => chopSend(k) }, `USR${k + 1}`));
-  const region = () => {                             /* first..last marker when there are two, else all */
-    const m = CH.marks;
-    return m.length >= 2 ? [m[0], m[m.length - 1]] : [m[0] || 0, CH.x.length];
-  };
-  u.key.addEventListener("change", () => { CH.key0 = +u.key.value; chopRender(); });
-  u.mode.addEventListener("change", () => { CH.mode = +u.mode.value; chopRender(); });
-  u.max.addEventListener("change", () => { CH.maxLen = +u.max.value; chopRender(); });
-  box.append(
-    el("div", { class: "head" }, el("b", { text: "CHOP" }),
-      el("button", { ic: "symbol_folder_open", onclick: () => file.click() }, t("chopOpen")), file, u.info),
-    u.cv,
-    el("div", { class: "head" }, u.play, u.tap, el("label", {}, u.snap, " " + t("chopSnap")),
-      el("button", { onclick: () => { if (CH.x) chopSetMarks([]); } }, t("chopClear")),
-      el("span", { class: "dim", text: t("chopHint") })),
-    el("div", { class: "head" },
-      el("button", { onclick: () => { if (CH.x) chopSetMarks(chopHits(CH.x, CH.nov, +u.sens.value)); } }, t("chopHits")), u.sens,
-      el("span", { class: "sep" }),
-      el("button", { onclick: () => { if (CH.x) { const [a, b] = region(); chopSetMarks(chopGrid(a, b, Math.max(40, +u.bpm.value || 90), +u.div.value)); } } }, t("chopGrid")),
-      u.bpm, el("span", { text: "BPM" }), u.div,
-      el("span", { class: "sep" }),
-      el("button", { onclick: () => { if (CH.x) { const [a, b] = region(); chopSetMarks(chopEqual(a, b, +u.n.value)); } } }, t("chopEqual")), u.n),
-    el("div", { class: "head" }, el("span", { text: t("chopKey") }), u.key, u.mode,
-      el("span", { text: t("chopMax") }), u.max, u.meter, u.room),
-    el("div", { class: "head" }, el("span", { text: t("chopTo") }), ...u.send,
-      el("button", { ic: "symbol_download", onclick: chopZip }, t("chopZip"))),
-    u.list);
-  /* the wave: click = select + listen, double-click = a marker, drag a marker, wheel = zoom */
-  const posAt = (e) => { const r = u.cv.getBoundingClientRect(); return CH.v0 + (e.clientX - r.left) / r.width * (CH.v1 - CH.v0); };
-  const markAt = (e) => {
-    const r = u.cv.getBoundingClientRect(), per = (CH.v1 - CH.v0) / r.width;
-    return CH.marks.findIndex((m) => Math.abs(m - posAt(e)) < 5 * per);
-  };
-  u.cv.addEventListener("pointerdown", (e) => {
-    if (!CH.x) { file.click(); return; }
-    u.cv.focus();
-    const k = markAt(e);
-    if (k >= 0) { CH.drag = k; CH.sel = k; u.cv.setPointerCapture(e.pointerId); chopDraw(); return; }
-    const p = posAt(e), i = chopChops().findIndex((c) => p >= c.start && p < c.end);
-    if (i >= 0) chopAudition(i);
-  });
-  u.cv.addEventListener("pointermove", (e) => {
-    if (CH.drag < 0) { u.cv.style.cursor = CH.x && markAt(e) >= 0 ? "ew-resize" : "default"; return; }
-    const m = CH.marks, k = CH.drag, lo = k ? m[k - 1] + 1 : 0, hi = k + 1 < m.length ? m[k + 1] - 1 : CH.x.length - 1;
-    m[k] = Math.round(Math.max(lo, Math.min(hi, posAt(e))));
-    chopDraw();
-  });
-  u.cv.addEventListener("pointerup", () => { if (CH.drag >= 0) { CH.drag = -1; chopRender(); } });
-  u.cv.addEventListener("dblclick", (e) => { if (CH.x) chopAdd(u.snap.checked ? chopSnap(CH.x, CH.nov, posAt(e), 0.02) : Math.round(posAt(e))); });
-  u.cv.addEventListener("wheel", (e) => {
-    if (!CH.x) return;
-    e.preventDefault();
-    const n = CH.x.length, span = CH.v1 - CH.v0;
-    if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      const d = (e.deltaX || e.deltaY) / 400 * span, v0 = Math.max(0, Math.min(n - span, CH.v0 + d));
-      CH.v0 = v0; CH.v1 = v0 + span;
-    } else {
-      const p = posAt(e), z = Math.exp(e.deltaY / 300), ns = Math.max(SMP.RATE * 0.05, Math.min(n, span * z));
-      CH.v0 = Math.max(0, Math.min(n - ns, p - (p - CH.v0) / span * ns));
-      CH.v1 = CH.v0 + ns;
-    }
-    chopDraw();
-  }, { passive: false });
-  u.cv.addEventListener("keydown", (e) => {
-    if (!CH.x) return;
-    const k = e.key;
-    if (k === " ") { e.preventDefault(); if (CH.src && CH.src.whole) chopTap(e); else chopPlay(Math.round(CH.v0), CH.x.length, true); }
-    else if (k === "Enter" || k === "Escape") { e.preventDefault(); if (CH.src) chopStop(); else chopPlay(Math.round(CH.v0), CH.x.length, true); }
-    else if (/^[0-9]$/.test(k)) { e.preventDefault(); chopAudition(k === "0" ? 9 : +k - 1); }
-    else if ((k === "Delete" || k === "Backspace") && CH.sel >= 0) { e.preventDefault(); chopSetMarks(CH.marks.filter((_, i) => i !== CH.sel)); }
-    else if ((k === "ArrowLeft" || k === "ArrowRight") && CH.sel >= 0) {   /* nudge the selected marker: 2 ms, shift 20 ms */
-      e.preventDefault();
-      const m = CH.marks.slice();
-      m[CH.sel] += (k === "ArrowLeft" ? -1 : 1) * Math.round((e.shiftKey ? 0.02 : 0.002) * SMP.RATE);
-      const keep = CH.sel;
-      chopSetMarks(m);
-      CH.sel = keep;
-      chopRender();
-    }
-  });
-  box.addEventListener("dragover", (e) => { e.preventDefault(); box.classList.add("over"); });
-  box.addEventListener("dragleave", () => box.classList.remove("over"));
-  box.addEventListener("drop", (e) => { e.preventDefault(); box.classList.remove("over"); if (e.dataTransfer.files[0]) chopLoad(e.dataTransfer.files[0]); });
-  window.addEventListener("resize", () => chopDraw());
-  chopRender();
-}
-
-function chopRender() {
-  const u = CH.ui;
-  if (!u) return;
-  const { all, use, n } = chopUsed(), room = SMP.MAX_DATA * 2, over = n > room;
-  u.info.textContent = CH.x ? `${CH.name} · ${chSecs(CH.x.length)} · ${all.length} ${t("chopChops")}` : t("chopHelp");
-  u.meter.value = Math.min(room, n);
-  u.room.textContent = `${chSecs(n)} / ${chSecs(room)}` + (over ? " " + t("chopTooLong") : "") +
-    (CH.mode === 0 && all.length > CHOP.MAX ? " " + t("chopTooMany") : "");
-  u.room.className = over ? "bad" : "dim";
-  u.send.forEach((b) => { b.disabled = !use.length || over || smpBusy || !dev || !dev.smp; });
-  u.list.replaceChildren(...all.map((c, i) => el("button", {
-    class: "chip" + (i === CH.sel ? " on" : "") + (use.includes(c) ? "" : " off"),
-    title: `${chSecs(c.start)} · ${chSecs(c.end - c.start)}`, onclick: () => chopAudition(i),
-  }, `${i + 1}` + (CH.mode === 1 ? "" : i < CHOP.MAX ? " " + noteName(Math.min(127, CH.key0 + i)) : ""))));
-  chopDraw();
-}
-
-/* the chops into slot k's list (it shows below), then the usual upload */
-async function chopSend(k) {
-  if (!CH.x || smpBusy) return;
-  const { use } = chopUsed();
-  if (!use.length) return;
-  const zones = chopZones(CH.x, chopChops(), CH.key0, CH.mode, Math.max(0, CH.sel));
-  smpDraft[k].name = CH.name;
-  smpDraft[k].files = zones;
-  renderSamples();
-  if (await smpUpload(k)) sayK("chopSent", `USR${k + 1}: ${zones.length} ${t("chopChops")}, ${noteName(zones[0].lo === 0 ? zones[0].root : zones[0].lo)}…`);
-}
-
-function chopZip() {
-  if (!CH.x) return;
-  const zones = chopZones(CH.x, chopChops(), CH.key0, CH.mode, Math.max(0, CH.sel));
-  if (!zones.length) return;
-  const blob = new Blob([zipStore(zones.map((z) => ({ name: `${CH.name}/${z.fname}`, data: wavFile(z.s) })))], { type: "application/zip" });
-  const a = el("a", { href: URL.createObjectURL(blob), download: `${CH.name}-chops.zip` });
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
 
 /* ---------------------------------------------------------- mixer (v3) --- */
 /* dev.mix = TRACK reply + pan per track ({sel, ntrk, tracks: [{engine, preset, level, mute, armed, pan}]}).
@@ -3831,7 +3039,7 @@ async function libOp(fn) {
   libBusy = true;
   busy++;
   renderLib(); renderBank();
-  try { await fn(); } catch (err) { report(err); } finally { busy--; libBusy = false; renderLib(); renderBank(); }
+  try { await fn(); } catch (err) { report(err); } finally { busy--; libBusy = false; renderLib(); renderBank(); renderDxBank(); }
 }
 const rqf = (r, o) => rq(r, o);
 const checkRc = (rc) => { if (rc) throw new Error(t("flashFail").replace("{rc}", rc)); };
@@ -4028,6 +3236,65 @@ $("bkexport").addEventListener("click", () => libOp(async () => {
   download(`felucca-bank-${today()}.json`, libraryFile("bank", out, libCtx()));
   sayK("ready");
 }));
+
+/* ------------------------------------------------------ DX7 user bank (v6) --- */
+/* dev.dxbank = BANK_INFO ({ok, names[32]}), null when the firmware has no bank (protocol < 6). An upload is
+   checked here first (dx7CheckSyx), then BANK_BEGIN, 8 x BANK_WRITE, BANK_END; the VOICE enum is read again. */
+const DX_ERR = { length: "dxBadLen", header: "dxBadHdr", byte: "dxBadByte", checksum: "dxBadSum" };
+function renderDxBank() {
+  const has = !!dev && !!dev.dump && !!dev.dxbank;
+  $("dxhint").hidden = has;
+  $("dxhint").textContent = t(!dev || !dev.dump ? "dxConnect" : "dxNone");
+  $("dxpane").hidden = !has;
+  if (!has) return;
+  const b = dev.dxbank;
+  $("dxstatus").textContent = b.ok ? `${b.names.filter(Boolean).length} ${t("voices")}` : t("dxNoBank");
+  $("dxstatus").className = b.ok ? "" : "dim";
+  const tb = el("table", {}, el("colgroup", {}, el("col", { class: "n" }), el("col")),
+    el("tr", {}, el("th", { text: "#" }), el("th", { text: t("name") })));
+  if (b.ok) b.names.forEach((n, i) => tb.append(el("tr", {}, el("td", { text: slotName(i) }), el("td", { text: n || "—" }))));
+  $("dxlist").replaceChildren(b.ok ? tb : el("div", { class: "none", text: t("dxNoBank") }));
+  $("dxchoose").disabled = libBusy;
+  $("dxerase").disabled = !b.ok || libBusy;
+}
+async function dxUpload(file) {
+  if (!dev || !dev.dxbank || libBusy || !file) return;
+  let syx;
+  try { syx = dx7CheckSyx(await file.arrayBuffer()); }
+  catch (e) { sayK("dxFail", DX_ERR[e.code] ? t(DX_ERR[e.code]).replace("{n}", e.detail || "") : e.message); return; }
+  if (!confirm(t("confirmDxUpload").replace("{name}", file.name))) return;
+  libOp(async () => {
+    sayK("dxUploading", file.name);
+    const rc = await dxbank.upload(rqf, syx, (k, n) => sayK("dxUploading", `${file.name} ${k}/${n}`));
+    if (rc === 1) throw new Error(t("dxRefused"));
+    checkRc(rc);                                      /* rc 2: flash (the bank plays until power-off) */
+    dev.dxbank = await dxbank.info(rqf);
+    await rereadEngineDesc();                         /* VOICE: U01..U32 carry the new names */
+    refreshAll();
+    sayK("dxDone", `${file.name} (${dev.dxbank.names.filter(Boolean).length} ${t("voices")})`);
+  });
+}
+$("dxchoose").addEventListener("click", () => { $("dxfile").value = ""; $("dxfile").click(); });
+$("dxfile").addEventListener("change", () => dxUpload($("dxfile").files[0]));
+$("dxdrop").addEventListener("click", () => $("dxchoose").click());
+$("dxdrop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("dxchoose").click(); } });
+$("dxdrop").addEventListener("dragover", (e) => { e.preventDefault(); $("dxdrop").classList.add("over"); });
+$("dxdrop").addEventListener("dragleave", () => $("dxdrop").classList.remove("over"));
+$("dxdrop").addEventListener("drop", (e) => {
+  e.preventDefault();
+  $("dxdrop").classList.remove("over");
+  if (e.dataTransfer.files[0]) dxUpload(e.dataTransfer.files[0]);
+});
+$("dxerase").addEventListener("click", () => {
+  if (!dev || !dev.dxbank || !confirm(t("confirmDxErase"))) return;
+  libOp(async () => {
+    checkRc(await dxbank.erase(rqf));
+    dev.dxbank = await dxbank.info(rqf);
+    await rereadEngineDesc();
+    refreshAll();
+    sayK("dxErased");
+  });
+});
 
 $("connect").addEventListener("click", () => {
   if (dev) { wantConnected = false; disconnect(); } else connect();

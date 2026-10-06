@@ -1,0 +1,58 @@
+# sloopDX: build the firmware package and run the host tests.
+# The JieLi toolchain comes from pkgman.jieliapp.com (tools/get_toolchain.sh) and the AC79 SDK from
+# gitee.com; neither is mirrored here. Whether a GitHub runner reaches those servers is something the
+# first run of this workflow shows. If it does not, the toolchain step is the one to replace (a
+# cached tarball, or a self-hosted runner with ~/.jieli/toolchain).
+name: build
+
+on:
+  push:
+    branches: [sloopdx]
+    tags: ['v*']
+  pull_request:
+    branches: [sloopdx]
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Python packages
+        run: python3 -m pip install Pillow
+
+      - name: JieLi toolchain (pkgman.jieliapp.com)
+        run: sh tools/get_toolchain.sh
+
+      - name: JieLi AC79 SDK (three files of it are placed in the package)
+        run: |
+          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+              https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git ~/fw-AC79_AIoT_SDK
+
+      - name: Build
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then
+            ./build.sh --release "${GITHUB_REF_NAME#v}"
+          else
+            ./build.sh
+          fi
+
+      - name: Host tests
+        run: sh tests/run_tests.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sloopdx-fwsc
+          path: build/felucca*.fwsc
+          if-no-files-found: error
+
+      - name: Release (tags only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/felucca*.fwsc
+          generate_release_notes: true

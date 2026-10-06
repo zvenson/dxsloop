@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate assets on Windows, then compile with the JieLi toolchain in WSL.
+"""sloopDX on Windows: generate assets here, then compile with the JieLi toolchain in WSL
+(run by build-sloopdx.ps1 / INSTALL-SLOOPDX.bat).
 
 No system packages are installed. --toolchain is an existing Linux path;
 --sdk is a Windows directory containing cpu/wl82/tools from the pinned SDK.

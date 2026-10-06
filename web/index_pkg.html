@@ -5,7 +5,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SLOOP installer</title>
+<title>sloopDX installer</title>
 <style>
   :root { --bg: #000; --fg: #f2f2f2; --dim: #8a8a92; --tile: #16161a; --line: #2a2a30;
           --blue: #287cff; --green: #1ecc70; --yellow: #ffc618; --orange: #ff621a; --red: #ff2c34; }
@@ -51,10 +51,10 @@
   <div class="strip"><i></i><i></i><i></i><i></i></div>
   <!--STUDIO_GUIDE-->
   <h1>Firmware for the M-VAVE FM-1</h1>
-  <p class="lead">A groovebox you play live: four tracks — three synths and a drum machine — 9 synth engines, 54 sounds, 34 drum kits from 808 to techno, afro and ambient, your own samples, 16 punch-in effects. House, techno, hip-hop, drum &amp; bass, synthwave, lo-fi, ambient: make what you want. No factory patterns, nothing to load: everything you hear, you play.</p>
+  <p class="lead">SLOOP as a pure DX7 FM synth: four tracks — three synths and a drum machine — one engine, a six-operator DX7 voice (Dexed's msfa core, bit-exact), 17 factory voices and your own DX7 banks (.syx, 32 voices), five FM drum kits made with the same engine, 16 punch-in effects. No factory patterns, nothing to load: everything you hear, you play.</p>
   <div class="tiles">
-    <div class="tile" style="--c: var(--blue)"><b>54</b><span>sounds, 9 engines, your samples</span></div>
-    <div class="tile" style="--c: var(--green)"><b>34</b><span>drum kits, 909 to afro</span></div>
+    <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, bit-exact</span></div>
+    <div class="tile" style="--c: var(--green)"><b>17+32</b><span>factory voices + your .syx bank</span></div>
     <div class="tile" style="--c: var(--yellow)"><b>16</b><span>punch-in fx: hold fx + key</span></div>
     <div class="tile" style="--c: var(--orange)"><b>rec</b><span>no click: the loop follows you</span></div>
   </div>
@@ -72,11 +72,11 @@
     <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
   <p class="small" data-t="back"></p>
   <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
-  <p class="small">SLOOP is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>.
+  <p class="small">sloopDX is a fork of SLOOP (isod89), which is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. DX7 core: the msfa engine of Dexed (Apache-2.0, © 2012 Google Inc., 2016–2025 Pascal Gauthier), ported to integer C.
     Hold OCT− alone while switching on for USB rescue.<br>
-    Font: Terminus (Dimitar Toshkov Zhekov, SIL OFL 1.1). Samples: Versilian Studios VSCO-2 Community Edition and VCSL (CC0 1.0), and the Hügelton Sample Pack (© Hügelton Instruments, not CC0).<br>
-    M-VAVE and FM-1 are trademarks of their respective owners; SLOOP is not affiliated with them.<br>
-    <span data-t="license"></span> <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener">github.com/hugelton/Felucca</a></p>
+    Font: Terminus (Dimitar Toshkov Zhekov, SIL OFL 1.1).<br>
+    M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.<br>
+    <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a></p>
 </main>
 <script type="module">
 /*LIB*/
@@ -165,7 +165,7 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
       if (h !== meta.sha256) { sayK("badpkg"); log(`sha256 ${h}, expected ${meta.sha256}`); return; }
     }
     image = logicalImage(pkg);
-    say(`SLOOP ${meta.version}`);
+    say(`sloopDX ${meta.version}`);
     $("go").disabled = false;
   } catch (e) { sayK("loadfail", e.message); }
 })();
