@@ -39,10 +39,10 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] `INSTALL-SLOOPDX.bat`, `build-sloopdx.ps1`, `OPEN-EDITOR.bat`, `tools/build_windows.py`.
 - [x] Repo auf GitHub: github.com/zvenson/dxsloop (Fork von isod89/sloop-fm1), SLOOP 2.3 ist gemergt
       (USB-Audio, MIDI-IN-Buchse, MIDI-Clock, REC-Modi, Lichter, Backup; Backup-Objekt 8 = DX7-Bank).
-      Noch zu tun auf GitHub: Default-Branch `sloopdx`, Pages aus `docs/` (`zvenson/dxsloop` ist überall eingetragen: ABOUT-Seite,
-      README, Installer), `git push`, GitHub Pages aus `docs/` einschalten. Eigene Domain
-      (z. B. dxsloop.designburgapps.com): `docs/CNAME` plus DNS-CNAME auf `<account>.github.io`, oder
-      `build/sloopdx-site` per FTP auf einen beliebigen HTTPS-Host (Web MIDI braucht HTTPS).
+      `main` folgt `sloopdx` per Fast-Forward (`git push origin sloopdx:main`).
+- [x] Webseite: https://dx7.designburgapps.com (Installer, `/webapp/editor/`, `?mock=1` ohne Gerät). Läuft
+      auf dem Pi in `~/docker/sloopdx-site` (nginx + eigener cloudflared-Tunnel `sloopdx-site`,
+      `deploy/pi/`). Neuer Stand: pushen, dann auf dem Pi `~/docker/sloopdx-site/update.sh`.
 
 ## 4. Klang
 

@@ -1,7 +1,6 @@
-# sloopDX site on the Pi: nginx serves the static site (docs/, the GitHub Pages folder) on the
-# docker network only; cloudflared (the existing tunnel) routes dx7.designburgapps.com to it.
-#   ~/docker/sloopdx-site: git clone https://github.com/zvenson/dxsloop.git repo && docker compose up -d
-#   update: ./update.sh (git pull + nginx reload)
+# sloopDX site (dx7.designburgapps.com): nginx serves repo/docs (the GitHub Pages folder), its own
+# cloudflared tunnel "sloopdx-site" (a12c4308-c70e-4908-9a2e-47c578d83948) reaches it on the compose network.
+#   update: ./update.sh (git pull; the folder is a bind mount)
 services:
   web:
     image: nginx:alpine
@@ -10,4 +9,13 @@ services:
     volumes:
       - ./repo/docs:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    networks: [default]
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-sloopdx
+    user: "1000:1000"                       # zven: may read its own credentials file
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - /home/zven/.cloudflared/a12c4308-c70e-4908-9a2e-47c578d83948.json:/etc/cloudflared/a12c4308-c70e-4908-9a2e-47c578d83948.json:ro
+    depends_on: [web]
