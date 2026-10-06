@@ -1,6 +1,7 @@
 # sloopDX: erster Build auf dem eigenen Rechner
 
-Das Repo ist ein Git-Checkout mit voller Historie, Branch `sloopdx` (SLOOP 2.2 ist `main`).
+Das Repo ist github.com/zvenson/dxsloop, ein Fork von isod89/sloop-fm1 mit dessen Historie. Branch
+`sloopdx` (basiert auf SLOOP 2.2); `main` ist SLOOPs main (inzwischen 2.3).
 Vorher noch nie auf dem FM-1 gelaufen; RAM und CPU auf dem Chip sind offen.
 
 Voraussetzung: Linux x86-64 oder WSL2 (die JieLi-Toolchain gibt es nur dafür), Python 3, gcc.
@@ -28,9 +29,6 @@ python tools/fm1_install.py build/felucca.fwsc     # FM-1 per USB, kein Hub
 Wenn `./build.sh` wegen RAM abbricht: Meldung kopieren; dann wandert die User-Bank (4,4 KB)
 in den Flash. Mehr in README.md und BUILDING.md.
 
-Remotes: `upstream` zeigt auf SLOOP (isod89/sloop-fm1, nur lesen). Eigenes Repo anlegen und hochladen:
-
-```sh
-git remote add origin https://github.com/<account>/sloopdx.git
-git push -u origin sloopdx
-```
+Remotes: `origin` = git@github.com:zvenson/dxsloop.git (SSH; HTTPS hat hier keine Zugangsdaten),
+`upstream` = SLOOP (isod89/sloop-fm1, nur lesen). Neues von SLOOP: `git fetch upstream`, dann nach
+Bedarf in `sloopdx` mergen (2.3 ist noch nicht drin).
