@@ -63,7 +63,7 @@ int main(int argc, char **argv)
         }
     host_preset_req(&trk[2], 0, 1);             /* change the lead's engine at the section boundary */
     song.g[G_DRLVL] = 80;
-    TDRUM->p[P_E0] = 4;                       /* drum kit is saved with the section */
+    TDRUM->p[P_E0] = 3;                       /* drum kit is saved with the section */
     capture(1);
     arr_defaults(&arrangement);
     arrangement.count = 2;
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     assert(at_stop >= FS*8u && at_stop < FS*8u + CTL);
     assert(trk[0].step[0].note[0] == 41);
     assert(trk[2].engine == 0 && song.g[G_DRLVL] == 80);
-    assert(drum_kit() == 4);
+    assert(drum_kit() == 3);
     for (i = 0; i < NPART; i++) {
         assert(trk[i].seq_n == 0);
         for (k = 0; k < NVOICE; k++) assert(!trk[i].v[k].gate);

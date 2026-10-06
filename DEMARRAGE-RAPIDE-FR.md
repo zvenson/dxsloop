@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="360"></p>
 
-# sloopDX 1.8 — démarrage rapide
+# sloopDX 1.9 — démarrage rapide
 
 **sloopDX** transforme le M-VAVE FM-1 en vrai synthé FM : trois synthés et une batterie de 16 sons sur les touches blanches, un seul moteur — une voix DX7 à six opérateurs (le cœur msfa de Dexed, porté en entier et identique au bit près), 17 sons d'usine et tes propres banques DX7 (.syx, 32 sons), cinq kits de batterie FM faits avec le même moteur, ghost notes et ratchets, note repeat, accords sur une touche, 16 effets punch-in, et un écran à la teenage engineering qui montre toujours ce que tes mains peuvent faire. Aucun motif d'usine : tout ce que tu entends, tu le joues. Le reste — pistes, calques, séquenceur, mode chanson, effets — est celui de SLOOP.
 
@@ -83,7 +83,7 @@ Chaque piste synthé est un DX7 : six opérateurs, 32 algorithmes, enveloppes, L
 
 À 0, c'est le son tel qu'il a été programmé. Les réglages s'appliquent aux notes suivantes, comme sur le panneau d'un DX7. La page **ENV** ne fait que tenir la note : les enveloppes sont celles de la voix.
 
-**Ta banque DX7 (.syx) :** un bulk dump DX7 standard de 32 sons (4104 octets) se charge depuis l'éditeur web (onglet **Library**) ou avec `python3 tools/fm1_bank_upload.py banque.syx`. Les 32 sons apparaissent comme **U01–U32** avec leurs noms, restent en flash, et le kit **USER** joue les 16 premiers sur les touches blanches. La somme de contrôle est vérifiée et chaque valeur est ramenée dans sa plage.
+**Ta banque DX7 (.syx) :** un bulk dump DX7 standard de 32 sons (4104 octets) se charge depuis l'éditeur web (onglet **Library**) ou avec `python3 tools/fm1_bank_upload.py banque.syx`. Les 32 sons apparaissent comme **U01–U32** avec leurs noms, restent en flash, et le kit. La somme de contrôle est vérifiée et chaque valeur est ramenée dans sa plage.
 
 ## La batterie : 16 sons FM sur les touches blanches
 
@@ -96,7 +96,7 @@ Chaque piste synthé est un DX7 : six opérateurs, 32 algorithmes, enveloppes, L
 
 Chaque son est une voix DX7 (6 voix pour la batterie, 8 pour les synthés). Une touche noire joue le son de la touche blanche à sa gauche (deux doigts sur un son pour les roulements rapides). Chaque frappe a un **niveau** — GHOST, SOFT, NORM (comme jouée), HARD — et un **ratchet** x1–x4 (la frappe répétée dans son pas). Les charleys fermé et pédale coupent l'ouvert ; les kicks et les toms ont une chute de hauteur à la frappe ; le clap est quatre coups.
 
-**Cinq kits** (PRESETS sur la piste batterie) : **DX KIT** (classique), **808 FM** (une boîte à rythmes analogique en FM : kicks ronds, charleys métalliques), **ELECTRO** (court, claquant), **METAL** (inharmonique, industriel : enclume, cloches, gong) — chaque kit a ses propres sons, **USER** (les 16 premiers sons de ta banque .syx ; sans banque, le DX KIT).
+**Quatre kits** (PRESETS sur la piste batterie) : **DX KIT** (classique), **808 FM** (une boîte à rythmes analogique en FM : kicks ronds, charleys métalliques), **ELECTRO** (court, claquant), **METAL** (inharmonique, industriel : enclume, cloches, gong) — chaque kit a ses propres sons.syx ; sans banque, le DX KIT).
 
 ## Enregistrer
 

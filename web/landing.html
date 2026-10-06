@@ -110,6 +110,11 @@
   .steps li:nth-child(4)::before { background: var(--beige); }
   .steps h3 { margin: 0 0 4px; font-size: 16.5px; } .steps p { margin: 0; color: var(--dim); font-size: 14.5px; }
   code { font: 13px ui-monospace, Menlo, monospace; background: #111; padding: 1px 6px; border-radius: 4px; color: var(--beige); }
+  .risk { display: flex; gap: 18px; align-items: flex-start; background: linear-gradient(180deg, #2c1f21, #221e1f); border: 1px solid #6b3b40;
+          border-radius: 14px; padding: 22px 26px; margin-top: 28px; }
+  .risk b.ico { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--pink); color: #111; display: grid;
+                place-items: center; font-size: 20px; font-weight: 800; }
+  .risk p { margin: 0; color: #d8d0c9; font-size: 15px; }
   footer { padding: 36px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
   footer .wrap { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
   @media (max-width: 980px) {
@@ -143,7 +148,7 @@
       <a class="btn ghost" href="webapp/editor/">Web editor</a>
       <a class="btn ghost" href="https://github.com/zvenson/dxsloop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.22 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg> GitHub</a>
     </div>
-    <p class="small">Chrome or Edge, the FM-1 on USB. Free and open source (GPL-3.0). Going back to the original firmware is always possible.</p>
+    <p class="small">Chrome or Edge, the FM-1 on USB. Free and open source (GPL-3.0), unofficial, <a href="impressum.html">at your own risk</a>. Going back to the original firmware is possible.</p>
   </div>
   <div class="screen" aria-hidden="true">
     <svg id="dxalg" viewBox="0 0 240 172"></svg>
@@ -160,7 +165,7 @@
     <div class="card"><div class="n">6×32</div><h3>DX7 engine</h3><p>Six operators, 32 algorithms, rate / level envelopes, keyboard scaling, pitch envelope, LFO and feedback. 99 % of samples identical to Dexed.</p></div>
     <div class="card" style="--c: var(--blue)"><div class="n">EDIT</div><h3>Voice editing on the device</h3><p>A list in the DX7's own names: algorithm drawn as boxes, every operator's level, ratio, detune, envelope and scaling. SAVE stores it.</p></div>
     <div class="card" style="--c: var(--pink)"><div class="n">256</div><h3>Your banks</h3><p>Eight banks of 32 voices from any DX7 .syx dump, switched like cartridges. PRESETS runs from 01 to 49 in one go.</p></div>
-    <div class="card" style="--c: var(--beige)"><div class="n">4 kits</div><h3>FM drums</h3><p>DX KIT, 808 FM, ELECTRO and METAL, each its own 16 voices on the white keys, plus a USER kit from your bank.</p></div>
+    <div class="card" style="--c: var(--beige)"><div class="n">4 kits</div><h3>FM drums</h3><p>DX KIT, 808 FM, ELECTRO and METAL, each its own 16 FM voices on the white keys, with pitch sweeps, a real clap and hat choke.</p></div>
     <div class="card"><div class="n">3+1</div><h3>SLOOP's live workflow</h3><p>Three synth tracks and a drum track, free takes without a click, ratchets, rolls, scales and chords, song sections, 16 punch-in effects.</p></div>
     <div class="card" style="--c: var(--blue)"><div class="n">USB</div><h3>Editor, MIDI, audio</h3><p>A web editor with a Dexed-style voice page, MIDI in on USB and the jack, MIDI clock, and the FM-1 as a USB audio input.</p></div>
   </div>
@@ -213,12 +218,13 @@
     <li><h3>Play</h3><p>ALGORITHM picks a track, PRESETS a sound, REC records without a click. Tap EDIT on a synth track to open the DX7 voice.</p></li>
     <li><h3>Load your banks</h3><p>In the <a href="webapp/editor/">editor</a>, tab Library: choose a bank 1–8 and drop a .syx. Original DX7 ROMs: yamahablackboxes.com.</p></li>
   </ol>
+  <div class="risk"><b class="ico">!</b><p><b>Use at your own risk.</b> sloopDX is unofficial, custom firmware, free and without any warranty. Installing it replaces the FM-1's firmware; an interrupted update can leave the device unable to start. Back up your projects and banks first. The author accepts no liability for damage or data loss. <a href="impressum.html">Disclaimer &amp; Impressum</a></p></div>
 </div></section>
 
 <footer><div class="wrap">
   <div>sloopDX by Sven Trogus. Based on <a href="https://github.com/isod89/sloop-fm1">SLOOP</a> (isod89) and <a href="https://github.com/hugelton/Felucca">Felucca</a> (Leo Kuroshita, Hügelton Instruments). DX7 core: the msfa engine of <a href="https://github.com/asb2m10/dexed">Dexed</a> (Apache-2.0). GPL-3.0, no warranty: custom firmware is installed at your own risk.<br>
   M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and ships no Yamaha or M-VAVE voice data.</div>
-  <div><a href="https://github.com/zvenson/dxsloop">github.com/zvenson/dxsloop</a><br><a href="webapp/installer/">Installer</a> · <a href="webapp/editor/">Editor</a> · <a href="midi.html">MIDI check</a></div>
+  <div><a href="https://github.com/zvenson/dxsloop">github.com/zvenson/dxsloop</a><br><a href="webapp/installer/">Installer</a> · <a href="webapp/editor/">Editor</a> · <a href="midi.html">MIDI check</a><br><a href="impressum.html">Impressum · Disclaimer · Datenschutz</a></div>
 </div></footer>
 
 <script>

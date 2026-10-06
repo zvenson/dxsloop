@@ -36,7 +36,7 @@ int main(int argc,char **argv)
         }
         assert(energy[i]>10000);
         for(k=0;k<NDRUM;k++)assert(!drums.v[k].active);
-        for(k=0;k<i;k++)assert(energy[k]!=energy[i] || (i==DRUM_KIT_USER && !dx_user_ok));
+        for(k=0;k<i;k++)assert(energy[k]!=energy[i]);
     }
     /* LIVE metronome (seq.c click_tick): 120 BPM, 2 s = 4 beats; REC mode clicks only while a
      * track records, ON always while playing, OFF never; the first beat of the bar is louder */

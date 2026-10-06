@@ -95,6 +95,8 @@
                     border: 1px solid var(--line); border-radius: 8px; padding: 12px 18px; cursor: pointer; }
   button#stock-go:disabled { color: var(--dim); cursor: default; }
   input[type=file] { color: var(--dim); }
+  p.risk { background: #2c1f21; border: 1px solid #6b3b40; border-radius: 10px; padding: 12px 16px; font-size: 14.5px; color: #d8d0c9; margin: 0 0 18px; }
+  p.risk a { color: var(--pink); }
   footer { padding: 32px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
   footer a { color: var(--blue); }
   @media (max-width: 980px) { .hero .wrap, .grid { grid-template-columns: 1fr; } nav.bar .links a:not(.gh) { display: none; } }
@@ -148,6 +150,7 @@
           <li><p>Press <b>Install</b> and choose the FM-1's MIDI port when the browser asks (allow SysEx).</p></li>
           <li><p data-t="warn"></p></li>
         </ol>
+        <p class="risk"><b>Use at your own risk.</b> Unofficial custom firmware, free and without any warranty. Back up your projects and banks first; do not unplug while it writes. No liability for damage or data loss. <a href="../../impressum.html">Disclaimer</a></p>
         <button id="go" disabled data-t="install"></button>
         <progress id="bar" max="100" value="0"></progress>
         <p id="status"></p>
@@ -192,7 +195,7 @@
 <footer><div class="wrap">
   sloopDX is a fork of SLOOP (isod89), which is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. DX7 core: the msfa engine of Dexed (Apache-2.0, © 2012 Google Inc., 2016–2025 Pascal Gauthier), ported to integer C. Hold OCT− alone while switching on for USB rescue. Font: Terminus (SIL OFL 1.1).<br>
   M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.
-  <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a>
+  <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a> · <a href="../../impressum.html">Impressum · Disclaimer · Datenschutz</a>
 </div></footer>
 <script>
 /* the algorithm animation: the same layout as the FM-1's screen (ui_voice.c ve_draw_alg); op 0 = OP6 */
@@ -614,7 +617,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.8", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.8.fwsc", "sha256": "e875c5c95aeca06127fbae059c16ecea76cfe07fb8533953ec41299d8061de4d"};
+const meta = {"version": "1.9", "product": "FM-1_900", "pkg": "../../firmware/sloopdx-1.9.fwsc", "sha256": "9b9ae9b7c85958cbddcdf9c5c683604c88933c4d6c211461f85e14ef31d31220"};
 
 let writing = false, stock = null;
 const lockAll = (on) => {

@@ -393,7 +393,7 @@
             <span class="dim" data-t="dndHelp"></span>
           </p>
         </div>
-        <!-- v6: the DX7 user bank (U01..U32 of VOICE, the USER drum kit) -->
+        <!-- v6: the DX7 user banks (U01..U32 of VOICE) -->
         <h2 data-t="dxBank" data-ic="symbol_waves" style="margin-top:12px"></h2>
         <p class="dim" id="dxhint"></p>
         <div id="dxpane" hidden>
@@ -435,7 +435,7 @@
 
   <footer>sloopDX, based on SLOOP and Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. The DX7 engine is Dexed's msfa core. GPL-3.0.<br>
     <span data-t="foot"></span> M-VAVE and FM-1 are trademarks of their respective owners.<br>
-    <a href="FUKIAI-LICENSE.txt" data-t="iconsCredit"></a></footer>
+    <a href="FUKIAI-LICENSE.txt" data-t="iconsCredit"></a> · <a href="../../impressum.html">Impressum · Disclaimer</a></footer>
 </main>
 <script>
 "use strict";
@@ -1402,7 +1402,7 @@ function makeMockDevice(opt = {}) {
   ];
   /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
      first 16 voices of the DX7 user bank) */
-  const KIT = E("KIT", ["DX KIT", "808 FM", "ELECTRO", "METAL", "USER"], 0);
+  const KIT = E("KIT", ["DX KIT", "808 FM", "ELECTRO", "METAL"], 0);
   /* a GM note -> its drum lane (drums.c LANE_OF_GM: 35..81) */
   const LANE_OF_GM = [1, 0, 7, 2, 3, 8, 9, 4, 9, 6, 9, 5, 10, 10, 11, 10, 12, 11, 12, 13, 11, 15, 11, 13, 12, 14, 14, 14, 14, 14,
     14, 14, 15, 15, 13, 13, 15, 15, 13, 13, 7, 7, 7, 14, 14, 15, 15];
@@ -1637,7 +1637,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.8 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 1.9 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : 9);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks */
@@ -2152,7 +2152,7 @@ const TEXT = {
     confirmClear: "Clear the whole sequence?", confirmInit: "Reset the sound to the engine defaults?",
     erase: "Erase",
     dxBank: "DX7 user banks on the device", dxBankSel: "Bank in use", dxBankN: "Bank", dxSelected: "Bank in use: ",
-    dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE, the first 16 as the USER drum kit.",
+    dxHelp: "Upload a DX7 32-voice bulk dump (.syx, 4104 bytes). Its voices play as U01–U32 of VOICE (18–49).",
     dxDrop: "Drop a .syx here, or click", dxChoose: "Choose .syx", dxNoBank: "no bank", voices: "voices",
     dxConnect: "Connect the FM-1 to upload a DX7 bank.", dxNone: "This firmware has no DX7 user bank.",
     dxUploading: "Uploading the bank ", dxDone: "Bank uploaded: ", dxFail: "Cannot upload the bank: ", dxErased: "Bank erased",
@@ -2561,11 +2561,16 @@ function updateBrowser() {
   if (document.activeElement !== sel) sel.value = drum ? "" : String(e);
   const ps = $("preset");
   const names = dev.names[e] || [];
-  if (ps.dataset.engine !== String(e)) {
-    ps.replaceChildren(...names.map((n, i) => el("option", { value: i, text: `${pad2(i + 1)} ${n}` })));
-    ps.dataset.engine = String(e);
+  /* the 17 factory presets, then the voices of the bank in use (18..49), as PRESETS on the FM-1 */
+  const bank = dev.dxbank && dev.dxbank.ok ? dev.dxbank.names : [];
+  const sig = `${e}|${bank.join(",")}`;
+  if (ps.dataset.sig !== sig) {
+    ps.replaceChildren(...names.map((n, i) => el("option", { value: i, text: `${pad2(i + 1)} ${n}` })),
+      ...bank.map((n, k) => el("option", { value: names.length + k, text: `${pad2(names.length + k + 1)} ${n || "U" + pad2(k + 1)}` })));
+    ps.dataset.sig = sig;
   }
-  if (document.activeElement !== ps) ps.value = String(dev.dump.preset);
+  const v = dev.dump.p[dev.info.pe0] | 0;
+  if (document.activeElement !== ps) ps.value = String(bank.length && v >= names.length ? v : dev.dump.preset);
 }
 
 function visible(d) { return d && d.max > d.min && d.label !== "-"; }
@@ -2707,10 +2712,20 @@ async function choosePreset(e, p) {
   busy++;
   try {
     selfLoad();
-    parse[CMD.PRESET](await rq(req.preset(e, p)));
+    const nf = (dev.names[e] || []).length;
+    if (p >= nf) {                                   /* a voice of the bank in use (18..49), as PRESETS on the FM-1 (ui.c
+                                                        preset_go): the voice, its knobs as programmed, the bank's trim */
+      const pe0 = dev.info.pe0;
+      const sets = [[pe0, p], [pe0 + 1, 0], [pe0 + 2, 0], [pe0 + 3, 0], [pe0 + 4, 0], [pe0 + 5, 0],
+                    [P_ID.ATK, 0], [P_ID.DEC, 0], [P_ID.SUS, 127], [P_ID.REL, 0], [P_ID.TRIM, -12]];
+      for (const [id, v] of sets) await rq(req.set(0, id, v));
+    } else {
+      parse[CMD.PRESET](await rq(req.preset(e, p)));
+    }
     await afterSoundChange();
   } catch (err) { report(err); } finally { busy--; }
 }
+const P_ID = { ATK: 1, DEC: 2, SUS: 3, REL: 4, TRIM: 8 };   /* core.h P_ATK .. P_ED_FX (the level trim) */
 async function afterSoundChange(msg = "ready") {
   needReload = false;                               /* this re-reads everything a RELOAD asks for */
   dev.dump = await getDump();

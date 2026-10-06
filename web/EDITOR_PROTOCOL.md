@@ -105,7 +105,7 @@ An absent status byte retains the original reply format.
 
 | cmd (v7, sloopDX) | Request args | Reply args |
 | --- | --- | --- |
-| 37 BANK_BEGIN | — | rc (0 ok). Starts an upload: the user bank is empty from now on (U01..U32 play INIT VOICE, the USER kit the DX KIT) until `BANK_END` accepts it |
+| 37 BANK_BEGIN | — | rc (0 ok). Starts an upload: the user bank is empty from now on (U01..U32 play INIT VOICE) until `BANK_END` accepts it |
 | 38 BANK_WRITE | offset (2 × 7 bit, LSB first, 0..4095), data (1..512 bytes: the voice bytes of the dump, bytes 6..4101 of the .syx, each 7 bit, as they are) | offset (2 bytes), rc: 0 ok, 1 arguments (no `BANK_BEGIN`, offset + length > 4096, no data) |
 | 39 BANK_END | checksum (byte 4102 of the .syx) | rc: 0 ok (the bank plays and is in flash), 1 checksum (the bank stays empty), 2 flash (the bank plays until power-off) |
 | 40 BANK_INFO | — | ok (0 = no bank, 1 = a bank), then 32 name strings (U01..U32; empty strings without a bank) |
@@ -264,7 +264,7 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 - **`TRACK`** ends with the solo mask (bit per track; GLO + key on the device). A soloed track plays,
   the others are faded out unless soloed too; mute and solo do not change `P_MUTE` of other tracks.
 - **The kit** is the drum track's `P_E0`: `DESC` of `P_E0` with the drum track selected is the enum
-  `KIT` (sloopDX: 5 FM kits, DX KIT, 808 FM, ELECTRO, METAL, USER; SLOOP 2.x had 34 sample kits). `DESC` of
+  `KIT` (sloopDX: 4 FM kits, DX KIT, 808 FM, ELECTRO, METAL; SLOOP 2.x had 34 sample kits). `DESC` of
   `P_E1..P_E7` there still describes engine 0 (unused).
 
 ## v6: backup / restore (SLOOP 2.3)

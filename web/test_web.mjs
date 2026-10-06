@@ -565,7 +565,7 @@ async function editorV5() {
   const kit = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const dd = E.parse[C.DUMP](await rq(E.req.dump()), info);
   const fwKits = ((/DRUM_KIT_NAMES\[\] = \{([^}]*)\}/.exec(dc) || [])[1] || "").split(",").map((x) => x.trim().replace(/"/g, ""));
-  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,808 FM,ELECTRO,METAL,USER" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
+  ok(kit.label === "KIT" && kit.names.join() === "DX KIT,808 FM,ELECTRO,METAL" && kit.names.length === kit.max + 1 && fwKits.join() === kit.names.join()
     && dd.p[info.pe0] === 0, `v5: the drum track's KIT (${kit.names.length} FM kits, == drums.c; DX KIT at power-on)`);
   /* TRACK ends with the solo mask */
   m.state.solo = 0b0101;
@@ -707,7 +707,7 @@ async function editorDxBank() {
   const set = E.parse[C.SET](await rq(E.req.set(0, info.pe0, 20)));
   ok(E.fmtValue({ label: "VOICE", fmt: E.F.ENUM, min: 0, max: 48, names: Array(49).fill("X") }, 2)[0] === "03 X"
     && E.fmtValue({ label: "KIT", fmt: E.F.ENUM, min: 0, max: 4, names: ["DX KIT", "808 FM"] }, 1)[0] === "2 808 FM",
-    "numbers: factory voices 01..17, kits 1..5");
+    "numbers: factory voices 01..17, kits 1..4");
   ok(set.value === 20 && E.fmtValue(v1, 20)[0] === "21 A B", "dx7: a user voice can be selected and is shown by number and name (21 A B)");
   /* a bad checksum: the device refuses it (rc 1) and the bank stays empty; a write without BEGIN is refused */
   const bad = { data: chk.data, checksum: (chk.checksum + 1) & 0x7F };

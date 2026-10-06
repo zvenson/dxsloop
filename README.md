@@ -17,7 +17,7 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked against Dexed (99 % of samples identical, the rest within 1-2 LSB)). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
 
-> **Status:** 1.8 (8 DX7 banks, 256 voices; quieter, with headroom; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status:** 1.9 (8 DX7 banks, 256 voices; four FM drum kits; quieter, with headroom; numbered voices everywhere; DX7 voice editing on the FM-1 and in the editor; the DX7's panel colours everywhere; four drum kits with their own voices; ENV and the knobs act on sounding notes), based on SLOOP 2.3. Work in progress: the firmware builds and the host tests pass, but it has **not run on a device yet**. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Contents
 
@@ -106,7 +106,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.8.fwsc`) with `python tools/fm1_install.py sloopdx-1.8.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-1.9.fwsc`) with `python tools/fm1_install.py sloopdx-1.9.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -167,7 +167,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 1.8*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 1.9*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 
@@ -258,7 +258,7 @@ Something else? [Open an issue](../../issues): what you did, what you expected, 
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
 | Sounds | 17 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; 32 user presets |
-| Drum kits | 5 FM kits (DX KIT, 808 FM, ELECTRO, METAL, USER), 16 sounds each |
+| Drum kits | 4 FM kits (DX KIT, 808 FM, ELECTRO, METAL), 16 sounds each |
 | Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock (no drift) |
 | Recording | live, quantised as heard (latency-compensated), overdub; free take (the tempo follows you) or the tempo set; start on the first note or a one-bar count-in; 1, 2 or 4 bars |
 | Performance | layers: punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo, song sections |

@@ -8,8 +8,8 @@
  * DRUMS, default 10); its own voices (outside the parts' voice budget). LEVEL / REV: GLO > DRUMS
  * (G_DRLVL, G_DRREV); PAN and MUTE: the drum track's P_PAN / P_MUTE. Rendered from the audio ISR.
  * P_E0 is the kit: DX KIT (dx7_bank.h DX_DRUM_VOICE), 808 FM, ELECTRO and METAL (DX_KIT_VOICE: each its own
- * voices, algorithms and sweeps), and USER (the first 16 voices of the DX7 user bank, eng_dx7.c, one per lane;
- * the DX KIT's sweeps and chokes). */
+ * voices, algorithms and sweeps). (A USER kit from the bank's first 16 voices went in 1.9: DX7 voices are not
+ * drums; an old project's kit 5 plays METAL.) */
 #define NDRUM 6
 
 typedef struct {                  /* a kit: a treatment of the FM voices */
@@ -22,12 +22,10 @@ static const fm_kit_t FM_KITS[] = {             /* (the treatments: room for var
     {"808 FM", "ROUND", 0, 0, 0, 128},
     {"ELECTRO", "PUNCHY", 0, 0, 0, 128},
     {"METAL", "INDUSTRIAL", 0, 0, 0, 128},
-    {"USER", "DX7 BANK", 0, 0, 0, 128},
 };
 #define DRUM_KITS (sizeof FM_KITS / sizeof FM_KITS[0])
-#define DRUM_KIT_USER (DRUM_KITS - 1u)
-static const char *const DRUM_KIT_NAMES[] = {"DX KIT", "808 FM", "ELECTRO", "METAL", "USER"};
-static const char *const DRUM_KIT_STYLES[] = {"CLASSIC", "ROUND", "PUNCHY", "INDUSTRIAL", "DX7 BANK"};
+static const char *const DRUM_KIT_NAMES[] = {"DX KIT", "808 FM", "ELECTRO", "METAL"};
+static const char *const DRUM_KIT_STYLES[] = {"CLASSIC", "ROUND", "PUNCHY", "INDUSTRIAL"};
 static uint32_t drum_kit(void) { return (uint32_t)clamp(TDRUM->p[P_E0], 0, DRUM_KITS - 1); }
 #define DRUM_DEFAULT_KIT 0
 
@@ -120,7 +118,7 @@ static uint32_t vel_lvl(uint32_t vel)
     return vel < 56u ? LV_GHOST : vel < 88u ? LV_SOFT : vel < 116u ? LV_NORM : LV_HARD;
 }
 
-/* drum d of a kit: its voice bytes and its playing data (USER: the DX KIT's) */
+/* drum d of a kit: its voice bytes and its playing data */
 static const uint8_t *drum_vbytes(uint32_t kit, uint32_t d)
 {
     return kit >= 1u && kit <= DX_NKITS ? DX_KIT_VOICE[kit - 1u][d] : DX_DRUM_VOICE[d];
@@ -135,11 +133,6 @@ static void drum_voice(uint32_t d, uint32_t kit, uint8_t *p)
 {
     const fm_kit_t *k = &FM_KITS[kit];
     uint32_t i, op, alg;
-    if (kit == DRUM_KIT_USER && dx_user_ok && d < 16u) {
-        dx_unpack(dx_user[d], p);
-        dx_sanitize(p);
-        return;
-    }
     {
         const uint8_t *src = drum_vbytes(kit, d);
         for (i = 0; i < 156u; i++)
