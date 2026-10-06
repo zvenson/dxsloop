@@ -19,11 +19,12 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 
 ## 1b. Gefunden beim Bank-Upload über den ALSA-Sequencer (2026-10-06)
 
-- [ ] `usb.c ota_wire_send`: eine lange Antwort (BANK_INFO ~330 Bytes, DESC mit 49 Namen) wird nach 200 ms
+- [x] (1.9, Release) `usb.c ota_wire_send`: eine lange Antwort (BANK_INFO ~330 Bytes, DESC mit 49 Namen) wird nach 200 ms
       ohne Platz in der Senderingschlange mitten im SysEx abgebrochen, ohne F7. Linux (ALSA seq) wartet dann
       auf das Ende und verschluckt alles danach. Fix: nie mitten im Frame aufgeben (ganzen Frame vorher auf
       Platz prüfen, sonst gar nicht senden), oder bei Abbruch ein F7 nachschieben. Über Chrome / WebMIDI
-      tritt es nicht auf.
+      tritt es nicht auf. Gelöst: Wartezeit 500 ms, ein abgebrochener Frame wird beim nächsten Senden mit F7
+      beendet.
 - [ ] `seq_bank_upload.py` (in ~/sloopDX/banks, außerhalb des Repos): Bank-Upload ohne python-rtmidi über
       aseqsend / aseqdump; ins Repo als tools/, wenn der Fix oben drin ist.
 

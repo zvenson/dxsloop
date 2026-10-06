@@ -94,9 +94,25 @@ static int test_usb_sysex(void)
     bad += check("usb: send with a full ring and no host fails at once",
                  ota_wire_send(msg, 9) == -1 && !sx_busy && now_ms == 0);
     usb.config = 1;
-    bad += check("usb: send with a full ring times out (200 ms)",
-                 ota_wire_send(msg, 9) == -1 && !sx_busy && now_ms > 200u && now_ms < 210u);
+    bad += check("usb: send with a full ring times out (500 ms)",
+                 ota_wire_send(msg, 9) == -1 && !sx_busy && now_ms > 500u && now_ms < 510u);
+    bad += check("usb: a send that never started leaves no open frame", !sx_open);
     so_r = so_w;
+    {   /* cut inside a frame: the next send ends the open SysEx (CIN 5, F7) before its own F0 */
+        static uint8_t big[30];
+        memset(big, 0x11, sizeof big);
+        big[0] = 0xF0;
+        big[29] = 0xF7;
+        so_w = so_r + SXQ - 2u;                         /* room for two packets only */
+        now_ms = 0;
+        int cut = ota_wire_send(big, 30) == -1 && sx_open;
+        so_r = so_w;
+        int sent = ota_wire_send(msg, 9) == 0 && !sx_open;
+        uint32_t first = sx_out_q[so_r % SXQ], second = sx_out_q[(so_r + 1u) % SXQ];
+        bad += check("usb: a reply cut mid-frame is ended by the next send",
+                     cut && sent && first == (5u | 0xF7u << 8) && (second & 15u) == 4u && (second >> 8 & 0xFFu) == 0xF0u);
+        so_r = so_w;
+    }
     return bad;
 }
 

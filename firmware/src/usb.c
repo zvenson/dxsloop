@@ -704,17 +704,34 @@ static void ep1_rx(void)                                /* leaves the packet (NA
 static uint32_t ota_now_ms(void);
 static void ota_idle(void);
 
+/* a reply cut off half way (the host did not read for 500 ms) leaves the host's parser inside a SysEx, and it
+ * would swallow everything after it: the next send ends that SysEx first (an F7 on its own) */
+static uint8_t sx_open;
 static int ota_wire_send(const uint8_t *p, uint32_t n)   /* F0..F7 -> USB-MIDI SysEx packets */
 {
     uint32_t i = 0, t0 = ota_now_ms();
     sx_busy = 1;
+    if (sx_open) {
+        while (so_w - so_r >= SXQ) {
+            if (!*(volatile uint8_t *)&usb.config || ota_now_ms() - t0 > 500u) {
+                sx_busy = 0;
+                return -1;
+            }
+            ota_idle();
+        }
+        sx_out_q[so_w % SXQ] = 5u | 0xF7u << 8;           /* CIN 5: a SysEx ending with one byte */
+        RING_PUBLISH();
+        so_w++;
+        sx_open = 0;
+    }
     while (i < n) {
         uint32_t k = n - i >= 3u ? 3u : n - i, pkt;
         uint32_t cin = k == 3u && i + 3u < n ? 4u : k == 3u ? 7u : 4u + k;   /* 4 continues; 5/6/7 end */
         pkt = cin | (uint32_t)p[i] << 8 | (k > 1u ? (uint32_t)p[i + 1] << 16 : 0u) |
               (k > 2u ? (uint32_t)p[i + 2] << 24 : 0u);
         while (so_w - so_r >= SXQ) {
-            if (!*(volatile uint8_t *)&usb.config || ota_now_ms() - t0 > 200u) {
+            if (!*(volatile uint8_t *)&usb.config || ota_now_ms() - t0 > 500u) {
+                sx_open = i > 0u;                           /* (cut inside the frame: end it next time) */
                 sx_busy = 0;
                 return -1;
             }
