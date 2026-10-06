@@ -10,118 +10,170 @@
 <link rel="icon" href="../../favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="../../apple-touch-icon.png">
 <style>
-  :root { --bg: #000; --fg: #f2f2f2; --dim: #8a8a92; --tile: #16161a; --line: #2a2a30;
-          --blue: #42f5f5; --green: #afd9f4; --yellow: #f4c0cb; --orange: #e6d1b9; --red: #ff2c34; }
-  :root[data-theme="light"] { --bg: #f4f4f2; --fg: #111; --dim: #666; --tile: #e6e6e2; --line: #d0d0cc; }
+  /* sloopDX installer: the start page's look (web/landing.html), the DX7 panel colours */
+  :root { --bg: #151213; --panel: #221e1f; --panel2: #2e2a2b; --line: #3a3435; --fg: #efe8e1; --dim: #a39a94;
+          --cyan: #42f5f5; --blue: #afd9f4; --pink: #f4c0cb; --beige: #e6d1b9; --led: #ff2e22;
+          --green: var(--blue); --yellow: var(--pink); --orange: var(--beige); --tile: var(--panel); --red: #ff2c34; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-         font: 15px/1.6 "Helvetica Neue", -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
-  main { max-width: 1440px; margin: 0 auto; padding: 28px 32px 56px; }
-  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 64px; align-items: start; }
-  .col-side { position: sticky; top: 24px; }
-  .col-side .dxanim { margin: 0 0 18px; padding: 22px 14px 12px; border-radius: 16px; }
-  .col-side .dxanim svg { max-width: none; }
-  .top .nav { display: flex; gap: 22px; margin-left: auto; margin-right: 8px; font-size: 14.5px; }
-  .top .nav a { color: var(--dim); text-decoration: none; } .top .nav a:hover { color: var(--fg); }
-  h1 { font-size: clamp(34px, 4vw, 56px) !important; font-weight: 300 !important; text-transform: none !important;
-       letter-spacing: -0.3px !important; color: var(--fg) !important; margin: 6px 0 14px !important; }
-  h1 b { color: var(--cyan); font-weight: 700; }
-  body { background: #151213 !important; }
-  .lead { font-size: 19px !important; }
-  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } .col-side { position: static; } .top .nav { display: none; } }
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .logo svg { display: block; width: 220px; height: auto; }
-  .logo rect:first-child { fill: transparent; }
-  .lang { font-size: 12px; color: var(--dim); cursor: pointer; text-decoration: underline; background: none;
-          border: 0; padding: 0; text-transform: lowercase; }
-  .strip { display: flex; height: 4px; margin: 20px 0 24px; }
-  /* the boot animation of the FM-1 (splash.c): the 32 algorithms going by, in the DX7's panel colours */
-  .dxanim { background: #2e2a2b; border-radius: 4px; padding: 10px 0 6px; margin: -8px 0 24px; display: flex; justify-content: center; }
-  .dxanim svg { width: 100%; max-width: 360px; height: auto; display: block; }
+  html { color-scheme: dark; }
+  body { margin: 0; color: var(--fg); background: var(--bg);
+         font: 16px/1.6 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 0 32px; }
+  nav.bar { position: sticky; top: 0; z-index: 10; background: rgba(21, 18, 19, 0.85); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--line); }
+  nav.bar .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+  nav.bar .logo svg { height: 34px; width: auto; display: block; } nav.bar .logo rect:first-child { fill: transparent; }
+  nav.bar .links { display: flex; gap: 22px; font-size: 14.5px; align-items: center; }
+  nav.bar .links a { color: var(--dim); } nav.bar .links a:hover { color: var(--fg); text-decoration: none; }
+  nav.bar .links a.gh { color: #111; background: var(--fg); padding: 6px 14px; border-radius: 999px; font-weight: 650; }
+  nav.bar .links a.gh:hover { background: var(--cyan); }
+  .lang { display: none; }
+  .hero { padding: 64px 0 56px; background: radial-gradient(900px 420px at 80% 20%, rgba(66, 245, 245, 0.10), transparent 70%),
+                                            radial-gradient(700px 380px at 5% 100%, rgba(244, 192, 203, 0.08), transparent 70%); }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center; }
+  .eyebrow { font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--beige); margin: 0 0 12px; }
+  h1 { font-size: clamp(40px, 5vw, 76px); line-height: 1.04; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.5px; }
+  h1 b { font-weight: 800; background: linear-gradient(90deg, var(--cyan), var(--blue) 45%, var(--pink) 75%, var(--beige));
+         -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 20px; color: #d8d0c9; margin: 0; max-width: 34em; }
+  .strip { display: flex; height: 4px; } .strip i { flex: 1; }
+  .strip i:nth-child(1) { background: var(--cyan); } .strip i:nth-child(2) { background: var(--blue); }
+  .strip i:nth-child(3) { background: var(--pink); } .strip i:nth-child(4) { background: var(--beige); }
+  /* the boot animation of the FM-1 (splash.c): the 32 algorithms going by */
+  .dxanim { background: var(--panel2); border-radius: 18px; padding: 26px 18px 14px; border: 1px solid var(--line);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 0 0 6px #1a1718; }
+  .dxanim svg { width: 100%; height: auto; display: block; }
   .dxanim text { font: 12px ui-monospace, Menlo, monospace; fill: #cec8c2; }
-  .dxanim text.led { font: 600 28px ui-monospace, Menlo, monospace; fill: #ff2e22; }
+  .dxanim text.led { font: 600 28px ui-monospace, Menlo, monospace; fill: var(--led); }
   .dxanim text.op { font-size: 11px; fill: #111; text-anchor: middle; dominant-baseline: central; }
-  .dxanim line { stroke: #cec8c2; stroke-width: 1; }
-  .dxanim polyline { stroke: #f4c0cb; fill: none; stroke-width: 1.2; }
-  .dxanim rect.c { fill: #42f5f5; } .dxanim rect.m { fill: #afd9f4; }
-  .strip i { flex: 1; } .strip i:nth-child(1) { background: var(--blue); } .strip i:nth-child(2) { background: var(--green); }
-  .strip i:nth-child(3) { background: var(--yellow); } .strip i:nth-child(4) { background: var(--orange); }
-  h1 { font-size: 13px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
-  .lead { font-size: 20px; line-height: 1.35; margin: 0 0 24px; }
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 28px; }
-  .tile { background: var(--tile); padding: 10px 10px 12px; border-top: 3px solid var(--c); min-height: 92px; }
-  .tile b { display: block; font-size: 22px; font-weight: 600; color: var(--c); line-height: 1.1; }
-  .tile span { display: block; font-size: 12px; color: var(--dim); text-transform: lowercase; margin-top: 4px; }
-  p { margin: 0 0 14px; }
-  button#go { font: 600 15px/1 inherit; font-family: inherit; background: var(--orange); color: #000; border: 0;
-              padding: 16px 0; width: 100%; cursor: pointer; letter-spacing: .08em; text-transform: uppercase; }
-  button#go:disabled { background: var(--tile); color: var(--dim); cursor: default; }
-  #status { margin-top: 14px; min-height: 1.6em; font-variant-numeric: tabular-nums; }
-  .small { color: var(--dim); font-size: 12.5px; }
-  .small a, a { color: inherit; }
-  progress { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin-top: 16px; border: 0; background: var(--tile); }
-  progress::-webkit-progress-bar { background: var(--tile); }
-  progress::-webkit-progress-value { background: var(--orange); }
-  progress::-moz-progress-bar { background: var(--orange); }
-  pre { color: var(--dim); font-size: 11px; white-space: pre-wrap; margin-top: 12px; max-height: 160px; overflow: auto; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0 18px; }
-  .ed { display: inline-block; margin: 8px 0 0; padding: 10px 14px; background: var(--tile); text-decoration: none; }
-  details { margin: 22px 0 0; } summary { cursor: pointer; font-weight: 600; }
-  button#stock-go { font: 600 14px/1 inherit; font-family: inherit; background: var(--tile); color: var(--fg); border: 1px solid var(--line);
-                    padding: 12px 16px; cursor: pointer; }
+  .dxanim line { stroke: #cec8c2; stroke-width: 1; } .dxanim polyline { stroke: var(--pink); fill: none; stroke-width: 1.2; }
+  .dxanim rect.c { fill: var(--cyan); } .dxanim rect.m { fill: var(--blue); }
+  main { padding: 56px 0 72px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 32px; align-items: start; }
+  .card { background: linear-gradient(180deg, #262223, var(--panel)); border: 1px solid var(--line); border-radius: 16px; padding: 30px 32px; }
+  .card + .card { margin-top: 24px; }
+  .card h2 { margin: 0 0 16px; font-size: 24px; font-weight: 600; }
+  .card h2 small { font-weight: 400; color: var(--dim); font-size: 15px; margin-left: 8px; }
+  .steps { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+  .steps li { counter-increment: s; position: relative; padding: 4px 0 4px 48px; color: #d8d0c9; min-height: 34px; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%;
+                      display: grid; place-items: center; font-weight: 700; color: #111; background: var(--cyan); }
+  .steps li:nth-child(2)::before { background: var(--blue); } .steps li:nth-child(3)::before { background: var(--pink); }
+  .steps li p { margin: 0; }
+  button#go { font-family: inherit; font-size: 19px; font-weight: 750; line-height: 1; background: var(--cyan); color: #101010; border: 0; border-radius: 10px;
+              padding: 20px 0; width: 100%; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+              box-shadow: 0 10px 34px rgba(66, 245, 245, 0.28); transition: filter 0.15s, transform 0.08s; }
+  button#go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  button#go:disabled { background: var(--panel2); color: var(--dim); cursor: default; box-shadow: none; }
+  progress { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; margin-top: 18px; border: 0; border-radius: 4px;
+             background: var(--panel2); overflow: hidden; }
+  progress::-webkit-progress-bar { background: var(--panel2); }
+  progress::-webkit-progress-value { background: linear-gradient(90deg, var(--cyan), var(--blue), var(--pink)); }
+  progress::-moz-progress-bar { background: linear-gradient(90deg, var(--cyan), var(--blue), var(--pink)); }
+  #status { margin: 14px 0 0; min-height: 2.4em; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--beige);
+            background: #0f0d0e; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  pre#log { color: var(--dim); font-size: 11.5px; white-space: pre-wrap; margin: 10px 0 0; max-height: 180px; overflow: auto; }
+  pre#log:empty { display: none; }
+  .small { color: var(--dim); font-size: 14px; }
+  .small a { color: var(--blue); }
+  p { margin: 0 0 12px; }
+  .side .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 0; }
+  .tile { background: var(--panel2); border-radius: 12px; padding: 14px 14px 12px; border-top: 3px solid var(--c); }
+  .tile b { display: block; font-size: 26px; font-weight: 800; color: var(--c); line-height: 1.05; }
+  .tile span { display: block; font-size: 13px; color: var(--dim); margin-top: 4px; }
+  .linkcard { display: flex; gap: 16px; align-items: center; color: var(--fg); }
+  .linkcard:hover { text-decoration: none; }
+  .linkcard img { width: 78px; border-radius: 4px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); background: #fff; }
+  .linkcard b { display: block; font-size: 17px; } .linkcard span { color: var(--dim); font-size: 14px; }
+  a.ed { display: block; text-align: center; padding: 14px; border-radius: 10px; border: 1px solid var(--line);
+         background: rgba(255, 255, 255, 0.03); color: var(--fg); font-weight: 600; }
+  a.ed:hover { text-decoration: none; border-color: var(--cyan); }
+  details { margin: 6px 0 0; border-top: 1px solid var(--line); padding-top: 16px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 16px; }
+  button#stock-go { font-family: inherit; font-size: 15px; font-weight: 600; line-height: 1; background: var(--panel2); color: var(--fg);
+                    border: 1px solid var(--line); border-radius: 8px; padding: 12px 18px; cursor: pointer; }
   button#stock-go:disabled { color: var(--dim); cursor: default; }
-  @media (max-width: 420px) { .tiles { grid-template-columns: repeat(2, 1fr); } .logo svg { width: 170px; } }
+  input[type=file] { color: var(--dim); }
+  footer { padding: 32px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--blue); }
+  @media (max-width: 980px) { .hero .wrap, .grid { grid-template-columns: 1fr; } nav.bar .links a:not(.gh) { display: none; } }
 </style>
 </head>
 <body>
-<main>
-  <div class="top"><a class="logo" href="../../"><!--LOGO--></a><nav class="nav"><a href="../../">Home</a><a href="../editor/">Editor</a><a href="../../#cheatsheet">Cheat Sheet</a><a href="https://github.com/zvenson/dxsloop">GitHub</a></nav><button class="lang" id="lang" hidden></button></div>
-  <div class="strip"><i></i><i></i><i></i><i></i></div>
-  <div class="grid"><div class="col-main">
+<nav class="bar"><div class="wrap">
+  <a class="logo" href="../../" aria-label="sloopDX"><!--LOGO--></a>
+  <div class="links"><a href="../../">Home</a><a href="../../#cheatsheet">Cheat Sheet</a><a href="../editor/">Editor</a>
+    <a class="gh" href="https://github.com/zvenson/dxsloop">GitHub</a></div>
+  <button class="lang" id="lang" hidden></button>
+</div></nav>
+<header class="hero"><div class="wrap">
+  <div>
+    <p class="eyebrow">Firmware for the M-VAVE FM-1</p>
+    <h1>Install <b>sloopDX</b></h1>
+    <p class="lead">The FM-1 as a six-operator DX7: voice editing on the device, 256 voices from your own .syx banks, four FM drum kits, and SLOOP's live workflow.</p>
+  </div>
+  <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
+</div></header>
+<div class="strip"><i></i><i></i><i></i><i></i></div>
+<main><div class="wrap">
   <!--STUDIO_GUIDE-->
   <!--BANNER-->
-  <h1>Install <b>sloopDX</b></h1>
-  <p class="lead">The M-VAVE FM-1 as a six-operator DX7 (Dexed's msfa core): voice editing on the device, 256 voices from your own .syx banks, four FM drum kits, and SLOOP's live workflow with three synth tracks and a drum track.</p>
-  <p data-t="intro"></p>
-  <p data-t="warn"></p>
-  <p><button id="go" disabled data-t="install"></button></p>
-  <progress id="bar" max="100" value="0"></progress>
-  <p id="status"></p>
-  <pre id="log"></pre>
-  <a class="ed" href="../editor/" data-t="editor"></a>
-  <hr>
-  <p class="small" data-t="direct"></p>
-  <p class="small" data-t="beta"></p>
-  <p class="small"><span data-t="brick"></span>
-    <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
-  <details>
-    <summary data-t="stockTitle"></summary>
-    <p class="small" data-t="stockHelp"></p>
-    <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
-    <p class="small" data-t="stockBackup"></p>
-    <p><a class="ed" href="../editor/" data-t="stockEditor"></a></p>
-    <p class="small"><label><input id="stock-saved" type="checkbox"> <span data-t="stockSaved"></span></label></p>
-    <p class="small"><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
-    <p><button id="stock-go" disabled data-t="stockGo"></button></p>
-    <p class="small" data-t="back"></p>
-  </details>
-  <p class="small">sloopDX is a fork of SLOOP (isod89), which is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. DX7 core: the msfa engine of Dexed (Apache-2.0, © 2012 Google Inc., 2016–2025 Pascal Gauthier), ported to integer C.
-    Hold OCT− alone while switching on for USB rescue.<br>
-    Font: Terminus (Dimitar Toshkov Zhekov, SIL OFL 1.1).<br>
-    M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.<br>
-    <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a></p>
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>Install <small>about one minute</small></h2>
+        <ol class="steps">
+          <li><p data-t="intro"></p></li>
+          <li><p>Press <b>Install</b> and choose the FM-1's MIDI port when the browser asks (allow SysEx).</p></li>
+          <li><p data-t="warn"></p></li>
+        </ol>
+        <button id="go" disabled data-t="install"></button>
+        <progress id="bar" max="100" value="0"></progress>
+        <p id="status"></p>
+        <pre id="log"></pre>
+      </section>
+      <section class="card">
+        <h2>Good to know</h2>
+        <p class="small" data-t="direct"></p>
+        <p class="small" data-t="beta"></p>
+        <p class="small"><span data-t="brick"></span>
+          <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
+        <details>
+          <summary data-t="stockTitle"></summary>
+          <p class="small" data-t="stockHelp"></p>
+          <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
+          <p class="small" data-t="stockBackup"></p>
+          <p><a class="ed" href="../editor/" data-t="stockEditor"></a></p>
+          <p class="small"><label><input id="stock-saved" type="checkbox"> <span data-t="stockSaved"></span></label></p>
+          <p class="small"><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
+          <p><button id="stock-go" disabled data-t="stockGo"></button></p>
+          <p class="small" data-t="back"></p>
+        </details>
+      </section>
+    </div>
+    <aside class="side">
+      <section class="card">
+        <h2>After installing</h2>
+        <a class="ed" href="../editor/" data-t="editor"></a>
+        <p></p>
+        <a class="linkcard" href="../../sloopdx-cheat-sheet.pdf" target="_blank" rel="noopener">
+          <img src="../../sloopdx-cheat-sheet.png" alt=""><span><b>Cheat Sheet</b>Two A4 pages: every control, and the DX7 in five minutes.</span></a>
+        <div class="tiles">
+          <div class="tile" style="--c: var(--cyan)"><b>DX7</b><span>6 operators, 32 algorithms</span></div>
+          <div class="tile" style="--c: var(--blue)"><b>256</b><span>voices from 8 .syx banks</span></div>
+          <div class="tile" style="--c: var(--pink)"><b>4</b><span>FM drum kits</span></div>
+          <div class="tile" style="--c: var(--beige)"><b>rec</b><span>no click: the loop follows you</span></div>
+        </div>
+      </section>
+    </aside>
   </div>
-  <aside class="col-side">
-    <div class="dxanim" aria-hidden="true"><svg id="dxalg" viewBox="0 0 240 172" width="240" height="172"></svg></div>
-  <p class="small"><a href="../../#cheatsheet">Cheat Sheet (A4)</a> · <a href="../../sloopdx-cheat-sheet.pdf">PDF</a> · <a href="../editor/">Web editor</a> · <a href="https://github.com/zvenson/dxsloop">GitHub</a></p>
-  <div class="tiles">
-    <div class="tile" style="--c: var(--blue)"><b>DX7</b><span>6 operators, 32 algorithms, Dexed's sound</span></div>
-    <div class="tile" style="--c: var(--green)"><b>256</b><span>voices from 8 .syx banks</span></div>
-    <div class="tile" style="--c: var(--yellow)"><b>16</b><span>punch-in fx: hold fx + key</span></div>
-    <div class="tile" style="--c: var(--orange)"><b>rec</b><span>no click: the loop follows you</span></div>
-  </div>
-  </aside></div>
-</main>
+</div></main>
+<footer><div class="wrap">
+  sloopDX is a fork of SLOOP (isod89), which is based on Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>. DX7 core: the msfa engine of Dexed (Apache-2.0, © 2012 Google Inc., 2016–2025 Pascal Gauthier), ported to integer C. Hold OCT− alone while switching on for USB rescue. Font: Terminus (SIL OFL 1.1).<br>
+  M-VAVE and FM-1 are trademarks of their respective owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with them and contains no Yamaha or M-VAVE voice data.
+  <span data-t="license"></span> <a href="https://github.com/zvenson/dxsloop" target="_blank" rel="noopener">github.com/zvenson/dxsloop</a>
+</div></footer>
 <script>
 /* the algorithm animation: the same layout as the FM-1's screen (ui_voice.c ve_draw_alg); op 0 = OP6 */
 (() => {
