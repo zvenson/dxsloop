@@ -34,7 +34,7 @@ static const palette_t PALETTES[] = {
     {"CYAN", {RGB(0, 30, 50), RGB(0, 62, 96), RGB(16, 112, 160), RGB(56, 172, 222), RGB(140, 222, 255)}},
     {"RED", {RGB(52, 8, 8), RGB(100, 18, 14), RGB(170, 36, 26), RGB(226, 64, 48), RGB(255, 112, 92)}},
     {"MONO", {RGB(40, 40, 40), RGB(80, 80, 80), RGB(130, 130, 130), RGB(186, 186, 186), RGB(226, 226, 226)}},
-    {"DX", {RGB(0, 38, 40), RGB(0, 76, 78), RGB(18, 128, 124), RGB(64, 192, 178), RGB(150, 246, 228)}},   /* zvenFM */
+    {"DX", {RGB(0, 38, 40), RGB(0, 76, 78), RGB(18, 128, 124), RGB(64, 192, 178), RGB(150, 246, 228)}},   /* sloopDX */
 };
 #define NPALETTES (sizeof(PALETTES) / sizeof(PALETTES[0]))
 static uint16_t pal[5];

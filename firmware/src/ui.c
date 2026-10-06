@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "zvenFM 1.0"  /* the FM synth firmware for the FM-1 (on SLOOP 2.2, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 1.0"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.2, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -312,7 +312,7 @@ static void select_engine(uint32_t e)
  * engine's preset table may change order; tests/ui_pages_test.c checks every preset is here once */
 enum { BK_BASS, BK_KEYS, BK_ORGAN, BK_PAD, BK_LEAD, BK_PLUCK, BK_STAB, BK_FX };
 static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "PLCK", "STAB", "FX"};
-static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* zvenFM: the DX7 voices */
+static const struct { uint8_t kind, e; const char *name; } BANK[] = {      /* sloopDX: the DX7 voices */
     {BK_BASS, 0, "FM BASS"}, {BK_BASS, 0, "SLAP BASS"}, {BK_BASS, 0, "SUB BASS"},
     {BK_KEYS, 0, "EPIANO 1"}, {BK_KEYS, 0, "EPIANO 2"}, {BK_KEYS, 0, "CLAV"},
     {BK_ORGAN, 0, "ORGAN"},

@@ -17,7 +17,7 @@ typedef struct {                  /* a kit: a treatment of the FM voices */
     uint8_t sweep;                /* sweep depth, Q7 (128 = as the voice) */
 } fm_kit_t;
 static const fm_kit_t FM_KITS[] = {
-    {"ZVEN FM", "CLASSIC", 0, 0, 0, 128},
+    {"DX KIT", "CLASSIC", 0, 0, 0, 128},
     {"TIGHT", "PUNCHY", 8, 2, 0, 100},
     {"BOOM", "DEEP", -6, -3, -6, 160},
     {"METAL", "BRIGHT", 0, 5, 10, 128},
@@ -25,7 +25,7 @@ static const fm_kit_t FM_KITS[] = {
 };
 #define DRUM_KITS (sizeof FM_KITS / sizeof FM_KITS[0])
 #define DRUM_KIT_USER (DRUM_KITS - 1u)
-static const char *const DRUM_KIT_NAMES[] = {"ZVEN FM", "TIGHT", "BOOM", "METAL", "USER"};
+static const char *const DRUM_KIT_NAMES[] = {"DX KIT", "TIGHT", "BOOM", "METAL", "USER"};
 static const char *const DRUM_KIT_STYLES[] = {"CLASSIC", "PUNCHY", "DEEP", "BRIGHT", "DX7 BANK"};
 static uint32_t drum_kit(void) { return (uint32_t)clamp(TDRUM->p[P_E0], 0, DRUM_KITS - 1); }
 #define DRUM_DEFAULT_KIT 0

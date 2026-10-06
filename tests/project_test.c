@@ -182,7 +182,7 @@ int main(void)
     bad += check("FUN2 -> FUN4: every parameter mapped, SLICER OFF, CHORD OFF (4 tracks)", ok);
     bad += check("FUN2 -> FUN4: engine bytes kept (WHEEL 7, ANALOG 0, TRIO 6), drum 0",
                  q.t[0].engine == 7 && q.t[1].engine == 0 && q.t[2].engine == 6 && q.t[3].engine == 0);
-    /* (zvenFM has the DX7 only: an old engine byte loads as engine % NENGINES, see proj_apply) */
+    /* (sloopDX has the DX7 only: an old engine byte loads as engine % NENGINES, see proj_apply) */
 
     /* a FUN4 round trip: stored as is (an engine added since: 8) */
     q.t[1].engine = 8;

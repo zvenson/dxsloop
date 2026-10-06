@@ -92,7 +92,7 @@ static void host_preset_req(track_t *t, uint32_t e, uint32_t pi)
 {
     static const uint8_t FX_DEF[4] = {0, 24, 28, 36};
     const preset_t *p;
-    e %= NENGINES;                               /* zvenFM: one engine; the old engine numbers map onto it */
+    e %= NENGINES;                               /* sloopDX: one engine; the old engine numbers map onto it */
     p = &ENGINES[e]->presets[pi % ENGINES[e]->npresets];
     uint32_t i;
     t->eng_req = (uint8_t)e;

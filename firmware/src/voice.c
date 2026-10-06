@@ -13,7 +13,7 @@
  * voices only start when there is room. The drum track has its own voices (drums.c). */
 static uint32_t vage;                                   /* voice ages: one clock for every part */
 /* engines that play recorded material (a position, not a phase): no phases kept or spread */
-static int eng_sampled(const engine_t *e) { (void)e; return 0; }   /* zvenFM: no sampled engine */
+static int eng_sampled(const engine_t *e) { (void)e; return 0; }   /* sloopDX: no sampled engine */
 static int32_t lfo_wave(track_t *t, uint32_t ph)
 {
     switch (t->p[P_LWAVE]) {

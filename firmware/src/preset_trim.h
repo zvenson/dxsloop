@@ -1,4 +1,4 @@
-/* level trims of the factory presets, 1/2 dB (tools/level_presets.py); zvenFM: DX7 */
+/* level trims of the factory presets, 1/2 dB (tools/level_presets.py); sloopDX: DX7 */
 #pragma once
 #define PT_ENGINES 1u
 #define PT_MAX 32u

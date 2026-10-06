@@ -93,6 +93,6 @@ run "regression: target cost of the render loops" python3 tests/target_budget.py
 run "installer CLI (fm1_install.py) against a simulated FM-1" python3 tests/install_test.py
 
 # web pages (web/test_web.mjs): skipped until the editor drops the sample pages and lists the FM kits
-echo "== skip web tests (editor not yet updated for zvenFM)"
+echo "== skip web tests (editor not yet updated for sloopDX)"
 
 [ $fail -eq 0 ] && echo "ALL HOST TESTS PASSED" || { echo "HOST TESTS FAILED"; exit 1; }

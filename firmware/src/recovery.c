@@ -59,7 +59,7 @@ static void recovery_main(void)
     flash_ok = FL_FAR(fl_jedec_ram)() == 0x856014u;
     lcd_init();
     lcd_fill(0, 0, 240, 240, C_BLACK);
-    draw_text_box(0, 64, 240, &FONT_S, "ZVENFM USB RESCUE", C_WHITE, 1);
+    draw_text_box(0, 64, 240, &FONT_S, "SLOOP DX USB RESCUE", C_WHITE, 1);
     draw_text_box(0, 96, 240, &FONT_S, "CONNECT USB", C_WHITE, 1);
     draw_text_box(0, 124, 240, &FONT_S,
                   flash_ok ? "OPEN THE INSTALLER" : "UNKNOWN FLASH", C_WHITE, 1);

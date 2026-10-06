@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
- * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments; zvenFM: (C) 2026 Sven Trogus */
-/* Engine table. zvenFM has one: the DX7 (eng_dx7.c). */
+ * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments; sloopDX: (C) 2026 Sven Trogus */
+/* Engine table. sloopDX has one: the DX7 (eng_dx7.c). */
 #include "dsp.c"
 #include "eng_dx7.c"
 

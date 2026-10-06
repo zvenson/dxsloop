@@ -58,7 +58,7 @@ static void ed_send(void)
 }
 static int32_t ed_rv(const uint8_t *p) { return (int32_t)(p[0] | p[1] << 7) - 8192; }
 
-/* zvenFM has no sample slots: SMP_BEGIN / WRITE / END / ERASE answer rc 7 (not here), SMP_INFO no slots */
+/* sloopDX has no sample slots: SMP_BEGIN / WRITE / END / ERASE answer rc 7 (not here), SMP_INFO no slots */
 static uint32_t ed_unpack7(const uint8_t *a, uint32_t na, uint8_t *out, uint32_t max)
 {
     uint32_t n = 0;                                 /* groups: msb byte, then up to 7 bytes */
@@ -422,7 +422,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         for (i = 0; i < 2u; i++)                           /* then the two edit-page titles */
             ed_str(ENGINES[a[0]]->page_title[i], 8);
         break;
-    case ED_SMP_BEGIN:                                     /* (no sample slots in zvenFM) */
+    case ED_SMP_BEGIN:                                     /* (no sample slots in sloopDX) */
     case ED_SMP_ERASE:
     case ED_SMP_END:
         ed_b(na ? a[0] : 0u);

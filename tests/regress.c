@@ -590,7 +590,7 @@ static int chk_keep_unison(char *m, uint32_t n) { return chk_keep(m, n, V_UNISON
 /* the VOICE engine's cap: 8 keys in POLY and in UNISON (alone: the budget does not limit it) */
 static int chk_voice_cap(char *msg, uint32_t n)
 {
-    if (!ENGINES[5 % NENGINES]->poly) {               /* zvenFM: no engine with a voice cap */
+    if (!ENGINES[5 % NENGINES]->poly) {               /* sloopDX: no engine with a voice cap */
         snprintf(msg, n, "no engine with a voice cap: nothing to check");
         return 1;
     }

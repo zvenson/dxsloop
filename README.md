@@ -1,15 +1,15 @@
-<p align="center"><img src="assets/logo/zvenfm-logo.png" alt="zvenFM" width="440"></p>
+<p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-<p align="center"><b>A pure FM synth firmware for the M-VAVE FM-1.</b><br>
-Free and open source (GPL-3.0). Built on <a href="https://github.com/isod89/sloop-fm1">SLOOP</a>, which is based on <a href="https://github.com/hugelton/Felucca">Felucca</a>.</p>
+<p align="center"><b>SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.</b><br>
+Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/sloop-fm1">SLOOP</a>, which is based on <a href="https://github.com/hugelton/Felucca">Felucca</a>. Not affiliated with either.</p>
 
 ---
 
-zvenFM turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects. The sample engines, sample sets and the other eight engines are gone.
+sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked bit-exact against Dexed). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects. The sample engines, sample sets and the other eight engines are gone.
 
 ## Screens
 
-<p align="center"><img src="assets/screens/zvenfm-screens.png" alt="zvenFM screens" width="760"></p>
+<p align="center"><img src="assets/screens/sloopdx-screens.png" alt="sloopDX screens" width="760"></p>
 
 <p align="center"><sub>Start-up, the tracks, the FM drum kit and its grid, the DX7 edit page, mix, FX sends, about. (Host renders of the firmware's own drawing code.)</sub></p>
 
@@ -21,7 +21,7 @@ zvenFM turns the FM-1 into what it says on the box: an FM synthesizer. There is 
 - **Macro knobs per voice:** BRITE (modulator levels), ATK, DEC and REL (the operator rates), FDBK.
 - **Three synth parts plus a drum track**, sharing an 8-voice budget. Each part plays the whole keyboard (no split), and each track has its own pattern length.
 - **FM drums:** 16 lanes on the white keys (kick, kick 2, snare, clap, closed / open / pedal hat, rim, tight snare, low / high tom, crash, ride, shaker, conga, cowbell). Five kits:
-  - **ZVEN FM**, the factory kit
+  - **DX KIT**, the factory kit
   - **TIGHT**, short and punchy
   - **BOOM**, long and deep
   - **METAL**, bright
@@ -48,11 +48,11 @@ Install the resulting `.fwsc` with `python tools/fm1_install.py build/<name>.fws
 
 ## Credits
 
-- **zvenFM:** Sven Trogus.
+- **sloopDX** (the DX7 engine, the FM drums, the fork): Sven Trogus.
 - **SLOOP** (isod89) and **Felucca** by Leo Kuroshita (@kurogedelic), Hügelton Instruments: the sequencer, UI, effects, storage, editor and installer.
 - **DX7 core:** the msfa engine from Dexed (Apache-2.0; © 2012 Google, 2016–2025 Pascal Gauthier).
 - **Font:** Terminus (SIL OFL 1.1).
 
 ## Licence
 
-GPL-3.0-only (see [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md)). No warranty. M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. zvenFM is not affiliated with either. No Yamaha or M-VAVE voice data is included.
+GPL-3.0-only (see [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md)). No warranty. M-VAVE and FM-1 are trademarks of their owners; DX7 is a trademark of Yamaha. sloopDX is not affiliated with either. No Yamaha or M-VAVE voice data is included.

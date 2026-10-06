@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""The zvenFM logo: an FM waveform (a sine with a sine in its phase) in the four track colours
-inside the 270-degree dial of the UI's knobs, and a geometric monoline wordmark "zvenFM".
-(The dial and the monoline wordmark keep SLOOP's logo language, which this firmware grew from.)
+"""The sloopDX logo: SLOOP's dial (the 270-degree arc of the UI's knobs) and its monoline "sloop"
+wordmark, with an FM waveform (a sine with a sine in its phase) in the four track colours in place
+of the sail, and "DX" in the accent colour after the wordmark.
 
   tools/gen_logo.py OUT.h          firmware boot splash (RLE, 16-colour palette, RGB565)
-  tools/gen_logo.py --assets DIR   zvenfm-logo.svg/png, zvenfm-icon.svg/png, zvenfm-splash.png
+  tools/gen_logo.py --assets DIR   sloopdx-logo.svg/png, sloopdx-icon.svg/png, sloopdx-splash.png
 """
 import math
 import sys
@@ -20,7 +20,7 @@ WAVE = [BLUE, GREEN, YELLOW, ORANGE]
 
 # ---- geometry (units: the icon is 240 x 240, the wordmark x-height is 72) -------------------
 ICON = dict(r=106, w=12, wave_w=150, wave_h=40, wave_y=-6, stroke=11, base=58, base_y=62)
-XH, SW, CAP = 72, 12, 104                        # x-height, stroke, cap height (F, M)
+XH, SW, CAP = 72, 12, 104                        # x-height, stroke, ascender / cap height (l, D, X)
 
 
 def wave_points(cx, cy, k, n=240):
@@ -74,25 +74,27 @@ def draw_icon(d, ox, oy, k):
 
 # ---- the wordmark: z v e n F M, monoline strokes with round caps --------------------------------
 def glyphs():
-    """each letter: (advance width, [("l", x0, y0, x1, y1) | ("a", cx, cy, rx, ry, a0, a1)]),
-    y = 0 at the x-height line, XH at the baseline, negative above (the caps)"""
+    """each letter: (advance width, [("l", x0, y0, x1, y1) | ("a", cx, cy, rx, ry, a0, a1) | ("c", cx, cy, r)]),
+    y = 0 at the x-height line, XH at the baseline, negative above (the ascender / caps).
+    "sloop" is SLOOP's own wordmark (two bowls, a tall l, circles, a p); "DX" is added in the accent."""
     h, s = XH, SW / 2
-    zw, vw, nw, fw, mw = 0.62 * h, 0.70 * h, 0.66 * h, 0.58 * h, 0.92 * h
     top = XH - CAP
+    rxo, ryo = 0.29 * h, (h + SW) / 4                 # the s: two bowls, outer radii
+    dw, xw = 0.72 * h, 0.78 * h
     return [
-        (zw, [("l", s, s, zw - s, s), ("l", zw - s, s, s, h - s), ("l", s, h - s, zw - s, h - s)]),
-        (vw, [("l", s, s, vw / 2, h - s), ("l", vw / 2, h - s, vw - s, s)]),
-        (h, [("a", h / 2, h / 2, h / 2 - s, h / 2 - s, 40, 360), ("l", s, h / 2, h - s, h / 2)]),
-        (nw, [("l", s, s, s, h - s), ("a", nw / 2, nw / 2, nw / 2 - s, nw / 2 - s, 180, 360),
-              ("l", nw - s, nw / 2, nw - s, h - s)]),
-        (fw, [("l", s, top + s, s, h - s), ("l", s, top + s, fw - s, top + s), ("l", s, (top + h) / 2, fw - 0.2 * h, (top + h) / 2)]),
-        (mw, [("l", s, h - s, s, top + s), ("l", s, top + s, mw / 2, (top + h) / 2 + 6), ("l", mw / 2, (top + h) / 2 + 6, mw - s, top + s),
-              ("l", mw - s, top + s, mw - s, h - s)]),
+        (2 * rxo, [("a", rxo, ryo, rxo - s, ryo - s, 90, 335), ("a", rxo, h - ryo, rxo - s, ryo - s, 270, 515)]),
+        (SW, [("l", s, top + s, s, h - s)]),
+        (h, [("c", h / 2, h / 2, h / 2 - s)]),
+        (h, [("c", h / 2, h / 2, h / 2 - s)]),
+        (h, [("c", h / 2, h / 2, h / 2 - s), ("l", s, h / 2, s, h + DESC - s)]),
+        (dw, [("l", s, top + s, s, h - s), ("a", s, (top + h) / 2, dw - 2 * s, (h - top) / 2 - s, 270, 450)]),
+        (xw, [("l", s, top + s, xw - s, h - s), ("l", xw - s, top + s, s, h - s)]),
     ]
 
 
 GAP = 16
-WORD_COLS = [WHITE, WHITE, WHITE, WHITE, ORANGE, ORANGE]   # "zven" white, "FM" in the accent
+DESC = 30                                             # the p's descender
+WORD_COLS = [WHITE] * 5 + [ORANGE] * 2                # "sloop" white, "DX" in the accent
 
 
 def word_width(k):
@@ -113,6 +115,10 @@ def draw_word(d, ox, oy, k):
                 d.line([p0, p1], fill=col, width=max(1, round(w)))
                 cap(*p0)
                 cap(*p1)
+            elif st[0] == "c":
+                _, cx, cy, r = st
+                cx, cy, r = x + cx * k, oy + cy * k, (r + SW / 2) * k
+                d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=col, width=max(1, round(w)))
             else:
                 _, cx, cy, rx, ry, a0, a1 = st
                 cx, cy, rx, ry = x + cx * k, oy + cy * k, (rx + SW / 2) * k, (ry + SW / 2) * k
@@ -164,6 +170,9 @@ def svg_word(ox, oy):
                 _, x0, y0, x1, y1 = st
                 s.append(f'<line x1="{x + x0:.2f}" y1="{oy + y0:.2f}" x2="{x + x1:.2f}" y2="{oy + y1:.2f}" '
                          f'stroke="{c}" stroke-width="{SW}" stroke-linecap="round"/>')
+            elif st[0] == "c":
+                _, cx, cy, r = st
+                s.append(f'<circle cx="{x + cx:.2f}" cy="{oy + cy:.2f}" r="{r:.2f}" fill="none" stroke="{c}" stroke-width="{SW}"/>')
             else:
                 _, cx, cy, rx, ry, a0, a1 = st
                 cx, cy = x + cx, oy + cy
@@ -184,12 +193,12 @@ def svg(kind):
         W, H = 240, 240
         body = svg_icon(0, 0)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
-            f'aria-label="zvenFM">\n<rect width="{W}" height="{H}" fill="#000"/>\n' + "\n".join(body) + "\n</svg>\n")
+            f'aria-label="sloopDX">\n<rect width="{W}" height="{H}" fill="#000"/>\n' + "\n".join(body) + "\n</svg>\n")
 
 
 # ---- firmware splash ---------------------------------------------------------------------------
 SPLASH_W, SPLASH_H = 240, 188
-SPLASH_K, SPLASH_KW = 0.56, 0.44
+SPLASH_K, SPLASH_KW = 0.54, 0.42
 
 
 def rgb565(c):
@@ -223,10 +232,10 @@ def splash_header(path):
             j += 1
         rle.append(((j - i - 1) << 4) | px[i])
         i = j
-    L = ["/* generated by tools/gen_logo.py: the zvenFM boot splash */", "#pragma once", "#include <stdint.h>",
-         f"#define ZVEN_SPLASH_W {SPLASH_W}", f"#define ZVEN_SPLASH_H {SPLASH_H}",
-         "static const uint16_t ZVEN_SPLASH_PAL[16] = {" + ", ".join(f"0x{rgb565(c):04X}" for c in cols) + "};",
-         f"static const uint8_t ZVEN_SPLASH_RLE[{len(rle)}] = {{"]
+    L = ["/* generated by tools/gen_logo.py: the sloopDX boot splash */", "#pragma once", "#include <stdint.h>",
+         f"#define SLOOPDX_SPLASH_W {SPLASH_W}", f"#define SLOOPDX_SPLASH_H {SPLASH_H}",
+         "static const uint16_t SLOOPDX_SPLASH_PAL[16] = {" + ", ".join(f"0x{rgb565(c):04X}" for c in cols) + "};",
+         f"static const uint8_t SLOOPDX_SPLASH_RLE[{len(rle)}] = {{"]
     for k in range(0, len(rle), 24):
         L.append("    " + ", ".join(str(b) for b in rle[k:k + 24]) + ",")
     L.append("};")
@@ -237,11 +246,11 @@ def splash_header(path):
 def assets(out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "zvenfm-logo.svg").write_text(svg("h"))
-    (out / "zvenfm-icon.svg").write_text(svg("i"))
-    render("h", 1640, 520, 2.0).save(out / "zvenfm-logo.png")
-    render("i", 512, 512, 512 / 240).save(out / "zvenfm-icon.png")
-    splash_image().resize((SPLASH_W * 2, SPLASH_H * 2), Image.NEAREST).save(out / "zvenfm-splash.png")
+    (out / "sloopdx-logo.svg").write_text(svg("h"))
+    (out / "sloopdx-icon.svg").write_text(svg("i"))
+    render("h", 1640, 520, 2.0).save(out / "sloopdx-logo.png")
+    render("i", 512, 512, 512 / 240).save(out / "sloopdx-icon.png")
+    splash_image().resize((SPLASH_W * 2, SPLASH_H * 2), Image.NEAREST).save(out / "sloopdx-splash.png")
     print(f"logo: assets in {out}")
 
 
