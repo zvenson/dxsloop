@@ -18,7 +18,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 **New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
 
-> **Status: 2.2, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status: 2.3, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Why sloopDX
 
@@ -80,7 +80,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 - **Your own DX7 banks:** 8 banks of 32 voices (256) in flash, standard bulk dumps (.syx, 4104 bytes), loaded from the web editor's Library tab or with `tools/fm1_bank_upload.py --bank N`. The bank in use plays as 21–52 (U01–U32), and PRESETS runs on into it. The checksum is verified and every value is clamped to its range.
 - **Voice edit like a DX7:** every parameter of the voice on the FM-1 itself, as a list (in the style of Baud Girl's FM-1+VA): algorithm with a drawing of the operators, feedback, each operator's level, ratio, detune, envelope, velocity and key scaling, the pitch envelope, the LFO, the name. Operators can be switched off to hear the rest. SAVE stores your bank. The web editor's **Voice** tab has the same, on one page with sliders, and imports / exports single voices (.syx).
 - **Quick knobs per voice:** BRITE (modulator levels), ATK, DEC and REL (the operator rates), FDBK.
-- **A low-pass behind each voice:** CUT and RESO, on KNOB 1 and 2 in the voice list (the value shows while you turn), moved by ENV / LFO → FLT. At CUT 127 it is out of the way: the voice sounds exactly as the DX7 patch.
+- **A low-pass behind each voice:** CUT and RESO, on KNOB 1 and 2 in the voice list (the value shows while you turn; two small dials top right show at a glance whether the filter is set), moved by ENV / LFO → FLT. At CUT 127 it is out of the way: the voice sounds exactly as the DX7 patch.
 - **Three synth parts plus a drum track**, sharing an 8-voice budget. Each part plays the whole keyboard (no split), and each track has its own pattern length.
 - **FM drums:** 16 lanes on the white keys (kick, kick 2, snare, clap, closed / open / pedal hat, rim, tight snare, low / high tom, crash, ride, shaker, conga, cowbell). Four kits:
   - **DX KIT**, the factory kit
@@ -98,7 +98,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 
 ## Status
 
-**2.2, a usable beta.** What is known:
+**2.3, a usable beta.** What is known:
 
 - **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget) and the host test suite passes: audio renders against golden hashes, the voices, the sequencer (REC modes, count-in, MIDI clock), the UI pages and layers, the DX7 voice list, flash storage, the 8 banks, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages. On the FM-1: install, the boot screen, the DX7 voice list, a ROM bank in flash, the drum kits and the levels have been played.
 - **From 1.9:** projects, user presets and the editor's library keep their sounds. Three factory voices came in before INIT VOICE, so the bank moved from 18–49 to 21–52; older saves are renumbered when they load, and the new CUT starts open.
@@ -122,7 +122,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.2.fwsc`) with `python tools/fm1_install.py sloopdx-2.2.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.3.fwsc`) with `python tools/fm1_install.py sloopdx-2.3.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -183,7 +183,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 2.2*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 2.3*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 

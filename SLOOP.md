@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 2.2
+# sloopDX 2.3
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.2, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.3, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -267,7 +267,7 @@ Tap **EDIT** on a synth track: the voice opens as a **list**, one row per settin
 | **HOME** | back to the top of the list; on the top, back to TRACKS |
 | **SAVE** | stores your bank in the FM-1's memory |
 | **PRESETS** | jumps straight to the next or previous operator (OP1 … OP6), on the same row |
-| **KNOB 1–4** | **CUT**, **RESO** (the low-pass), **REL**, **FDBK**; the value in the message bar while you turn |
+| **KNOB 1–4** | **CUT**, **RESO** (the low-pass), **REL**, **FDBK**; the value in the message bar while you turn. Two small dials top right show CUT and RESO all the time: lit when set (CUT below 127, RESO above 0), grey when the filter is out of the way |
 | keys, **OCT− / OCT+**, **PLAY** | play as always, so you hear every change |
 
 The top of the list:

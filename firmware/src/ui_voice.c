@@ -615,7 +615,21 @@ static void voice_screen_draw(void)
         static const char *const T[5] = {"dx7 voice", "", "pitch env", "lfo", "name"};
         str_cpy(title, T[ve.lvl], 12);
     }
-    te_header(title, DX_MINT, &head);
+    {   /* the header, and under its title two small dials: CUT and RESO of the low-pass, lit when they are set
+         * (CUT below 127: closing; RESO above 0), grey when the filter is out of the way */
+        static uint32_t fsig;
+        uint32_t h0 = head, cut = (uint32_t)TSEL->p[P_E6], res = (uint32_t)TSEL->p[P_E7], f = cut * 131u + res + 1u;
+        te_header(title, DX_MINT, &head);
+        if (!song.rec && (ui.force || head != h0 || f != fsig)) {
+            fsig = f;
+            cv_begin(94, 19, C_BLACK);
+            cv_text(0, 1, &FONT_S, "cut", cut < 127u ? C_WHITE : TE_G3);
+            te_dial(36, 9, 8, (int32_t)(cut * 1000u / 127u), cut < 127u ? TE_COL[0] : TE_G3, TE_G2);
+            cv_text(50, 1, &FONT_S, "res", res ? C_WHITE : TE_G3);
+            te_dial(85, 9, 8, (int32_t)(res * 1000u / 127u), res ? TE_COL[2] : TE_G3, TE_G2);
+            cv_blit(146, 20);
+        }
+    }
     if (ve.row >= n) ve.row = 0;
     sig = ve.lvl * 7919u + ve.op * 131u + ve.row * 31u + ve.top * 17u + ve.diag * 3u + ve.arm * 5u + ve_voice() * 104729u;
     for (i = ve.top; i < ve.top + VE_ROWS && i < n; i++) {
