@@ -1,0 +1,98 @@
+<!doctype html>
+<!-- designburgapps.com: the entry page (DesignBurg, SpinZentrale, sloopDX), same look as dx7.designburgapps.com -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DesignBurg Apps</title>
+<meta name="description" content="DesignBurg Apps: Projekte von Sven Trogus, Hamburg. DesignBurg (Webdesign), SpinZentrale (Tischtennis-Training) und sloopDX (Firmware für das M-VAVE FM-1).">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151213'/%3E%3Crect x='6' y='7' width='4' height='18' fill='%2342f5f5'/%3E%3Crect x='12' y='11' width='4' height='14' fill='%23afd9f4'/%3E%3Crect x='18' y='15' width='4' height='10' fill='%23f4c0cb'/%3E%3Crect x='24' y='19' width='4' height='6' fill='%23e6d1b9'/%3E%3C/svg%3E">
+<style>
+  :root { --bg: #151213; --panel: #221e1f; --panel2: #2e2a2b; --line: #3a3435; --fg: #efe8e1; --dim: #a39a94;
+          --cyan: #42f5f5; --blue: #afd9f4; --pink: #f4c0cb; --beige: #e6d1b9; }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; color: var(--fg); background: var(--bg); min-height: 100vh; display: flex; flex-direction: column;
+         font: 16px/1.6 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; width: 100%; }
+  nav { border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; height: 60px; }
+  .mark { font-size: 21px; font-weight: 300; color: var(--fg); letter-spacing: -0.2px; }
+  .mark b { font-weight: 800; color: var(--cyan); }
+  .strip { display: flex; height: 4px; } .strip i { flex: 1; }
+  .strip i:nth-child(1) { background: var(--cyan); } .strip i:nth-child(2) { background: var(--blue); }
+  .strip i:nth-child(3) { background: var(--pink); } .strip i:nth-child(4) { background: var(--beige); }
+  header { padding: 88px 0 56px;
+           background: radial-gradient(900px 420px at 80% 20%, rgba(66, 245, 245, 0.10), transparent 70%),
+                       radial-gradient(700px 380px at 5% 100%, rgba(244, 192, 203, 0.08), transparent 70%); }
+  .eyebrow { font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--beige); margin: 0 0 14px; }
+  h1 { font-size: clamp(40px, 6vw, 80px); line-height: 1.04; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.5px; }
+  h1 b { font-weight: 800; background: linear-gradient(90deg, var(--cyan), var(--blue) 45%, var(--pink) 75%, var(--beige));
+         -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 20px; color: #d8d0c9; margin: 0; max-width: 34em; }
+  main { flex: 1; padding-bottom: 80px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .card { position: relative; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 14px; padding: 30px 28px 26px; overflow: hidden; color: var(--fg);
+          transition: transform 0.12s, border-color 0.15s, background 0.15s; }
+  .card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--c); }
+  .card:hover { text-decoration: none; transform: translateY(-3px); border-color: var(--c); background: var(--panel2); }
+  .card .num { font-size: 13px; letter-spacing: 2px; color: var(--c); font-weight: 700; margin-bottom: 18px; }
+  .card h2 { font-size: 30px; font-weight: 300; margin: 0 0 10px; letter-spacing: -0.3px; }
+  .card h2 b { font-weight: 800; color: var(--c); }
+  .card p { color: #d8d0c9; margin: 0 0 24px; flex: 1; }
+  .card .go { display: flex; justify-content: space-between; align-items: center; font-size: 14.5px; color: var(--dim);
+              border-top: 1px solid var(--line); padding-top: 14px; }
+  .card .go span:last-child { color: var(--c); font-size: 20px; transition: transform 0.12s; }
+  .card:hover .go span:last-child { transform: translateX(4px); }
+  .c1 { --c: var(--beige); } .c2 { --c: var(--pink); } .c3 { --c: var(--cyan); }
+  footer { border-top: 1px solid var(--line); padding: 34px 0 40px; font-size: 14.5px; color: var(--dim); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  footer h3 { font-size: 13px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--beige); margin: 0 0 8px; font-weight: 600; }
+  footer p { margin: 0; color: #d8d0c9; }
+  footer .legal { align-self: flex-end; }
+  @media (max-width: 900px) { .cards { grid-template-columns: 1fr; } header { padding: 56px 0 40px; } }
+  @media (max-width: 520px) { .wrap { padding: 0 16px; } .lead { font-size: 18px; } }
+</style>
+</head>
+<body>
+<nav><div class="wrap"><span class="mark">designburg<b>apps</b></span></div></nav>
+<div class="strip"><i></i><i></i><i></i><i></i></div>
+
+<header><div class="wrap">
+  <p class="eyebrow">Hamburg · Web · Apps · Musik</p>
+  <h1>Drei Projekte. <b>Eine Adresse.</b></h1>
+  <p class="lead">Webdesign aus Hamburg, ein Trainingsplaner für Tischtennis und eine Firmware für einen kleinen FM-Synthesizer. Wähle, wo du hinwillst.</p>
+</div></header>
+
+<main><div class="wrap cards">
+  <a class="card c1" href="https://webdesignhamburg.net/">
+    <div class="num">01</div>
+    <h2>Design<b>Burg</b></h2>
+    <p>Die Agentur: Websites, Online-Shops und Web-Apps aus Hamburg.</p>
+    <div class="go"><span>webdesignhamburg.net</span><span>→</span></div>
+  </a>
+  <a class="card c2" href="https://spinzentrale.designburgapps.com/">
+    <div class="num">02</div>
+    <h2>Spin<b>Zentrale</b></h2>
+    <p>Tischtennis-Übungen und Trainingsplaner für Trainerinnen und Trainer.</p>
+    <div class="go"><span>spinzentrale.designburgapps.com</span><span>→</span></div>
+  </a>
+  <a class="card c3" href="https://dx7.designburgapps.com/">
+    <div class="num">03</div>
+    <h2>sloop<b>DX</b></h2>
+    <p>Freie Firmware für das M-VAVE FM-1: Sechs-Operator-FM im Stil des DX7, Cutoff und Resonanz und FM-Drums, die du selbst baust.</p>
+    <div class="go"><span>dx7.designburgapps.com</span><span>→</span></div>
+  </a>
+</div></main>
+
+<footer><div class="wrap">
+  <div>
+    <h3>Kontakt</h3>
+    <p>Sven Trogus · <a href="mailto:sven@designburg.net">sven@designburg.net</a> · 040 – 228171330</p>
+  </div>
+  <div class="legal"><a href="impressum.html">Impressum · Datenschutz</a></div>
+</div></footer>
+</body>
+</html>
