@@ -12,6 +12,9 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 <a href="../../issues">Report a bug</a>
 </p>
 
+<p align="center"><a href="https://www.youtube.com/watch?v=h_HqGU68_8A"><img src="https://img.youtube.com/vi/h_HqGU68_8A/maxresdefault.jpg" alt="sloopDX in one minute (YouTube)" width="640"></a><br>
+<a href="https://www.youtube.com/watch?v=h_HqGU68_8A">sloopDX in one minute</a>: FM with cutoff and resonance, 128 steps, drums you program.</p>
+
 ---
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked against Dexed (99 % of samples identical, the rest within 1-2 LSB)). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
