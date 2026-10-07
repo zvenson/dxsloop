@@ -32,6 +32,13 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1g. 2.5, erledigt
+
+- [x] OMNI: ARP MODE OMNI macht die Tasten zur Akkord-Harfe (nach dem Omnichord, Akkordknöpfe wie FoMni-1): 11 schwarze Tasten = Akkorde
+      F C G · Dm Am · Em G7 E7 · D7 Bb · A7 in der Tonart der Spur, 16 weiße = Saiten über die Akkordtöne ab G3. Akkorde werden
+      aufgenommen und setzen beim Abspielen den Akkord wieder, Saiten nur live. ARP MODE FLW: das Pattern einer Spur folgt dem
+      Grundton (`seq.c omni_*`, `tests/omni_test.c`).
+
 ## 1f. 2.4, erledigt
 
 - [x] Lane-Seite: folgt dem von Hand gespielten Sound (Taste, MIDI; `seq.c drum_input` -> `drum_hand`) auch während der Wiedergabe; die Schläge des Sequencers verschieben sie nicht.

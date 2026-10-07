@@ -1512,7 +1512,7 @@ function makeMockDevice(opt = {}) {
     D("FLT", F.BIPCT, -64, 63, 0), D("PIT", F.BIPCT, -64, 63, 0), D("SHP", F.BIPCT, -64, 63, 0), D("FX", F.BIPCT, -64, 63, 0),
     D("RATE", F.LFOHZ, 0, 127, 60), E("WAVE", ["SIN", "TRI", "SAW", "SQR", "S&H"], 0), D("PHS", F.INT, 0, 127, 0), D("FADE", F.TIME, 0, 127, 0),
     D("PIT", F.BIPCT, -64, 63, 0), D("FLT", F.BIPCT, -64, 63, 0), D("SHP", F.BIPCT, -64, 63, 0), D("AMP", F.PCT, 0, 127, 0),
-    E("MODE", ["OFF", "UP", "DN", "UPDN", "RND", "ORD"], 0), E("RATE", NDIV, 2), D("OCT", F.INT, 1, 4, 1), D("GATE", F.PCT, 1, 127, 64),
+    E("MODE", ["OFF", "UP", "DN", "UPDN", "RND", "ORD", "OMNI", "FLW"], 0), E("RATE", NDIV, 2), D("OCT", F.INT, 1, 4, 1), D("GATE", F.PCT, 1, 127, 64),
     D("SWG", F.SWING, 0, 100, 0), D("PROB", F.PCT, 0, 127, 127), E("HOLD", NONOFF, 0), E("ORD", ["NOTE", "PLAY"], 0),
     D("ROOT", F.NOTE, 0, 11, 0), E("SCL", ["CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM", "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"], 0), E("QNT", ["OFF", "SNAP", "WHITE"], 0), D("TRN", F.SEMI, -24, 24, 0),
     D("LEN", F.STEPS, 1, 128, 16), E("DIV", NDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
@@ -1781,7 +1781,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.4 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.5 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */

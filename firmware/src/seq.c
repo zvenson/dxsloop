@@ -43,7 +43,7 @@ static const uint16_t SCALE_MASK[] = {
 #define KB_SILENT 255u
 static uint32_t kb_prev;
 /* per key: what its press started, so its release ends the same (whatever the layer or track is now) */
-enum { KS_NONE, KS_NOTE, KS_DRUM, KS_ROLL, KS_ERASE, KS_FX, KS_UI };
+enum { KS_NONE, KS_NOTE, KS_DRUM, KS_ROLL, KS_ERASE, KS_FX, KS_UI, KS_STRUM };
 static uint8_t kb_kind[27], kb_trk[27], kb_n[27], kb_nt[27][4];
 static uint8_t last_note = 60;
 static uint8_t pen_n = 1, pen_note[4] = {60};   /* the last chord / note played: the SEQ layer writes it */
@@ -704,7 +704,7 @@ static void arp_tick(track_t *t, uint32_t adv)
             t->arp_off -= adv;
         }
     }
-    if (!t->p[P_AMODE] || !t->nheld) {
+    if (!ARP_RUNS(t) || !t->nheld) {
         if (!t->nheld && t->arp_note) {
             trk_note_off(t, t->arp_note);
             t->arp_note = 0;
@@ -781,7 +781,7 @@ static void input_on(track_t *t, uint32_t note, uint32_t vel)
     arm_start(t);
     if (ft_on && t == &trk[ft_trk % NTRK])
         ft_note_on(note, vel);
-    if (t->p[P_AMODE]) {
+    if (ARP_RUNS(t)) {
         arp_add(t, note);                         /* (the arp records the notes it plays) */
         return;
     }
@@ -940,6 +940,125 @@ static void roll_block(uint32_t adv)
     }
 }
 
+/* ------------------------------------------------------------- OMNI --- */
+/* ARP MODE OMNI: the keys are a chord harp, after the Omnichord (the chord buttons as FoMni-1 has
+ * them). The 11 black keys pick a chord in the track's key and play it (recorded: a chord step sets
+ * the chord again on playback); the 16 white keys are strings over the chord's tones, low to high,
+ * played live (not recorded). ARP MODE FLW on another track: its pattern follows the chord's root. */
+static const uint8_t OMNI_ROOT[11] = {5, 0, 7, 2, 9, 4, 7, 4, 2, 10, 9};   /* F C G  Dm Am  Em G7 E7  D7 Bb  A7 */
+static const uint8_t OMNI_TYPE[11] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 2};    /* major, minor, 7th */
+static const int8_t OMNI_PAD[3][3] = {{0, 4, 7}, {0, 3, 7}, {0, 4, 10}};    /* the chord played */
+static const int8_t OMNI_STR[3][4] = {{0, 4, 7, -1}, {0, 3, 7, -1}, {0, 4, 7, 10}};   /* the strings */
+static const char *const OMNI_NOTE[12] = {"C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"};
+static const char *const OMNI_SUF[3] = {"", "m", "7"};
+#define OM_BLACK(k) ((0x54Au >> ((53u + (k)) % 12u)) & 1u)   /* key k is F3 + k */
+static volatile uint8_t omni_ch = 0xFFu;        /* the chord now: 0..10, 0xFF none yet (C) */
+static volatile uint8_t omni_pc;                /* its root, a pitch class (the name) */
+static volatile uint8_t omni_new;               /* the UI says the chord (ui_draw) */
+
+static uint32_t omni_keypc(const track_t *t)    /* the track's key: ROOT + TRANS */
+{
+    return (uint32_t)(((t->p[P_ROOT] + t->p[P_TRANS]) % 12 + 12) % 12);
+}
+
+static void omni_set(const track_t *t, uint32_t c)
+{
+    omni_ch = (uint8_t)c;
+    omni_pc = (uint8_t)((omni_keypc(t) + OMNI_ROOT[c]) % 12u);
+    omni_new = 1;
+}
+
+static void omni_name(char *b)                  /* "Am", "G7" */
+{
+    uint32_t c = omni_ch < 11u ? omni_ch : 1u;
+    str_cpy(b, OMNI_NOTE[omni_pc % 12u], 4);
+    str_cpy(b + str_len(b), OMNI_SUF[OMNI_TYPE[c]], 4);
+}
+
+/* the semitones FLW moves a pattern by: the chord's root from the key's, the nearer way (-5..+6) */
+static int32_t omni_shift(void)
+{
+    int32_t r = omni_ch < 11u ? OMNI_ROOT[omni_ch] : 0;
+    return r > 6 ? r - 12 : r;
+}
+
+/* the notes of chord c: its root from F3 to E4 (the octave buttons move it) */
+static uint32_t omni_pad(const track_t *t, uint32_t c, uint8_t *nt)
+{
+    int32_t r = 53 + (int32_t)((omni_keypc(t) + OMNI_ROOT[c] + 7u) % 12u) + 12 * song.octave, i;
+    for (i = 0; i < 3; i++)
+        nt[i] = (uint8_t)clamp(r + OMNI_PAD[OMNI_TYPE[c]][i], 0, 127);
+    return 3;
+}
+
+/* string s (0 = the lowest): the s-th tone of the chord from G3 up */
+static uint32_t omni_string(const track_t *t, uint32_t s)
+{
+    uint32_t c = omni_ch < 11u ? omni_ch : 1u, root = (omni_keypc(t) + OMNI_ROOT[c]) % 12u, j;
+    const int8_t *tone = OMNI_STR[OMNI_TYPE[c]];
+    int32_t n = 55 + 12 * song.octave;
+    for (; n < 120; n++) {
+        uint32_t iv = (uint32_t)(n - (int32_t)root + 120) % 12u;
+        for (j = 0; j < 4u && tone[j] >= 0 && (uint32_t)tone[j] != iv; j++)
+            ;
+        if (j < 4u && tone[j] >= 0 && !s--)
+            break;
+    }
+    return (uint32_t)clamp(n, 0, 127);
+}
+
+/* a chord step of an OMNI track (played back): the chord it holds becomes the chord now */
+static void omni_detect(const track_t *t, const step_t *s)
+{
+    uint32_t c, i, m = 0;
+    for (i = 0; i < s->n; i++)
+        m |= 1u << (s->note[i] % 12u);
+    for (c = 0; c < 11u; c++) {
+        uint8_t nt[3];
+        uint32_t w = 0;
+        omni_pad(t, c, nt);
+        for (i = 0; i < 3u; i++)
+            w |= 1u << (nt[i] % 12u);
+        if (w == m) {
+            if (c != omni_ch)
+                omni_set(t, c);
+            return;
+        }
+    }
+}
+
+/* the index of key k among the black (1) or the white (0) keys */
+static uint32_t omni_idx(uint32_t k, uint32_t black)
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < k; i++)
+        n += OM_BLACK(i) == black;
+    return n;
+}
+
+static void omni_down(track_t *t, uint32_t k, uint32_t sel)
+{
+    uint32_t i, mc = trk_midi_ch(sel);
+    if (OM_BLACK(k)) {                                  /* a chord button: the chord, played and recorded */
+        uint32_t c = omni_idx(k, 1);
+        if (c >= 11u)
+            return;
+        omni_set(t, c);
+        kb_kind[k] = KS_NOTE;
+        kb_n[k] = (uint8_t)omni_pad(t, c, kb_nt[k]);
+        for (i = 0; i < kb_n[k]; i++) {
+            input_on(t, kb_nt[k][i], 100);
+            midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][i] << 16 | 100u << 24);
+        }
+        return;
+    }
+    kb_kind[k] = KS_STRUM;                              /* a string: a tone of the chord, live */
+    kb_nt[k][0] = (uint8_t)omni_string(t, omni_idx(k, 0));
+    kb_n[k] = 1;
+    trk_note_on(t, kb_nt[k][0], 100);
+    midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16 | 100u << 24);
+}
+
 /* ---------------------------------------------------------- keyboard --- */
 /* the level of a key on the drum track: OCT- held ghost, OCT+ held hard */
 static uint32_t key_lvl(void)
@@ -1016,6 +1135,10 @@ static void key_down(uint32_t k)
         midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)LANE_NOTE[lane] << 16 | lvl_vel(lvl, 100) << 24);
         return;
     }
+    if (t->p[P_AMODE] == AM_OMNI && layer != LY_ROLL) {
+        omni_down(t, k, sel);
+        return;
+    }
     {
         uint32_t n = kb_map(t, k);
         if (n == KB_SILENT)
@@ -1080,6 +1203,11 @@ static void key_up(uint32_t k)
             input_off(t, kb_nt[k][i]);
             midi_out_event(0x08u | (0x80u | mc) << 8 | (uint32_t)kb_nt[k][i] << 16);
         }
+        return;
+    case KS_STRUM:
+        trk_note_off(t, kb_nt[k][0]);
+        mc = trk_midi_ch(kb_trk[k] % NTRK);
+        midi_out_event(0x08u | (0x80u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16);
         return;
     case KS_DRUM:
         if (ft_on && ft_trk == TRK_DRUM)
@@ -1299,6 +1427,12 @@ static void seq_stop(void)
 #endif
 }
 
+/* a step's note as it sounds: FLW moves it by the shift the step started with */
+static uint32_t flw_note(const track_t *t, uint32_t n)
+{
+    return (uint32_t)clamp((int32_t)n + t->flw_sh, 0, 127);
+}
+
 /* the velocity of note i of synth step s */
 static uint32_t step_vel(const step_t *s, uint32_t i)
 {
@@ -1335,15 +1469,18 @@ static void seq_step(track_t *t, const step_t *s, uint32_t slen, uint32_t skip)
     t->slide_glide = (uint8_t)slide_in;
     if (!slide_in)
         seq_release(t);
+    if (t->p[P_AMODE] == AM_OMNI && s->n >= 3u)
+        omni_detect(t, s);                          /* a chord step: the chord the strings and FLW play */
+    t->flw_sh = (int8_t)(t->p[P_AMODE] == AM_FLW ? omni_shift() : 0);
     for (i = 0; i < s->n; i++)
         if (roll_has(t, s->note[i]))
             skip |= 1u << i;                        /* (a roll plays it) */
     for (i = 0; i < s->n; i++)
         if (!((skip >> i) & 1u))
-            trk_note_on(t, s->note[i], step_vel(s, i));
+            trk_note_on(t, flw_note(t, s->note[i]), step_vel(s, i));
     if (slide_in)                                   /* release what is not held over */
         for (i = 0; i < t->seq_n; i++) {
-            for (j = 0; j < s->n && s->note[j] != t->seq_notes[i]; j++)
+            for (j = 0; j < s->n && flw_note(t, s->note[j]) != t->seq_notes[i]; j++)
                 ;
             if (j == s->n)
                 trk_note_off(t, t->seq_notes[i]);
@@ -1351,7 +1488,7 @@ static void seq_step(track_t *t, const step_t *s, uint32_t slen, uint32_t skip)
     t->seq_n = 0;
     for (i = 0; i < s->n; i++)
         if (!((skip >> i) & 1u))
-            t->seq_notes[t->seq_n++] = s->note[i];
+            t->seq_notes[t->seq_n++] = (uint8_t)flw_note(t, s->note[i]);
     t->seq_off = gate;
     t->seq_hold = !s->rat && ((s->flags & SF_SLIDE) != 0 || next_tie);   /* next step a TIE: keep the notes to it */
 }
@@ -1400,14 +1537,15 @@ static void seq_ratchets(track_t *t, uint32_t into, uint32_t slen)
             h = into * hits / slen;
             if (h > t->rat_done[i] && h < hits) {
                 uint32_t j;
+                uint32_t n = flw_note(t, s->note[i]);
                 t->rat_done[i] = (uint8_t)h;
-                trk_note_off(t, s->note[i]);
-                trk_note_on(t, s->note[i], step_vel(s, i));
+                trk_note_off(t, n);
+                trk_note_on(t, n, step_vel(s, i));
                 t->seq_off = slen / hits * (uint32_t)t->p[P_SGATE] / 128u;
-                for (j = 0; j < t->seq_n && t->seq_notes[j] != s->note[i]; j++)
+                for (j = 0; j < t->seq_n && t->seq_notes[j] != n; j++)
                     ;
                 if (j == t->seq_n && t->seq_n < 4u)
-                    t->seq_notes[t->seq_n++] = s->note[i];   /* (its gate ends it) */
+                    t->seq_notes[t->seq_n++] = (uint8_t)n;   /* (its gate ends it) */
             }
         }
     }
@@ -1648,16 +1786,16 @@ static void events_block(uint32_t n)
         if (i < NPART)
             engine_block(t);                          /* engine switch: fade, then switch (voice.c) */
         /* ARP turned off, or HOLD released with no key down: drop the latched chord */
-        if ((t->armp && !t->p[P_AMODE]) || (t->aholdp && !t->p[P_AHOLD] && !t->arp_phys)) {
+        if ((t->armp && !ARP_RUNS(t)) || (t->aholdp && !t->p[P_AHOLD] && !t->arp_phys)) {
             t->nheld = 0;
-            if (!t->p[P_AMODE])
+            if (!ARP_RUNS(t))
                 t->arp_phys = 0;
             if (t->arp_note) {
                 trk_note_off(t, t->arp_note);
                 t->arp_note = 0;
             }
         }
-        t->armp = t->p[P_AMODE];
+        t->armp = (int16_t)ARP_RUNS(t);
         t->aholdp = t->p[P_AHOLD];
     }
     keyboard_block();
@@ -1682,8 +1820,12 @@ static void events_block(uint32_t n)
             input_off(t, d1);
         }
     }
+    for (i = 0; i < NTRK; i++)                        /* OMNI tracks first: a chord step sets the */
+        if (trk[i].p[P_AMODE] == AM_OMNI)            /* chord FLW tracks play in the same block */
+            seq_tick(&trk[i], adv);
     for (i = 0; i < NTRK; i++)
-        seq_tick(&trk[i], adv);
+        if (trk[i].p[P_AMODE] != AM_OMNI)
+            seq_tick(&trk[i], adv);
     click_tick();
     roll_block(adv);
     for (i = 0; i < NPART; i++)

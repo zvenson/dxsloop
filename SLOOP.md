@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 2.4
+# sloopDX 2.5
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.4, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.5, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -47,14 +47,15 @@ sloopDX carries what SLOOP 2.3 added to the FM-1 itself (none of it tried on a d
 13. [The factory voices](#the-factory-voices)
 14. [Your own DX7 bank (.syx)](#your-own-dx7-bank-syx)
 15. [Drum kits](#drum-kits)
-16. [Song mode](#song-mode)
-17. [The web editor](#the-web-editor)
-18. [Sound design pages](#sound-design-pages)
-19. [MIDI keyboards](#midi-keyboards)
-20. [USB audio: record on a computer](#usb-audio-record-on-a-computer)
-21. [Lights](#lights)
-22. [Specifications](#specifications)
-23. [Rescue, going back, credits](#rescue-going-back-credits)
+16. [OMNI: the chord harp](#omni-the-chord-harp)
+17. [Song mode](#song-mode)
+18. [The web editor](#the-web-editor)
+19. [Sound design pages](#sound-design-pages)
+20. [MIDI keyboards](#midi-keyboards)
+21. [USB audio: record on a computer](#usb-audio-record-on-a-computer)
+22. [Lights](#lights)
+23. [Specifications](#specifications)
+24. [Rescue, going back, credits](#rescue-going-back-credits)
 
 ---
 
@@ -368,6 +369,23 @@ Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the edit
 **MY KIT.** **SAVE twice** on the kit (or lane) page bakes the kit you are on, with every sound's macros, into MY KIT: the macros are now in its voices and table, back to 0, and the drum track plays MY KIT, kept in flash. The **dice** (lane page 3, KNOB 3, turned right once to arm and once more to roll) makes a new MY KIT from rules per sound (kicks and toms: a body, a modulator, maybe a click; snares: body, tone and noise; the three hats share their metal and choke each other; …), the seed in the top right (#4711). KNOB 4 there rolls only the sound you edit; a factory kit becomes MY KIT first (with your macros in it), the other sounds stay as they were. The same seed gives the same kit: the web editor (Library → MY KIT) rolls a seed you type, loads a kit **.syx** and downloads MY KIT as one (a DX7 32-voice bank: voices 1–16 the sounds, 17–32 their table, so any DX7 librarian keeps it). A dice kit stays in RAM until you SAVE it.
 
 **The drum bus.** Each sound at its level and pan → the sum → **DRIVE** → **COMP** (the kit page's KNOB 3 / 4) → each sound's reverb send. The drum track has **6 voices** of its own, so a busy pattern never steals from the synths. The kit is saved with projects and song sections. MIDI notes in on the drum channel (10) play the nearest of the 16 sounds (GM drum map).
+
+## OMNI: the chord harp
+
+New in 2.5. ARP MODE **OMNI** turns the keys of a synth track into a chord harp, after the Omnichord: one hand picks the chords, the other strums.
+
+1. Select a synth track and tap **ARP**. Turn **KNOB 1 (MODE)** to **OMNI**.
+2. **The black keys are chord buttons** (left to right): **F C G · Dm Am · Em G7 E7 · D7 Bb · A7**. A chord button plays its chord and makes it the chord *now*; the message bar names it (*CHORD Am*).
+3. **The white keys are strings**: the 16 white keys play the tones of the chord now, low to high (from G3). Swipe across them for a harp glissando, tap single keys for a melody. Every string fits the chord, so nothing sounds wrong. Change the chord while strings ring: the next string plays the new chord.
+4. Pick a voice that rings: **PLUCK**, **KOTO**, **BELLS**, **MARIMBA** or **EPIANO 1**; a pad for the chords.
+
+**The key:** the chords follow the track's key (SCL: ROOT, SCL 2: TRN). In D the F button plays G, the C button D, and so on. **OCT− / OCT+** move chords and strings by an octave.
+
+**Recording:** record on an OMNI track and the **chords** go into the pattern; the strings are live and not recorded. Played back, every chord step sets the chord again, so the strings and the bass follow the recorded progression while you strum on top.
+
+**A bass that follows: ARP MODE FLW.** Set another synth track's ARP MODE to **FLW** (follow) and program its pattern in the key of the OMNI track (C unless you changed it; a root-note bass line works best, for example C2 on every beat). It is moved to the root of the chord now, the nearer way: G plays it down a fourth, F up a fourth, Am down a minor third. Only the pattern follows; the keys of a FLW track play as written.
+
+Turn MODE back to **OFF** and the keys play notes again. The drum track keeps its own pattern: OMNI and the drums together are a little Omnichord band.
 
 ## Song mode
 

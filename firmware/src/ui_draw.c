@@ -945,6 +945,12 @@ static void ui_draw(void)
         rec_go = 0;
         ui_message("RECORDING");
     }
+    if (omni_new) {                                     /* OMNI: the chord now (a chord key, a chord step) */
+        char m[8];
+        omni_new = 0;
+        omni_name(m);
+        ui_say("CHORD ", m);
+    }
     if (ft_bars) {                                      /* a free take closed: the loop it made */
         char m[24];
         uint32_t n = ft_bars;

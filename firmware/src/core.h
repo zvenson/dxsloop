@@ -241,12 +241,18 @@ typedef struct track {
     int32_t att;                 /* mute / solo fade: attenuation, Q15 (0 = heard; fx.c mix_part, drums_mix) */
     uint8_t dist_on;             /* DIST was on in the last block (its states restart when it comes on) */
     uint8_t tail;                /* blocks to mix after the last voice (the DIST tail) */
-    int16_t armp, aholdp;        /* P_AMODE / P_AHOLD as last seen by the ISR */
+    int16_t armp, aholdp;        /* the arp running / P_AHOLD as last seen by the ISR */
+    int8_t flw_sh;               /* ARP MODE FLW: semitones the step's notes sounding now are moved by */
     /* engine switch (voice.c engine_block): the old engine's voices fade out, then it switches */
     uint8_t xf_on, xf;           /* fading; blocks of the fade still to render */
     int16_t pe_old[8];           /* P_E0..P_E7 of the sounding engine: the fade renders with these */
     uint8_t xp_n, xp_note[4], xp_vel[4];   /* note-ons during the fade, played on the new engine */
 } track_t;
+/* ARP MODE: 1..5 the arpeggiator; OMNI: the keys are a chord harp; FLW: the pattern follows the
+ * OMNI chord's root (seq.c omni_*) */
+#define AM_OMNI 6
+#define AM_FLW 7
+#define ARP_RUNS(t) ((uint32_t)(t)->p[P_AMODE] - 1u < 5u)
 
 typedef struct {
     int16_t g[G_COUNT];

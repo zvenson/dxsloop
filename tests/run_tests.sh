@@ -82,6 +82,8 @@ run "update loader: other app -> this build" "$OUT/ldr_test" "$OUT/old.fwsc" bui
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/hostsim" tests/hostsim.c -lm
 $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/scale_test" tests/scale_test.c -lm
 run "scales: white-key mapping and note lifecycle" "$OUT/scale_test"
+$CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/omni_test" tests/omni_test.c -lm
+run "OMNI chord harp and FLW: chord keys, strings, recording, a pattern following the chord" "$OUT/omni_test"
 run "DSP render (DX7 preset 0)" "$OUT/hostsim" 0 0 1 "$OUT/render.wav"
 mkdir -p build/tracks_demo
 run "TRACKS: 4-track pattern, live recording (lengths, swing), voice budget, engine switch, cost" env TRACKS=build/tracks_demo "$OUT/hostsim" 0 0 1 "$OUT/tracks.wav"

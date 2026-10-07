@@ -33,6 +33,8 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
 - Steps (2.2): `NSTEP` 128 a track, one pool of `STEP_POOL` 256 for the four (`core.h slen_room / slen_set /
   slen_fit_all`: every LEN change goes through them); projects format 6 store each track's LEN steps in order
   (`project.c proj_capture / proj_apply`, older formats through format 5: `proj_from_v5`). INFO sends 128 as 0.
+- OMNI (2.5): ARP MODE 6 = chord harp (black keys chords, white keys strings), 7 = FLW (a pattern follows the
+  chord's root): `seq.c omni_*`, `core.h AM_OMNI / AM_FLW / ARP_RUNS`, test `tests/omni_test.c`.
 - `firmware/src/engines.c`: `ENGINES[] = {&ENG_DX7}`, NENGINES 1 (`core.h`). Old engine numbers in
   projects / presets map through `% NENGINES`.
 - `tools/gen_logo.py`: logo and boot splash (`build/gen/sloopdx_logo.h`).
