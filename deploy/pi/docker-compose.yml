@@ -1,4 +1,4 @@
-# sloopDX site (dx7.designburgapps.com): nginx serves repo/docs (the GitHub Pages folder), its own
+# sloopDX site (dx7.designburgapps.com) and the entry page (designburgapps.com): nginx serves repo/docs and repo/deploy/designburgapps, its own
 # cloudflared tunnel "sloopdx-site" (a12c4308-c70e-4908-9a2e-47c578d83948) reaches it on the compose network.
 #   update: ./update.sh (git pull; the folder is a bind mount)
 services:
@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./repo/docs:/usr/share/nginx/html:ro
+      - ./repo/deploy/designburgapps:/usr/share/nginx/apex:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
   cloudflared:
     image: cloudflare/cloudflared:latest

@@ -1,0 +1,11 @@
+# template of ~/docker/sloopdx-site/cloudflared/config.yml (no secrets: the credentials json stays on the Pi)
+tunnel: a12c4308-c70e-4908-9a2e-47c578d83948
+credentials-file: /etc/cloudflared/a12c4308-c70e-4908-9a2e-47c578d83948.json
+ingress:
+  - hostname: dx7.designburgapps.com
+    service: http://web:80
+  - hostname: designburgapps.com
+    service: http://web:80
+  - hostname: www.designburgapps.com
+    service: http://web:80
+  - service: http_status:404
