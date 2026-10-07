@@ -32,6 +32,11 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1j. 2.8, erledigt
+
+- [x] OMNI: aufgenommene Akkorde spielten auf MONO / LEGATO-Spuren (viele Presets) nur einen Ton; die Steps einer OMNI-Spur
+      klingen jetzt immer mehrstimmig wie die Tasten (seq.c seq_on, Test omni_test playback_mono_test).
+
 ## 1i. 2.7, erledigt
 
 - [x] Effekte: eine Seite je Effekt (vorher FX = vier Sends, DLY, REV/CHO gemischt; „versteht kein Mensch“). DIST: DRIVE TONE

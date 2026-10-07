@@ -139,6 +139,34 @@ static void record_test(void)
     puts("omni: chords recorded, strings not, a chord step sets the chord on playback ok");
 }
 
+/* a recorded chord on a MONO / LEGATO track (many presets are) plays back as the whole chord, ratchets too */
+static void playback_mono_test(void)
+{
+    static const uint8_t VM[2] = {V_MONO, V_LEGATO};
+    uint32_t m;
+    for (m = 0; m < 2u; m++) {
+        track_t *t = &trk[0];
+        step_t *s;
+        reset();
+        t->p[P_AMODE] = AM_OMNI;
+        t->p[P_VOICE] = VM[m];
+        song.playing = 1;
+        song.rec = 1;
+        press(BLACK[4]);
+        lift(BLACK[4]);
+        song.rec = 0;
+        s = &t->step[0];
+        assert(s->n == 3);
+        seq_step(t, s, 1000, 0);
+        printf("omni: %s playback, %d of 3 notes sound\n", m ? "LEGATO" : "MONO", gates(t));
+        assert(gates(t) == 3);
+        assert(t->p[P_VOICE] == VM[m]);
+        seq_release(t);
+        assert(gates(t) == 0);                          /* and all three end */
+    }
+    puts("omni: a recorded chord plays whole on MONO / LEGATO tracks ok");
+}
+
 static void follow_test(void)
 {
     track_t *b = &trk[1];
@@ -185,6 +213,7 @@ int main(void)
     host_tracks_init();
     keys_test();
     record_test();
+    playback_mono_test();
     follow_test();
     return 0;
 }

@@ -1074,6 +1074,16 @@ static void omni_down(track_t *t, uint32_t k, uint32_t sel)
     midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16 | 100u << 24);
 }
 
+/* a step's note: on an OMNI track the chord sounds whole whatever VOICE (as the keys play it, omni_on) */
+static void seq_on(track_t *t, uint32_t note, uint32_t vel)
+{
+    int16_t vm = t->p[P_VOICE];
+    if (t->p[P_AMODE] == AM_OMNI)
+        t->p[P_VOICE] = V_POLY;
+    trk_note_on(t, note, vel);
+    t->p[P_VOICE] = vm;
+}
+
 /* ---------------------------------------------------------- keyboard --- */
 /* the level of a key on the drum track: OCT- held ghost, OCT+ held hard */
 static uint32_t key_lvl(void)
@@ -1492,7 +1502,7 @@ static void seq_step(track_t *t, const step_t *s, uint32_t slen, uint32_t skip)
             skip |= 1u << i;                        /* (a roll plays it) */
     for (i = 0; i < s->n; i++)
         if (!((skip >> i) & 1u))
-            trk_note_on(t, flw_note(t, s->note[i]), step_vel(s, i));
+            seq_on(t, flw_note(t, s->note[i]), step_vel(s, i));
     if (slide_in)                                   /* release what is not held over */
         for (i = 0; i < t->seq_n; i++) {
             for (j = 0; j < s->n && flw_note(t, s->note[j]) != t->seq_notes[i]; j++)
@@ -1555,7 +1565,7 @@ static void seq_ratchets(track_t *t, uint32_t into, uint32_t slen)
                 uint32_t n = flw_note(t, s->note[i]);
                 t->rat_done[i] = (uint8_t)h;
                 trk_note_off(t, n);
-                trk_note_on(t, n, step_vel(s, i));
+                seq_on(t, n, step_vel(s, i));
                 t->seq_off = slen / hits * (uint32_t)t->p[P_SGATE] / 128u;
                 for (j = 0; j < t->seq_n && t->seq_notes[j] != n; j++)
                     ;
