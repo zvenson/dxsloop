@@ -12,17 +12,21 @@
 #define NTRK 4                   /* + the drum track */
 #define TRK_DRUM 3
 enum { V_POLY, V_MONO, V_LEGATO, V_UNISON };   /* P_VOICE */
-#define NSTEP 64
+#define NSTEP 128                /* steps a track can have (sloopDX 2.2; 64 before) */
+#define STEP_POOL 256u           /* the steps of all four tracks together (slen_room): what a project stores */
 #define HALF_FRAMES 256          /* I2S half buffer: 5.8 ms at 44.1 kHz */
 #ifndef FELUCCA_SLICE
 #define FELUCCA_SLICE 0          /* the SLICE engine (eng_slice.c): kept in the tree, not built by default */
 #endif
-#define NENGINES 1               /* sloopDX: the DX7 only (engines.c) */
+#define NENGINES 1               /* sloopDX: the DX7 only (engines.c) */   /* SLICE, when built, comes last: the other engines keep their numbers */
 /* sloopDX 2.0 put three factory voices before INIT VOICE: a DX7 VOICE saved before (a project, a user preset)
  * from 16 on (INIT VOICE, the bank) moves up by three. The same for the preset index of INIT VOICE. And the
  * DX7's CUT (P_E6, unused before: saved as 0) loads open */
 #define DX_VOICE_FROM_V1(v) ((v) >= 16 ? (v) + 3 : (v))
-#define DX_CUT_OPEN 127   /* SLICE, when built, comes last: the other engines keep their numbers */
+#define DX_CUT_OPEN 127
+/* 2.0 / 2.1 loaded a bank voice (PRESETS) with every quick knob at 0, CUT too: the low-pass shut. Saved like that,
+ * a bank voice with CUT 0 comes back open */
+#define DX_CUT_FIX(voice, cut) ((voice) >= 20 && (cut) == 0 ? DX_CUT_OPEN : (cut))   /* (20: the bank then, as now) */
 #define UP_SLOTS 32u             /* user presets (upreset.c) */
 
 /* ------------------------------------------------------- parameters --- */
@@ -259,6 +263,40 @@ typedef struct {
 
 static track_t trk[NTRK];        /* the instrument: three parts and the drum track */
 static song_t song;
+
+/* sloopDX 2.2: one pool of STEP_POOL steps for the four tracks. A track can have up to NSTEP of them, and as
+ * many as the others leave: the longest LEN t may have now (at least 1) */
+static uint32_t slen_room(const track_t *t)
+{
+    uint32_t i, used = 0, room;
+    for (i = 0; i < NTRK; i++)
+        if (&trk[i] != t)
+            used += trk[i].p[P_SLEN] > 0 ? (uint32_t)trk[i].p[P_SLEN] : 1u;
+    room = used < STEP_POOL ? STEP_POOL - used : 1u;
+    return room > NSTEP ? NSTEP : room < 1u ? 1u : room;
+}
+/* LEN of t := v, as far as the pool lets it (1 = it was cut to what is left) */
+static int slen_set(track_t *t, int32_t v)
+{
+    int32_t r = (int32_t)slen_room(t);
+    if (v < 1)
+        v = 1;
+    t->p[P_SLEN] = (int16_t)(v > r ? r : v);
+    return v > r;
+}
+/* every track inside the pool (after a load, the editor): the later tracks give way */
+static void slen_fit_all(void)
+{
+    uint32_t i, used = 0;
+    for (i = 0; i < NTRK; i++) {
+        uint32_t want = trk[i].p[P_SLEN] > 0 ? (uint32_t)trk[i].p[P_SLEN] : 1u;
+        uint32_t room = STEP_POOL - used - (NTRK - 1u - i);   /* (each later track keeps 1 at least) */
+        want = want > NSTEP ? NSTEP : want;
+        want = want > room ? room : want;
+        trk[i].p[P_SLEN] = (int16_t)want;
+        used += want;
+    }
+}
 
 /* The transport clock (seq.c runs it). One unit = one sample at 1 BPM: a beat is BEAT_U units at any
  * tempo, and every division of it (1/4 .. 1/64, the triplets) is a whole number of units. The steps

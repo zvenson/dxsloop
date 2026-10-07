@@ -32,7 +32,7 @@ enum { ED_INFO = 1, ED_GET, ED_SET, ED_DUMP, ED_DESC, ED_STEP_GET, ED_STEP_SET, 
        ED_VOICE_GET, ED_VOICE_PUT, ED_VOICE_PARAM, ED_BANK_SAVE,                /* v8: voice editing (sloopDX) */
        ED_BANK_SELECT,                                                          /* v9: 8 user banks (sloopDX) */
        ED_KIT_DICE };                                                           /* v10: MY KIT (backup object 9), dice */
-#define ED_PROTOCOL 10
+#define ED_PROTOCOL 11                                                        /* v11: 128 steps (INFO nstep 0 = 128) */
 
 static uint8_t ed_out[600];
 static uint32_t ed_n;
@@ -548,7 +548,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(NENGINES);
         ed_b(P_COUNT);
         ed_b(G_COUNT);
-        ed_b(NSTEP);
+        ed_b(NSTEP & 127u);                                /* (v11: 128 steps go as 0: a SysEx byte holds 0..127) */
         ed_b(P_E0);
         for (i = 0; i < NENGINES; i++)
             ed_str(ENGINES[i]->name, 8);
@@ -564,6 +564,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
                 set_engine((uint32_t)clamp(ed_rv(a + 2), 0, NENGINES - 1));
             } else if (d->max > d->min) {
                 *vp = (int16_t)clamp(ed_rv(a + 2), d->min, d->max);
+                if (!a[0] && a[1] == P_SLEN)
+                    slen_set(TSEL, *vp);                  /* (the pool: 256 steps for the four tracks) */
             }
             ui.force = 1;
             ed_w.v[a[0] ? P_COUNT + a[1] : a[1]] = *vp;   /* the editor's own change: no push */
@@ -982,6 +984,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         if (na >= 4u) {
             if (d->max > d->min)                           /* as SET: clamped; a fixed value stays */
                 t->p[a[1]] = (int16_t)clamp(ed_rv(a + 2), d->min, d->max);
+            if (a[1] == P_SLEN)
+                slen_set(t, t->p[P_SLEN]);
             ed_known(a[0], a[1]);
             ui.force = 1;
         }

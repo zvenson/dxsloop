@@ -70,10 +70,14 @@ static void pattern_length(track_t *t, int32_t d)       /* x2 (the pattern again
     uint32_t len = trk_len(t), i;
     layer_undo_mark(t);
     fm1_irq_off();
-    if (d > 0 && len * 2u <= NSTEP) {
+    if (d > 0 && len * 2u <= slen_room(t)) {
         for (i = 0; i < len; i++)
             t->step[len + i] = t->step[i];
         t->p[P_SLEN] = (int16_t)(len * 2u);
+    } else if (d > 0) {
+        fm1_irq_on();
+        ui_message(len * 2u > NSTEP ? "STEPS: 128 AT MOST" : "STEPS FULL");
+        return;
     } else if (d < 0 && len >= 2u) {
         t->p[P_SLEN] = (int16_t)(len / 2u);
     }
@@ -261,9 +265,9 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down)
     }
     switch (layer) {
     case LY_STEP:
-        if (w < 0) {                                    /* the first four black keys: pages 1..4 */
-            static const int8_t PG[12] = {-1, 0, -1, 1, -1, 2, -1, -1, 3, -1, -1, -1};
-            if (k < 12u && PG[k] >= 0 && (uint32_t)PG[k] * 16u < trk_len(TSEL))
+        if (w < 0) {                                    /* the first eight black keys: pages 1..8 */
+            static const int8_t PG[19] = {-1, 0, -1, 1, -1, 2, -1, -1, 3, -1, 4, -1, -1, 5, -1, 6, -1, 7, -1};
+            if (k < 19u && PG[k] >= 0 && (uint32_t)PG[k] * 16u < trk_len(TSEL))
                 ui.step_page = (uint8_t)PG[k];
             return;
         }
@@ -402,7 +406,8 @@ static void layer_knobs(uint32_t layer)
             } else if (k == 2u) {
                 t->p[P_SSWING] = (int16_t)clamp(t->p[P_SSWING] + accel(EN_K3, s, 100), 0, 100);
             } else {
-                t->p[P_SLEN] = (int16_t)clamp(t->p[P_SLEN] + accel(EN_K4, s, 63), 1, NSTEP);
+                if (slen_set(t, t->p[P_SLEN] + accel(EN_K4, s, NSTEP - 1)))
+                    ui_message("STEPS FULL");               /* (the four tracks share 256 steps) */
                 if ((uint32_t)ui.step_page * 16u >= trk_len(t))
                     ui.step_page = (uint8_t)((trk_len(t) - 1u) / 16u);
             }
@@ -659,7 +664,7 @@ static void layer_screen_draw(void)
             fmt_int(v[3], t->p[P_SLEN]);
             ratio[1] = t->p[P_SDIV] * 200;
             ratio[2] = t->p[P_SSWING] * 10;
-            ratio[3] = (t->p[P_SLEN] - 1) * 1000 / 63;
+            ratio[3] = (t->p[P_SLEN] - 1) * 1000 / (NSTEP - 1);
         }
         break;
     }

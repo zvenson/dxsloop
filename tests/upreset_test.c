@@ -134,7 +134,10 @@ int main(void)
         ok &= w[P_E0] == 15;
         o.ver = UP_VER, o.p[P_E0] = 20;
         up_params(&o, w, def);
-        ok &= w[P_E0] == 20;
+        ok &= w[P_E0] == 20 && w[P_E6] == 0;
+        o.ver = 2u;                                         /* 2.0 / 2.1: a bank voice with CUT 0 (the PRESETS bug) */
+        up_params(&o, w, def);
+        ok &= w[P_E6] == DX_CUT_OPEN;
         bad += check("version 1: DX7 voice 16.. + 3, below kept; version 2 as stored", ok);
     }
 

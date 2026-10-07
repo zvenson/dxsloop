@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "sloopDX 2.1"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 2.2"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -150,7 +150,7 @@ static int undo_swap(int redo)
         }
     }
     len = t->p[P_SLEN];
-    t->p[P_SLEN] = undo.len;
+    slen_set(t, undo.len);                              /* (inside the pool: the others may have grown) */
     undo.len = len;
     undo.undone = (uint8_t)!redo;
     fm1_irq_on();
@@ -386,12 +386,12 @@ static void preset_go(uint32_t n)                    /* load list index n into t
                                                       * the mix, sends and pattern stay */
         uint32_t i;
         TSEL->user = 0;
-        for (i = 1; i < 8u; i++)
-            TSEL->p[P_E0 + i] = 0;
+        for (i = 1; i < 8u; i++)                     /* the quick knobs at their defaults: 0, CUT open (127) */
+            TSEL->p[P_E0 + i] = ENGINES[TSEL->eng_req % NENGINES]->edit[i].def;
         TSEL->p[P_E0] = (int16_t)(DX_NSYNTH + k);
         TSEL->p[P_ATK] = TSEL->p[P_DEC] = TSEL->p[P_REL] = 0;
         TSEL->p[P_SUS] = 127;
-        TSEL->p[P_ED_FX] = DX_BANK_TRIM;             /* (not a factory preset's trim: a bank's own, -6 dB) */
+        TSEL->p[P_ED_FX] = DX_BANK_TRIM;             /* (not a factory preset's trim: the banks' own) */
         sync_reload = 1;
         ui.force = 1;
         return;

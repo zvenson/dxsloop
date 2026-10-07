@@ -17,7 +17,8 @@
 #define UP_PER_BANK 16u
 #define UP_PMAX 72u                              /* room for P_COUNT to grow */
 #define UP_USED 0xA5u
-#define UP_VER 2u                                /* 2: sloopDX 2.0 DX7 voice numbers (1: before, mapped) */
+#define UP_VER 3u                                /* 3: sloopDX 2.2 (2: 2.0 / 2.1, a bank voice's CUT fixed;
+                                                    1: before 2.0, the voice numbers mapped) */
 #define UP_BANK_MAGIC 0x31425055u                /* "UPB1" */
 typedef struct {
     uint8_t used, ver, engine, np;               /* UP_USED, UP_VER, engine, P_COUNT when stored */
@@ -38,7 +39,7 @@ static up_rec_t *up_rec(uint32_t k) { return &up_bank[k / UP_PER_BANK].r[k % UP_
 
 static int up_valid(const up_rec_t *r)
 {
-    return r->used == UP_USED && (r->ver == UP_VER || r->ver == 1u) && r->engine < NENGINES && r->np >= 8u && r->np <= UP_PMAX &&
+    return r->used == UP_USED && r->ver >= 1u && r->ver <= UP_VER && r->engine < NENGINES && r->np >= 8u && r->np <= UP_PMAX &&
            r->name[0];
 }
 
@@ -63,6 +64,8 @@ static void up_params(const up_rec_t *r, int16_t *out, const int16_t *def)
     if (r->ver < 2u) {                           /* stored before sloopDX 2.0 (one engine: the DX7) */
         out[P_E0] = (int16_t)DX_VOICE_FROM_V1(out[P_E0]);
         out[P_E6] = DX_CUT_OPEN;
+    } else if (r->ver < 3u) {
+        out[P_E6] = (int16_t)DX_CUT_FIX(out[P_E0], out[P_E6]);
     }
 }
 

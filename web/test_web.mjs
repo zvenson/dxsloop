@@ -44,8 +44,8 @@ async function editorMock() {
   inp.onmidimessage = (e) => link.receive(e.data);
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
-  ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 64
-    && info.ntrk === 4 && info.proto === 10 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 10)");
+  ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 128
+    && info.ntrk === 4 && info.proto === 11 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 11)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (20 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, CUT RESO */
   const ed = [];
   for (let i = 0; i < 8; i++) ed.push(E.parse[E.CMD.DESC](await rq(E.req.desc(0, info.pe0 + i))));
@@ -225,11 +225,12 @@ async function editorLibrarian() {
      a 2.0 file as it is */
   const pe0 = info.pe0, mk = (v) => ({ ...file.patches[0], dxv: undefined, params: file.patches[0].params.map((x, i) => (i === pe0 ? v : i >= pe0 + 6 ? 0 : x)) });
   const old19 = E.readLibraryFile({ ...file, firmware: "FELUCCA sloopDX 1.9", patches: [mk(15), mk(16), mk(20)] }, ctx);
-  const new10 = E.readLibraryFile({ ...file, patches: [{ ...mk(20), dxv: 2 }] }, ctx);
-  ok(/sloopDX 2\.\d/.test(info.version) && file.patches.every((x) => x.dxv === 2)
-    && old19.patches.map((x) => x.p[pe0]).join() === "15,19,23" && old19.patches.every((x) => x.p[pe0 + 6] === 127 && x.p[pe0 + 7] === 0 && x.dxv === 2)
-    && new10.patches[0].p[pe0] === 20 && new10.patches[0].p[pe0 + 6] === 0,
-    "library file: from 1.9: VOICE 16.. + 3, CUT open; a 2.0 file kept");
+  const new10 = E.readLibraryFile({ ...file, patches: [{ ...mk(20), dxv: 2 }, { ...mk(5), dxv: 2 }, { ...mk(20), dxv: 3 }] }, ctx);
+  ok(/sloopDX 2\.\d/.test(info.version) && file.patches.every((x) => x.dxv === 3)
+    && old19.patches.map((x) => x.p[pe0]).join() === "15,19,23" && old19.patches.every((x) => x.p[pe0 + 6] === 127 && x.p[pe0 + 7] === 0 && x.dxv === 3)
+    && new10.patches[0].p[pe0] === 20 && new10.patches[0].p[pe0 + 6] === 127 && new10.patches[1].p[pe0 + 6] === 0
+    && new10.patches[2].p[pe0 + 6] === 0,
+    "library file: from 1.9: VOICE 16.. + 3, CUT open; from 2.0 / 2.1: a bank voice's shut CUT opens; a 2.2 file kept");
   /* a SLOOP 2.x library: its ANALOG / DIGITAL patches have no engine here and are skipped, DX7 ones would load */
   const sloop = E.readLibraryFile({ ...file, engines: ["ANALOG", "DIGITAL"], patches: [{ ...file.patches[0], engine: 0, engineName: "ANALOG" }, { ...file.patches[1], engine: 1, engineName: "DIGITAL" }] }, ctx);
   ok(sloop.patches.length === 0 && sloop.skipped === 2, "library file: SLOOP engines are skipped (no such engine)");
@@ -460,6 +461,23 @@ async function editorTrackParam() {
   o.done();
 }
 
+/* ------------------------------------- sloopDX 2.2: 128 steps, one pool of 256 --- */
+async function editorSteps() {
+  const C = E.CMD;
+  const { rq, done } = attachMock({});
+  const info = E.parse[C.INFO](await rq(E.req.info()));
+  const SLEN = 29;
+  const a = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(0, SLEN, 128)));
+  const b = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(1, SLEN, 128)));
+  const c = E.parse[C.TRACK_PARAM](await rq(E.req.trackParam(2, SLEN, 64)));
+  const st = E.parse[C.STEP_SET](await rq(E.req.stepSet(127, { n: 1, notes: [72, 0, 0, 0], time: 0, flags: 0, vel: 100 })));
+  const dc = readFileSync(join(HERE, "../firmware/src/core.h"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
+  ok(info.nstep === 128 && a.value === 128 && b.value === 256 - 128 - 16 - 16 && c.value === 16 && st.index === 127 && st.notes[0] === 72
+     && /#define NSTEP 128\b/.test(dc) && /#define STEP_POOL 256u/.test(dc) && /\[P_SLEN\] = PD\("LEN", F_STEPS, 1, NSTEP, 16\)/.test(pc),
+    "steps: 128 per track, 256 in the pool (the mock as core.h slen_room), step 128 reachable");
+  done();
+}
+
 /* ------------------------------------- editor v10: MY KIT --- */
 /* the kit .syx <-> the device's image: the same bytes as the firmware (drums.c ukit_syx_put / ukit_syx_get; the
    reference is written by tests/drumkit_test.c), and the mock: load (backup object 9), download, the dice */
@@ -488,7 +506,7 @@ async function editorKit() {
   const d = E.parse[C.KIT_DICE](await rq(E.req.kitDice(4711)));
   const after2 = await E.bkGetObject(rq, 9);
   const badRc = await E.bkPutObject(rq, 9, new Uint8Array(100));
-  ok(info.proto === 10 && before && before.length === E.UKIT.LEN && rc === 0 && eq(after, mod) && E.kitSeedOf(after) === 1234 &&
+  ok(info.proto === 11 && before && before.length === E.UKIT.LEN && rc === 0 && eq(after, mod) && E.kitSeedOf(after) === 1234 &&
      d.rc === 0 && d.seed === 4711 && E.kitSeedOf(after2) === 4711 && badRc !== 0,
     "kit: MY KIT out of the mock, changed, back (backup object 9); KIT_DICE with a seed; a wrong object refused");
   done();
@@ -499,7 +517,7 @@ async function editorBackup() {
   const C = E.CMD;
   const { m, rq, done } = attachMock({});
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 10, "backup: INFO protocol 10 (backup since 6)");
+  ok(info.proto === 11, "backup: INFO protocol 11 (backup since 6)");
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8");
   ok(/ED_BK_IDS\[\] = \{0, 1, 2, 3, 4, 5, 6, 7, 8, 9\}/.test(ec), "backup: the object ids == editor.c ED_BK_IDS (0..9: 9 MY KIT; no sample slots)");
   await rq(E.req.upStore(3, "BACKUP ME"));
@@ -556,7 +574,7 @@ async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 10 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (10: sloopDX, MY KIT)");
+  ok(info.proto === 11 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (11: sloopDX, 128 steps)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
      commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");
@@ -569,7 +587,7 @@ async function editorV5() {
     && names.indexOf("ED_VOICE_GET") + 1 === 42 && names.indexOf("ED_BANK_SAVE") + 1 === 45
     && names.indexOf("ED_BANK_SELECT") + 1 === C.BANK_SELECT && C.BANK_SELECT === 46
     && names.indexOf("ED_KIT_DICE") + 1 === C.KIT_DICE && C.KIT_DICE === 47
-    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 10,
+    && /ed_b\(ED_PROTOCOL\)/.test(ec) && fwProto === 11,
     `v5: command numbers and INFO == editor.c (BK_* 34..36, BANK_* 37..41, VOICE_* 42..45, BANK_SELECT 46, KIT_DICE 47, firmware protocol ${fwProto})`);
   const enumNames = (id) => (new RegExp(`${id}\\[\\] = \\{([^}]*)\\}`).exec(pc) || [])[1].split(",").map((x) => x.trim().replace(/"/g, ""));
   const chord = E.parse[C.DESC](await rq(E.req.desc(0, 49)));
@@ -687,7 +705,7 @@ async function editorVoice() {
   const desc = E.parse[C.DESC](await rq(E.req.desc(0, info.pe0)));
   const saved = await E.dxvoice.save(rq);
   const u1 = await E.dxvoice.get(rq, 20);
-  ok(info.proto === 10 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
+  ok(info.proto === 11 && rc === 0 && alg === 9 && fbClamped === 7 && u6[134] === 9 && u6[135] === 7 && u6[16 + 21 * 5] === slap[16 + 21 * 5],
     "voice: VOICE_GET / PUT / PARAM on the mock (ALG 10 set, feedback clamped to 7, OP1 kept)");
   ok(desc.names[20 + 5] === "MY SLAP" && desc.names[20] === "INIT VOICE" && saved === 0 && u1[16 + 21 * 5] === 99 && !ev.unknown.length,
     "voice: the name in DESC of VOICE, the other slots INIT VOICE, BANK_SAVE ok");
@@ -970,6 +988,7 @@ await editorDxBank();
 await editorVoice();
 await editorBackup();
 await editorKit();
+await editorSteps();
 editorTabs();
 editorIcons();
 await packages();

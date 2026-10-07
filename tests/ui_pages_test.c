@@ -233,8 +233,9 @@ int main(int argc, char **argv)
         go_home(); frame();
         apply_preset(init);
         encs[panel.enc[EN_PRESET]] = 1; frame();
-        check(TSEL->p[P_E0] == (int16_t)DX_NSYNTH && preset_pos(&total) == (uint32_t)DX_NSYNTH && total >= DX_NSYNTH + 32u,
-              "PRESETS: after 20 the bank voices (21 = U01)");
+        check(TSEL->p[P_E0] == (int16_t)DX_NSYNTH && preset_pos(&total) == (uint32_t)DX_NSYNTH && total >= DX_NSYNTH + 32u &&
+              TSEL->p[P_E6] == 127 && TSEL->p[P_E7] == 0 && TSEL->p[P_E1] == 0,
+              "PRESETS: after 20 the bank voices (21 = U01), the filter open (CUT 127)");
         encs[panel.enc[EN_PRESET]] = 5; frame();
         check(TSEL->p[P_E0] == (int16_t)(DX_NSYNTH + 5u), "PRESETS: on through the bank (26 = U06)");
         encs[panel.enc[EN_PRESET]] = -6; frame();
@@ -408,7 +409,7 @@ int main(int argc, char **argv)
     key(key_of_white(12)); check(arrangement_enabled == 0u, "again: loop mode");
     release(B_SAVE);
     check(!on_song_page() && saves == 0, "SAVE held and let go: no song page, no save");
-    tap(B_SAVE); check(on_song_page(), "SAVE tapped on TRACKS: the song page");
+    frames(4); tap(B_SAVE); check(on_song_page(), "SAVE tapped on TRACKS: the song page");
     ui.force = 1; frame(); ppm("page-song");
 
     /* ---- the drum screen */
@@ -443,8 +444,8 @@ int main(int argc, char **argv)
             check(drum_page == 2u, "KIT + EDIT: the lane's macros");
             encs[panel.enc[EN_K1]] = 5; frame();
             encs[panel.enc[EN_K2]] = -4; frame();
-            check(dext.m[2][DM_TUNE] == 5 && dext.m[2][DM_DECAY] == -4 && ui.msg[0] == 'd',
-                  "LANE: KNOB 1 TUNE, KNOB 2 DECAY of the snare; the value in the message bar");
+            check(dext.m[2][DM_TUNE] == 5 && dext.m[2][DM_DECAY] == -4 && !memcmp(ui.msg, "SNARE DECAY -4", 15),
+                  "LANE: KNOB 1 TUNE, KNOB 2 DECAY of the snare; SNARE DECAY -4 in the message bar");
             ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane");
             encs[panel.enc[EN_PRESET]] = 1; frame();
             encs[panel.enc[EN_K3]] = -20; frame();
@@ -453,14 +454,29 @@ int main(int argc, char **argv)
             dm_pg = 0;
             tap(B_EDIT); frames(2);
             check(drum_page == 1u, "LANE + EDIT later: back to KIT");
-            tap(B_EDIT); tap(B_EDIT); frames(2);
-            check(drum_page == 1u && drum_kit() == KIT_USER && ukit.seed && !dext.m[2][DM_TUNE],
-                  "KIT + EDIT twice: the dice: MY KIT, its seed, the macros clear");
+            frames(4); tap(B_EDIT); tap(B_EDIT); frames(12);
+            check(drum_page == 2u && drum_kit() != KIT_USER, "KIT + EDIT twice quickly (a bounce): the lane page, no dice");
+            encs[panel.enc[EN_PRESET]] = 2; frame();
+            ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane-3");
+            encs[panel.enc[EN_K3]] = 1; frame();
+            check(dm_pg == 2u && drum_kit() != KIT_USER && ui.msg[0] == 'A', "LANE page 3, KNOB 3 once: AGAIN: DICE THE KIT, nothing rolled");
+            encs[panel.enc[EN_K3]] = 1; frame();
+            check(drum_kit() == KIT_USER && ukit.seed && !dext.m[2][DM_TUNE], "KNOB 3 again: the dice: MY KIT, its seed, the macros clear");
+            {
+                static uint8_t keep[156], kick[156];
+                memcpy(keep, ukit.v[2], 156); memcpy(kick, ukit.v[0], 156);
+                drum_lane = 2;
+                encs[panel.enc[EN_K4]] = 1; frame();
+                encs[panel.enc[EN_K4]] = 1; frame();
+                check(memcmp(keep, ukit.v[2], 156) && !memcmp(kick, ukit.v[0], 156) && !ukit.seed && ui.msg[0] == 'S',
+                      "KNOB 4 twice: this sound rolled (SNARE: DICE), the others kept");
+            }
+            dm_pg = 0; drum_page = 1;
             ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-dice");
             dext.m[3][DM_LEVEL] = -10;
-            tap(B_SAVE); frame();
+            frames(4); tap(B_SAVE); frame();
             check(kit_stores == stores0 && ui.msg[0] == 'S', "KIT + SAVE: asks again");
-            tap(B_SAVE); frame();
+            frames(4); tap(B_SAVE); frame();
             check(kit_stores == stores0 + 1u && drum_kit() == KIT_USER && !dext.m[3][DM_LEVEL],
                   "KIT + SAVE twice: MY KIT stored, the macros in it");
             TDRUM->p[P_E0] = 0, drum_page = 1;

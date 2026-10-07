@@ -418,13 +418,9 @@ static void dk_op(uint8_t *p, uint32_t n, int32_t r2, int32_t l2, int32_t r3, in
     o[18] = (uint8_t)(fixed ? f / 100 : f >> 8), o[19] = (uint8_t)(fixed ? f % 100 : f & 255);
 }
 #define DK_RATIO(c, fine) ((c) << 8 | (fine))
-static void dice_kit(uint32_t seed)
+static void dk_lane(uint32_t l, const uint32_t *hf)   /* lane l of MY KIT from the rules (dk_s goes on) */
 {
-    uint32_t l, hf[6];
-    dk_s = (seed & 0xFFFFu) * 2654435761u | 1u;
-    for (l = 0; l < 6u; l++)
-        hf[l] = (uint32_t)dk_rnd(l < 3u ? 368 : 375, 399);   /* the hats share their metal */
-    for (l = 0; l < DRUM_LANES; l++) {
+    {
         uint8_t *p = ukit.v[l];
         dx_drum_t *r = &ukit.dd[l];
         int32_t a, b;
@@ -518,9 +514,38 @@ static void dice_kit(uint32_t seed)
         }
         dx_sanitize(p);
     }
+}
+static void dk_seed(uint32_t seed, uint32_t *hf)
+{
+    uint32_t l;
+    dk_s = (seed & 0xFFFFu) * 2654435761u | 1u;
+    for (l = 0; l < 6u; l++)
+        hf[l] = (uint32_t)dk_rnd(l < 3u ? 368 : 375, 399);   /* the hats share their metal */
+}
+static void dice_kit(uint32_t seed)              /* MY KIT := the dice kit of seed */
+{
+    uint32_t l, hf[6];
+    dk_seed(seed, hf);
+    for (l = 0; l < DRUM_LANES; l++)
+        dk_lane(l, hf);
     ukit.seed = seed & 0xFFFFu;
     ukit_ok = 1;
     memset(dext.m, 0, sizeof dext.m);
+}
+/* one lane rolled, the rest of the kit kept: a factory kit becomes MY KIT first (its macros baked in, so it
+ * sounds as before), then lane l is new and its macros 0. MY KIT is no dice kit of one seed any more */
+static void dice_lane(uint32_t kit, uint32_t l, uint32_t seed)
+{
+    uint32_t hf[6];
+    if (l >= DRUM_LANES)
+        return;
+    if (kit != KIT_USER)
+        ukit_bake(kit);
+    dk_seed(seed * 31u + l, hf);
+    dk_lane(l, hf);
+    memset(dext.m[l], 0, sizeof dext.m[l]);
+    ukit.seed = 0;
+    ukit_ok = 1;
 }
 
 static void drum_start(uint32_t i)               /* (re)start voice i: a hit, or the next hit of a burst */

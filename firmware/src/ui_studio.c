@@ -8,7 +8,7 @@
  * signature changed. */
 static uint8_t drum_page, drum_lane, drum_cursor;   /* drum_page: 0 GRID, 1 KIT, 2 LANE (the lane's macros) */
 static uint8_t dm_pg, kit_save_arm;                 /* LANE: the macro page (0..2); SAVE pressed once on KIT / LANE */
-static uint32_t lane_t0, kit_save_ms;               /* when LANE opened (EDIT again within 0.45 s: the dice) */
+static uint32_t lane_t0, kit_save_ms;               /* when LANE opened; when SAVE was pressed once */
 static void trk_short_name(uint32_t c, char *b);
 static int ukit_store(void);                        /* project.c: MY KIT to flash, 0 ok */
 static int on_drum_page(void) { return !ui.home && cur_page()->scope == SC_DRUM; }
@@ -210,7 +210,7 @@ static void studio_tracks_draw(void)
     for (i = 0; i < NTRK; i++) {
         track_t *t = &trk[i];
         char b[24], e[16];
-        uint32_t selected = song.sel == i, len = (uint32_t)clamp(t->p[P_SLEN], 1, 64);
+        uint32_t selected = song.sel == i, len = (uint32_t)clamp(t->p[P_SLEN], 1, NSTEP);
         uint32_t level = i == TRK_DRUM ? song.g[G_DRLVL] : t->p[P_LEVEL];
         uint32_t silent = trk_silent(t) || !level, pos = t->seq_idx % len, rec = (song.rec >> i) & 1u;
         uint32_t solo = (song.solo >> i) & 1u, bank = song.playing ? pos / 16u : 0u, h;
@@ -284,7 +284,7 @@ static void studio_tracks_draw(void)
         fmt_int(v[3], t->p[P_PAN]);
         ratio[0] = song.g[G_SWING] * 10;
         ratio[1] = t->p[P_MUTE] ? 0 : (int32_t)lvl * 1000 / 127;
-        ratio[2] = (t->p[P_SLEN] - 1) * 1000 / 63;
+        ratio[2] = (t->p[P_SLEN] - 1) * 1000 / (NSTEP - 1);
         ratio[3] = (t->p[P_PAN] + 64) * 1000 / 127;
         te_dials(184, lab, val, ratio, song.sel, &footer);
     }
@@ -315,7 +315,7 @@ static void pads_tick(void)                             /* once a frame: the hit
 static void drum_screen_draw(void)
 {
     static uint32_t head, title_sig, body_sig, footer;
-    uint32_t i, j, len = (uint32_t)clamp(TDRUM->p[P_SLEN], 1, 64), kit = drum_kit(), sig, bank;
+    uint32_t i, j, len = (uint32_t)clamp(TDRUM->p[P_SLEN], 1, NSTEP), kit = drum_kit(), sig, bank;
     if (drum_cursor >= len) drum_cursor = (uint8_t)(len - 1u);
     bank = drum_cursor / 16u;
     {
@@ -338,9 +338,15 @@ static void drum_screen_draw(void)
         fmt_int(b, lane ? (int32_t)drum_lane + 1 : (int32_t)kit + 1);
         cv_text(19 - text_w(&FONT_S, b) / 2, 13, &FONT_S, b, C_BLACK);
         cv_text(44, 6, &FONT_L, lane ? LANE_NAME[drum_lane] : DRUM_KIT_NAMES[kit], C_WHITE);
-        cv_text(202, 4, &FONT_S, lane ? "kit" : "grid", drum_page == 0 ? C_WHITE : TE_G3);
-        cv_text(202, 22, &FONT_S, lane ? "lane" : "kit", drum_page ? C_WHITE : TE_G3);
-        cv_rect(196, drum_page ? 26 : 8, 3, 9, TE_DRUM);
+        if (lane) {                                    /* LANE: where you are, page n/3 (PRESETS turns it) */
+            char pg[4] = {(char)('1' + dm_pg), '/', '3', 0};
+            cv_text(198, 4, &FONT_S, "lane", C_WHITE);
+            cv_text(204, 22, &FONT_S, pg, TE_DRUM);
+        } else {
+            cv_text(202, 4, &FONT_S, "grid", drum_page == 0 ? C_WHITE : TE_G3);
+            cv_text(202, 22, &FONT_S, "kit", drum_page ? C_WHITE : TE_G3);
+            cv_rect(196, drum_page ? 26 : 8, 3, 9, TE_DRUM);
+        }
         cv_blit(0, 40);
     }
     sig = drum_page + drum_lane * 7u + drum_cursor * 101u + song.playing * 71u + len * 3u + dm_pg * 13u;
@@ -411,7 +417,11 @@ static void drum_screen_draw(void)
             uint32_t q;
             for (q = 0; q < 4u; q++) {
                 uint32_t m = dm_pg * 4u + q;
-                if (m < DM_N) {
+                if (dm_pg == 2u && q >= 2u) {          /* page 3: the dice (GO, confirmed) */
+                    lab[q] = q == 2u ? "kit" : "sound";
+                    str_cpy(v[q], ui.arm == 0xD0u + q ? "again" : "dice", 8);
+                    ratio[q] = ui.arm == 0xD0u + q ? 1000 : 0;
+                } else if (m < DM_N) {
                     int32_t x = dm_get(drum_lane, m);
                     lab[q] = DM_DESC[m].name;
                     dm_format(m, x, v[q]);
@@ -446,25 +456,12 @@ static void drum_seq_tap(void)                      /* GRID <-> KIT (LANE -> GRI
     ui.msg_t = 0;
     ui.force = 1;
 }
-static void drum_edit_tap(void)                     /* GRID -> KIT -> LANE -> KIT; twice quickly on KIT: the dice */
+static void drum_edit_tap(void)                     /* GRID -> KIT -> LANE -> KIT (the dice: LANE page 3, confirmed) */
 {
-    if (drum_page == 2u && fm1_ms - lane_t0 < 450u) {
-        uint32_t seed = (fm1_ms * 2654435761u >> 16) % 65535u + 1u;
-        char b2[8];
-        fm1_irq_off();
-        dice_kit(seed);
-        TDRUM->p[P_E0] = KIT_USER;
-        fm1_irq_on();
-        drum_page = 1;
-        fmt_int(b2, (int32_t)seed);
-        ui_say("DICE ", b2);
-    } else if (drum_page == 1u) {
-        drum_page = 2, lane_t0 = fm1_ms;
-        ui.msg_t = 0;
-    } else {
-        drum_page = 1;                              /* (GRID or LANE -> KIT) */
-        ui.msg_t = 0;
-    }
+    drum_page = drum_page == 1u ? 2u : 1u;
+    if (drum_page == 2u)
+        lane_t0 = fm1_ms;
+    ui.msg_t = 0;
     ui.force = 1;
 }
 static int drum_save_tap(void)                      /* 1: GRID, the song page opened; KIT / LANE: SAVE twice stores MY KIT */
@@ -504,14 +501,7 @@ static void drum_screen_input(uint32_t pressed, uint32_t home)
             if (ft_owns_press()) ;
             else if (!song.playing && arrangement_enabled && !arr_valid(&arrangement, arrangement_ready())) ui_message("EMPTY SECTION: REC");
             else transport_req = song.playing ? 2 : 1;
-        } else if (b == B_SEQ) {
-            drum_seq_tap();
-        } else if (b == B_EDIT) {
-            drum_edit_tap();
-        } else if (b == B_SAVE) {
-            if (drum_save_tap())
-                return;
-        }
+        }                                               /* (SEQ, EDIT, SAVE: tapped, ui_input.c layer_tap) */
     }
     if ((s = panel_enc(EN_SELECT))) {
         song.g[G_BPM] = (int16_t)clamp(song.g[G_BPM] + accel(EN_SELECT, s, 200), 40, 240);
@@ -551,16 +541,51 @@ static void drum_screen_input(uint32_t pressed, uint32_t home)
                 fm1_irq_on();
                 sync_reload = 1;
             }
-        } else if (drum_page == 2u) {                  /* LANE: the macro, its value in the message bar */
+        } else if (drum_page == 2u) {                  /* LANE: the macro, "SNARE DECAY +8" in the message bar */
             uint32_t m = dm_pg * 4u + k;
-            char b2[8], b3[12];
+            char b2[8], b3[24];
+            if (dm_pg == 2u && k >= 2u) {              /* page 3: KNOB 3 the kit's dice, KNOB 4 this lane's: */
+                uint32_t arm = 0xD0u + k;              /* one detent right arms, a second one within ~1.5 s rolls */
+                uint32_t seed = (fm1_ms * 2654435761u >> 16) % 65535u + 1u;
+                if (s <= 0)
+                    continue;
+                if (ui.arm != arm) {
+                    ui.arm = (uint8_t)arm;
+                    ui.arm_t = 90;
+                    ui_message(k == 2u ? "AGAIN: DICE THE KIT" : "AGAIN: DICE THIS SOUND");
+                    continue;
+                }
+                ui.arm = 0;
+                fm1_irq_off();
+                if (k == 2u)
+                    dice_kit(seed);
+                else
+                    dice_lane(drum_kit(), drum_lane, seed);
+                TDRUM->p[P_E0] = KIT_USER;
+                fm1_irq_on();
+                if (k == 2u) {
+                    fmt_int(b2, (int32_t)seed);
+                    ui_say("DICE #", b2);
+                } else {
+                    str_cpy(b3, LANE_NAME[drum_lane], sizeof b3);
+                    ui_say(b3, ": DICE (MY KIT)");
+                }
+                continue;
+            }
             if (m >= DM_N) continue;
             fm1_irq_off();
             dm_add(drum_lane, m, m == DM_CHOKE ? (s > 0 ? 1 : -1) : accel(EN_K1 + k, s, DM_DESC[m].max - DM_DESC[m].min));
             fm1_irq_on();
             dm_format(m, dm_get(drum_lane, m), b2);
-            str_cpy(b3, DM_DESC[m].name, sizeof b3);
+            str_cpy(b3, LANE_NAME[drum_lane], sizeof b3);   /* the sound, the macro (upper case), the value */
             str_cpy(b3 + str_len(b3), " ", 2);
+            {
+                uint32_t q = str_len(b3), c;
+                for (c = 0; DM_DESC[m].name[c] && q + c < sizeof b3 - 2u; c++)
+                    b3[q + c] = (char)(DM_DESC[m].name[c] >= 'a' && DM_DESC[m].name[c] <= 'z' ? DM_DESC[m].name[c] - 32 : DM_DESC[m].name[c]);
+                b3[q + c] = ' ';
+                b3[q + c + 1u] = 0;
+            }
             ui_say(b3, b2);
         } else {
             if (k == 0) TDRUM->p[P_E0] = (int16_t)clamp(TDRUM->p[P_E0] + s, 0, DRUM_KITS - 1);
@@ -605,7 +630,7 @@ static void rec_rows(uint32_t rt, uint32_t take, uint32_t y0, uint32_t *cache)
     cv_begin(240, 76, C_BLACK);
     for (i = 0; i < NTRK; i++) {
         const track_t *t = &trk[i];
-        uint32_t len = (uint32_t)clamp(t->p[P_SLEN], 1, 64), armed = i == rt;
+        uint32_t len = (uint32_t)clamp(t->p[P_SLEN], 1, NSTEP), armed = i == rt;
         int32_t y = (int32_t)i * 19;
         char b[16];
         if (armed) cv_rect(0, y, 240, 18, TE_RED), cv_rect(1, y + 1, 238, 16, C_BLACK);
@@ -713,7 +738,7 @@ static void rec_screen_draw(void)
         static const char *const LAB_0[4] = {"", "", "", ""};
         const char *val[4] = {v[0], v[1], v[2], ""};
         int32_t ratio[4] = {0, 0, 0, 0};
-        uint32_t len = (uint32_t)clamp(TSEL->p[P_SLEN], 1, 64);
+        uint32_t len = (uint32_t)clamp(TSEL->p[P_SLEN], 1, NSTEP);
         str_cpy(v[0], rec_tempo ? "tempo" : "free", sizeof v[0]);
         if (len % 16u == 0u) {
             fmt_int(v[1], (int32_t)(len / 16u));
@@ -724,7 +749,7 @@ static void rec_screen_draw(void)
         }
         str_cpy(v[2], rec_count ? "count" : "note", sizeof v[2]);
         ratio[0] = rec_tempo ? 1000 : 0;
-        ratio[1] = (int32_t)(len - 1u) * 1000 / 63;
+        ratio[1] = (int32_t)(len - 1u) * 1000 / (NSTEP - 1);
         ratio[2] = rec_count ? 1000 : 0;
         {
             const char *const *lab = count ? LAB_0 : !empty ? LAB_N : free ? LAB_F : LAB_E;

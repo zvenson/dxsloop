@@ -13,7 +13,11 @@ and `P_E7` RESO (0..127), the low-pass behind the voice (unused before 2.0). A D
 dump (.syx, 4104 bytes) is sent in pieces with `BANK_BEGIN` / `BANK_WRITE` / `BANK_END`; the device
 checks the checksum, keeps the bank in flash and renames U01..U32 after the voices (re-read `DESC` of
 `P_E0`). The sample-slot commands 11-15 stay in the numbering but there are no slots (`SMP_INFO` answers
-0 slots, the others rc 7). `INFO` ends with 10 (9 before MY KIT, 8 before the 8 banks, 7 before voice editing). SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
+0 slots, the others rc 7). `INFO` ends with 11 (10 before 128 steps, 9 before MY KIT, 8 before the 8 banks, 7 before voice
+editing). **v11 (sloopDX 2.2):** a track has up to 128 steps (`STEP_GET` / `STEP_SET` / `DRUM_STEP` index 0..127); `INFO`
+sends the step count as `NSTEP & 127`, so **0 means 128** (a SysEx data byte holds 0..127). The four tracks share 256
+steps: `LEN` (`P_SLEN`, 1..128) of a track is cut to what the others leave (`core.h slen_room`); `SET` / `TRACK_PARAM`
+answer with the value that was taken. SLOOP 2.3's backup (`BK_LIST` / `BK_GET` / `BK_PUT`,
 v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
 sample slots 32..34.
 
@@ -291,9 +295,10 @@ editor takes them from `INFO`; older records load with the SLICER off and CHORD 
 (`persist_t`: colours, low cut, zoom, the panel calibration, the song order, the lights and SYNC word),
 **2..5** the projects 1..4 (song sections A..D; length 0 = empty), **6..7** the user preset banks (`up_bank_t`,
 16 records each; 0 = empty), **8** the DX7 user bank (sloopDX: 4096 voice bytes as in a .syx; 0 = none; SLOOP 2.3 has the user
-sample slots as 32..34 instead), **9** MY KIT (sloopDX 2.1: `ukit_img_t`, 2696 bytes; above). Projects are format 5
-(`FUN5`, sloopDX 2.1: format 4 and the drum lanes' macros and step locks, `core.h drum_ext_t`); a format 4 project
-(SLOOP 2.x, sloopDX up to 2.0) loads with neutral macros. Numbers are 5 × 7 bit (u35, LSB first); data is pack7.
+sample slots as 32..34 instead), **9** MY KIT (sloopDX 2.1: `ukit_img_t`, 2696 bytes; above). Projects are format 6
+(`FUN6`, sloopDX 2.2: the steps of all tracks in one pool of 256, each track's `LEN` of them in track order, and the
+drum lanes' macros and 128 step locks); formats 5 (2.1, 64 steps a track) and 4 (SLOOP 2.x, sloopDX up to 2.0: neutral
+drum macros) still load. Numbers are 5 × 7 bit (u35, LSB first); data is pack7.
 
 | cmd | Request args | Reply args |
 | --- | --- | --- |

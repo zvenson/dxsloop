@@ -17,7 +17,8 @@
  *
  * Built on the host too (tests/project_test.c, -DPROJ_HOST): the part above the #ifndef
  * PROJ_HOST needs core.h, params.c (TP), drums.c (the lanes), the engines and trk_def_engine (ui.c). */
-#define PROJ_MAGIC 0x46554E35u                 /* "FUN5": four tracks, P_COUNT parameters each, 10-byte steps, drums */
+#define PROJ_MAGIC 0x46554E36u                 /* "FUN6": four tracks, P_COUNT parameters each, their steps in one pool */
+#define PROJ_MAGIC_V5 0x46554E35u              /* "FUN5": 64 steps a track and the drum macros; read only */
 #define PROJ_MAGIC_V4 0x46554E34u              /* "FUN4": the same without the drum macros; read only */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": SLOOP 1.x; read only */
 #define PROJ_MAGIC_V2 0x46554E32u              /* "FUN2": four tracks, PROJ_NP_V2 parameters; read only */
@@ -26,35 +27,56 @@
 #define PROJ_NG_V3 27u                         /* G_COUNT of formats 1..3 */
 #define PROJ_NP_V2 53u                         /* P_COUNT of formats 1 and 2 (P_E0 was 45) */
 #define PROJ_NG_V2 27u                         /* G_COUNT of formats 1 and 2 */
-#define PROJ_DXV 1u                            /* the DX7 voice numbers of sloopDX 2.0 (core.h DX_VOICE_FROM_V1) */
-typedef struct {                               /* one track; the drum track ignores engine / preset */
+#define PROJ_DXV 2u                            /* 1: the DX7 voice numbers of sloopDX 2.0 (core.h DX_VOICE_FROM_V1);
+                                                * 2: a bank voice's CUT as saved (2.2; before: DX_CUT_FIX) */
+#define PROJ_NSTEP_OLD 64u                     /* the steps per track of formats 1..5 */
+typedef struct {                               /* one track of format 6: its parameters; its steps are in the pool */
     int16_t p[P_COUNT];
     uint8_t engine, preset;
-    union {
-        step_t step[NSTEP];
-        dstep_t dstep[NSTEP];                  /* (the drum track: 16 lanes, the same size) */
-    };
+    uint8_t nst, rsv;                          /* how many of the pool's steps are its (in track order) */
 } proj_trk_t;
-typedef struct {
+typedef struct {                               /* format 6 (sloopDX 2.2): the steps of all tracks in one pool */
     uint32_t magic, size;
     int16_t g[G_COUNT];
     uint8_t sel, dxv, rsv[2];                  /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0) */
     proj_trk_t t[NTRK];
+    step_t pool[STEP_POOL];                    /* track 1's steps, then track 2's ..; the drum track's are dstep_t */
     drum_ext_t dext;                           /* the drum lanes' macros and step locks (drums.c) */
     uint32_t sum;
 } project_t;
+_Static_assert(sizeof(step_t) == sizeof(dstep_t), "a pool step holds either");
+typedef struct {                               /* a track of formats 4 and 5, read only */
+    int16_t p[P_COUNT];
+    uint8_t engine, preset;
+    union {
+        step_t step[PROJ_NSTEP_OLD];
+        dstep_t dstep[PROJ_NSTEP_OLD];         /* (the drum track: 16 lanes, the same size) */
+    };
+} proj_trk5_t;
+typedef struct {                               /* the drum macros of format 5 (64 steps of locks) */
+    int8_t m[DRUM_LANES][DM_N];
+    uint16_t lock[PROJ_NSTEP_OLD];
+} drum_ext5_t;
+typedef struct {                               /* format 5 (sloopDX 2.1), read only; every older format converts to it */
+    uint32_t magic, size;
+    int16_t g[G_COUNT];
+    uint8_t sel, dxv, rsv[2];
+    proj_trk5_t t[NTRK];
+    drum_ext5_t dext;
+    uint32_t sum;
+} project_v5_t;
 typedef struct {                               /* format 4 (SLOOP 2.x, sloopDX up to 2.0), read only */
     uint32_t magic, size;
     int16_t g[G_COUNT];
     uint8_t sel, dxv, rsv[2];
-    proj_trk_t t[NTRK];
+    proj_trk5_t t[NTRK];
     uint32_t sum;
 } project_v4_t;
 typedef struct { uint8_t note[4], n, time, flags, vel; } step8_t;   /* the steps of formats 1..3 */
 typedef struct {                               /* a track of format 3, read only */
     int16_t p[PROJ_NP_V3];
     uint8_t engine, preset;
-    step8_t step[NSTEP];
+    step8_t step[PROJ_NSTEP_OLD];
 } proj_trk_v3_t;
 typedef struct {                               /* format 3 (SLOOP 1.x), read only */
     uint32_t magic, size;
@@ -66,7 +88,7 @@ typedef struct {                               /* format 3 (SLOOP 1.x), read onl
 typedef struct {                               /* a track of formats 1 and 2, read only */
     int16_t p[PROJ_NP_V2];
     uint8_t engine, preset;
-    step8_t step[NSTEP];
+    step8_t step[PROJ_NSTEP_OLD];
 } proj_trk_v2_t;
 typedef struct {                               /* format 2 (until 0.9), read only */
     uint32_t magic, size;
@@ -93,10 +115,11 @@ static uint32_t proj_hash(const void *p, uint32_t n)   /* FNV-1a over n bytes */
         s = (s ^ b[i]) * 16777619u;
     return s;
 }
+static uint32_t proj_sum5(const project_v5_t *p) { return proj_hash(p, sizeof *p - 4u); }
 static uint32_t proj_sum(const project_t *p) { return proj_hash(p, sizeof *p - 4u); }
 static int proj_ok(const project_t *q) { return q->magic == PROJ_MAGIC && q->size == sizeof *q && q->sum == proj_sum(q); }
 
-/* ---- old formats -> format 4 */
+/* ---- old formats -> format 5 (then format 6: proj_from_v5) */
 /* an old step into a synth step (no level, no ratchet) */
 static void step_from8(step_t *d, const step8_t *s)
 {
@@ -129,7 +152,7 @@ static void proj_g_from_old(int16_t *g, const int16_t *g2)
 }
 
 /* a track of format 3 -> today's (by id up to P_SLDEPTH; P_E0.. moved) */
-static void proj_trk_from_v3(proj_trk_t *d, const proj_trk_v3_t *s, int drum)
+static void proj_trk_from_v3(proj_trk5_t *d, const proj_trk_v3_t *s, int drum)
 {
     uint32_t k, nc = PROJ_NP_V3 - 8u;
     for (k = 0; k < P_E0; k++)
@@ -140,7 +163,7 @@ static void proj_trk_from_v3(proj_trk_t *d, const proj_trk_v3_t *s, int drum)
     d->p[P_ASWING] = swing_from_v3(d->p[P_ASWING]);
     d->engine = drum ? 0u : s->engine;
     d->preset = drum ? 0u : s->preset;
-    for (k = 0; k < NSTEP; k++) {
+    for (k = 0; k < PROJ_NSTEP_OLD; k++) {
         if (drum)
             dstep_from8(&d->dstep[k], &s->step[k]);
         else
@@ -162,19 +185,19 @@ static void proj_trk_v2_to_v3(proj_trk_v3_t *d, const proj_trk_v2_t *s, int drum
 }
 
 /* a format 3 project -> slot q as format 4 */
-static void proj_from_v3_ok(project_t *q, const project_v3_t *v3)
+static void proj_from_v3_ok(project_v5_t *q, const project_v3_t *v3)
 {
     uint32_t i;
     memset(q, 0, sizeof *q);
-    q->magic = PROJ_MAGIC;
+    q->magic = PROJ_MAGIC_V5;
     q->size = sizeof *q;
     proj_g_from_old(q->g, v3->g);
     q->sel = v3->sel;
     for (i = 0; i < NTRK; i++)
         proj_trk_from_v3(&q->t[i], &v3->t[i], i == TRK_DRUM);
-    q->sum = proj_sum(q);
+    q->sum = proj_sum5(q);
 }
-static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
+static int proj_from_v3(project_v5_t *q, const project_v3_t *v3, int n)
 {
     if (n != (int)sizeof *v3 || v3->magic != PROJ_MAGIC_V3 || v3->size != sizeof *v3 ||
         v3->sum != proj_hash(v3, sizeof *v3 - 4u))
@@ -185,7 +208,7 @@ static int proj_from_v3(project_t *q, const project_v3_t *v3, int n)
 
 static project_v3_t proj_v3_tmp;               /* (formats 1, 2: through format 3) */
 /* a format 2 project (n bytes in *v2) -> slot q as format 4 */
-static int proj_from_v2(project_t *q, const project_v2_t *v2, int n)
+static int proj_from_v2(project_v5_t *q, const project_v2_t *v2, int n)
 {
     project_v3_t *v3 = &proj_v3_tmp;
     uint32_t i;
@@ -203,7 +226,7 @@ static int proj_from_v2(project_t *q, const project_v2_t *v2, int n)
 
 /* a format 1 project (n bytes in *v1) -> slot q as format 4: the instrument becomes track 1,
  * tracks 2..4 start empty (their sounds as at power-on) */
-static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
+static int proj_from_v1(project_v5_t *q, const project_v1_t *v1, int n)
 {
     project_v3_t *v3 = &proj_v3_tmp;
     uint32_t i;
@@ -222,41 +245,79 @@ static int proj_from_v1(project_t *q, const project_v1_t *v1, int n)
         q->t[i].preset = 0xFF;                 /* 0xFF: its default preset (project_load) */
         memset(q->t[i].step, 0, sizeof q->t[i].step);
         if (i != TRK_DRUM)
-            for (k = 0; k < NSTEP; k++)
+            for (k = 0; k < PROJ_NSTEP_OLD; k++)
                 q->t[i].step[k].time = ST_REST;
     }
-    q->sum = proj_sum(q);
+    q->sum = proj_sum5(q);
     return 1;
 }
 
 /* a format 4 project -> slot q (the drum macros neutral, no locks) */
-static int proj_from_v4(project_t *q, const project_v4_t *v4, int n)
+static int proj_from_v4(project_v5_t *q, const project_v4_t *v4, int n)
 {
     if (n != (int)sizeof *v4 || v4->magic != PROJ_MAGIC_V4 || v4->size != sizeof *v4 ||
         v4->sum != proj_hash(v4, sizeof *v4 - 4u))
         return 0;
     memset(q, 0, sizeof *q);
-    q->magic = PROJ_MAGIC;
+    q->magic = PROJ_MAGIC_V5;
     q->size = sizeof *q;
     memcpy(q->g, v4->g, sizeof q->g);
     q->sel = v4->sel;
     q->dxv = v4->dxv;
     memcpy(q->t, v4->t, sizeof q->t);
-    q->sum = proj_sum(q);
+    q->sum = proj_sum5(q);
     return 1;
 }
 
-/* n bytes of a stored project (any format) -> slot q as format 5; 0 = not a project */
+/* track k's steps in the pool of q (after the tracks before it) */
+static step_t *proj_steps(project_t *q, uint32_t k)
+{
+    uint32_t i, o = 0;
+    for (i = 0; i < k && i < NTRK; i++)
+        o += q->t[i].nst;
+    return &q->pool[o < STEP_POOL ? o : 0u];
+}
+static const step_t *proj_steps_c(const project_t *q, uint32_t k) { return proj_steps((project_t *)q, k); }
+
+/* a format 5 project -> slot q as format 6: each track's 64 steps into the pool (4 x 64 = all of it) */
+static void proj_from_v5(project_t *q, const project_v5_t *v)
+{
+    uint32_t k;
+    memset(q, 0, sizeof *q);
+    q->magic = PROJ_MAGIC;
+    q->size = sizeof *q;
+    memcpy(q->g, v->g, sizeof q->g);
+    q->sel = v->sel;
+    q->dxv = v->dxv;
+    for (k = 0; k < NTRK; k++) {
+        memcpy(q->t[k].p, v->t[k].p, sizeof q->t[k].p);
+        q->t[k].engine = v->t[k].engine;
+        q->t[k].preset = v->t[k].preset;
+        q->t[k].nst = (uint8_t)PROJ_NSTEP_OLD;
+        memcpy(&q->pool[k * PROJ_NSTEP_OLD], v->t[k].step, sizeof v->t[k].step);
+    }
+    memcpy(q->dext.m, v->dext.m, sizeof q->dext.m);
+    memcpy(q->dext.lock, v->dext.lock, sizeof v->dext.lock);
+    q->sum = proj_sum(q);
+}
+static project_v5_t proj_v5_tmp __attribute__((section(".pool")));   /* (older formats: through format 5) */
+
+/* n bytes of a stored project (any format) -> slot q as format 6; 0 = not a project */
 static int proj_import(project_t *q, const void *b, int n)
 {
+    project_v5_t *v = &proj_v5_tmp;
     if (n == (int)sizeof *q && proj_ok((const project_t *)b)) {
         memcpy(q, b, sizeof *q);
         return 1;
     }
-    if (proj_from_v4(q, (const project_v4_t *)b, n))
-        return 1;
-    return proj_from_v3(q, (const project_v3_t *)b, n) || proj_from_v2(q, (const project_v2_t *)b, n) ||
-           proj_from_v1(q, (const project_v1_t *)b, n);
+    if (n == (int)sizeof *v && ((const project_v5_t *)b)->magic == PROJ_MAGIC_V5 && ((const project_v5_t *)b)->size == sizeof *v &&
+        ((const project_v5_t *)b)->sum == proj_sum5((const project_v5_t *)b))
+        memcpy(v, b, sizeof *v);
+    else if (!(proj_from_v4(v, (const project_v4_t *)b, n) || proj_from_v3(v, (const project_v3_t *)b, n) ||
+               proj_from_v2(v, (const project_v2_t *)b, n) || proj_from_v1(v, (const project_v1_t *)b, n)))
+        return 0;
+    proj_from_v5(q, v);
+    return 1;
 }
 
 /* ---- the working project <-> a project_t */
@@ -271,11 +332,19 @@ static void proj_capture(project_t *p)        /* what is playing now, as a proje
     for (i = 0; i < G_COUNT; i++)
         p->g[i] = song.g[i];
     p->sel = song.sel;
-    for (i = 0; i < NTRK; i++) {
-        memcpy(p->t[i].p, trk[i].p, sizeof trk[i].p);
-        p->t[i].engine = trk[i].eng_req;
-        p->t[i].preset = trk[i].preset;
-        memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);
+    {
+        uint32_t used = 0;
+        for (i = 0; i < NTRK; i++) {                    /* each track's LEN steps, one after the other */
+            uint32_t n = trk_len(&trk[i]);
+            n = n > NSTEP ? NSTEP : n;
+            n = used + n > STEP_POOL ? STEP_POOL - used : n;   /* (slen_room keeps them inside: a guard) */
+            memcpy(p->t[i].p, trk[i].p, sizeof trk[i].p);
+            p->t[i].engine = trk[i].eng_req;
+            p->t[i].preset = trk[i].preset;
+            p->t[i].nst = (uint8_t)n;
+            memcpy(&p->pool[used], trk[i].step, n * sizeof(step_t));
+            used += n;
+        }
     }
     p->sum = proj_sum(p);
 }
@@ -303,19 +372,28 @@ static void proj_apply(const project_t *p, int all)
             const param_desc_t *d = k == TRK_DRUM && i == P_E0 ? &DRUM_KIT_DESC :   /* the drum kit */
                                     i >= P_E0 && i <= P_E7 ? &ENGINES[e]->edit[i - P_E0] : &TP[i];
             int32_t v = s->p[i];
-            if (p->dxv < PROJ_DXV && k < NPART && i == P_E0)
+            if (p->dxv < 1u && k < NPART && i == P_E0)
                 v = DX_VOICE_FROM_V1(v);                /* (sloopDX has one engine: the DX7) */
-            if (p->dxv < PROJ_DXV && k < NPART && i == P_E6)
+            if (p->dxv < 1u && k < NPART && i == P_E6)
                 v = DX_CUT_OPEN;
+            else if (p->dxv < 2u && k < NPART && i == P_E6)
+                v = DX_CUT_FIX(t->p[P_E0], v);          /* (P_E0 is set by now: it comes first) */
             t->p[i] = (int16_t)clamp(v, d->min, d->max);
         }
         {
             uint32_t pr = s->preset == 0xFFu ? 0u : s->preset;
-            if (p->dxv < PROJ_DXV)
+            if (p->dxv < 1u)
                 pr = DX_VOICE_FROM_V1(pr);              /* INIT VOICE's preset moved like its voice */
             t->preset = (uint8_t)(ENGINES[e]->npresets ? pr % ENGINES[e]->npresets : 0u);
         }
-        memcpy(t->step, s->step, sizeof t->step);
+        {                                               /* its steps from the pool, the rest empty */
+            uint32_t n = s->nst > NSTEP ? NSTEP : s->nst;
+            memset(t->step, 0, sizeof t->step);
+            memcpy(t->step, proj_steps_c(p, k), n * sizeof(step_t));
+            if (k != TRK_DRUM)
+                for (i = n; i < NSTEP; i++)
+                    t->step[i].time = ST_REST;
+        }
         if (k != TRK_DRUM)
             for (i = 0; i < NSTEP; i++) {
                 step_t *st = &t->step[i];
@@ -328,6 +406,7 @@ static void proj_apply(const project_t *p, int all)
                     st->note[j] &= 127u;
             }
     }
+    slen_fit_all();                                     /* (a project made elsewhere: the pool still holds) */
 }
 
 #ifndef PROJ_HOST
@@ -336,9 +415,10 @@ static void proj_apply(const project_t *p, int all)
 #endif
 static uint8_t sec_dirty, song_dirty;           /* live sections / the song: in RAM, not yet in flash */
 #if FELUCCA_FLASH
-/* slot from flash into RAM (format 4, or an old one converted) */
+/* slot from flash into RAM (format 6, or an old one converted) */
 static union {
-    project_t v4;
+    project_t v4;                                   /* (today's format: the name stayed) */
+    project_v5_t v5;
     project_v3_t v3;
     project_v2_t v2;
     project_v1_t v1;

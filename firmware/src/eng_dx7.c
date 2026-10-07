@@ -20,8 +20,9 @@ static uint8_t dx_user[DX_NUSER][128];
 static uint8_t dx_user_ok;
 #define DX_NBANKS 8u                         /* user banks in flash (project.c); dx_user is the one in use */
 static uint8_t dx_bank_cur;
-/* the level trim of a bank voice, 1/2 dB (P_ED_FX): DX7 banks are programmed hot (up to six carriers at 99) */
-#define DX_BANK_TRIM (-12)
+/* the level trim of a bank voice, 1/2 dB (P_ED_FX). Measured (2.2) on the eight DX7 ROM banks, a phrase each as
+ * tools/level_presets.py plays the factory voices: median -29 LUFS with -6 dB here, the factory voices -23: so 0 */
+#define DX_BANK_TRIM 0
 static uint32_t dx_edit_gen;                 /* bumped on every change of the bank: sounding notes follow */
 static char dx_user_name[DX_NUSER][11] = {"U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08", "U09", "U10", "U11", "U12", "U13", "U14", "U15", "U16", "U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25", "U26", "U27", "U28", "U29", "U30", "U31", "U32"};
 static const char *dx_names[DX_NVOICES] = {DX_SYNTH_NAME_LIST, dx_user_name[0], dx_user_name[1], dx_user_name[2], dx_user_name[3], dx_user_name[4], dx_user_name[5], dx_user_name[6], dx_user_name[7], dx_user_name[8], dx_user_name[9], dx_user_name[10], dx_user_name[11], dx_user_name[12], dx_user_name[13], dx_user_name[14], dx_user_name[15], dx_user_name[16], dx_user_name[17], dx_user_name[18], dx_user_name[19], dx_user_name[20], dx_user_name[21], dx_user_name[22], dx_user_name[23], dx_user_name[24], dx_user_name[25], dx_user_name[26], dx_user_name[27], dx_user_name[28], dx_user_name[29], dx_user_name[30], dx_user_name[31]};

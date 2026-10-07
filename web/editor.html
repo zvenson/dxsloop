@@ -538,7 +538,7 @@ function stepExt(r, a, o) {
 const parse = {
   [CMD.INFO](a) {
     const r = new Reader(a);
-    const o = { version: r.s(), nengines: r.b(), pcount: r.b(), gcount: r.b(), nstep: r.b(), pe0: r.b(), engines: [] };
+    const o = { version: r.s(), nengines: r.b(), pcount: r.b(), gcount: r.b(), nstep: r.b() || 128, pe0: r.b(), engines: [] };   /* (v11: 0 = 128 steps) */
     for (let i = 0; i < o.nengines; i++) o.engines.push(r.s());
     o.ntrk = r.i < a.length ? r.b() : 0;             /* v3: tracks (0 = older firmware, one instrument) */
     o.proto = r.i < a.length ? r.b() : 0;            /* v5: the protocol version (0 = older firmware) */
@@ -1193,19 +1193,23 @@ function remapParams(p, fromKeys, toKeys) {
 }
 /* the DX7 numbering a sound was saved with: 2 = sloopDX 2.0 (20 factory voices, CUT / RESO), 1 = before.
    From the firmware's version string ("FELUCCA sloopDX 2.0"); not sloopDX: 1 */
-function dxvOf(version) {
+function dxvOf(version) {                         /* (3: sloopDX 2.2 and later; 2: 2.0 / 2.1) */
   const m = /sloopDX (\d+)\.(\d+)/.exec(String(version || ""));
-  return m && +m[1] >= 2 ? 2 : 1;
+  return !m || +m[1] < 2 ? 1 : +m[1] > 2 || +m[2] >= 2 ? 3 : 2;
 }
 /* a DX7 sound of sloopDX 1.9 for 2.0: VOICE 16 on (INIT VOICE, the bank) moves up by three (three factory
    voices came before INIT VOICE; firmware core.h DX_VOICE_FROM_V1), CUT open (it was an unused 0), RESO 0 */
 function dxMigrate(pt, pe0) {
-  if ((pt.dxv | 0) >= 2 || pe0 == null || (pt.engineName && pt.engineName !== "DX7")) return pt;
+  if ((pt.dxv | 0) >= 3 || pe0 == null || (pt.engineName && pt.engineName !== "DX7")) return pt;
   const p = pt.p.slice();
-  if (p[pe0] != null && p[pe0] >= 16) p[pe0] += 3;
-  p[pe0 + 6] = 127;
-  p[pe0 + 7] = 0;
-  return { ...pt, p, dxv: 2 };
+  if ((pt.dxv | 0) < 2) {
+    if (p[pe0] != null && p[pe0] >= 16) p[pe0] += 3;
+    p[pe0 + 6] = 127;
+    p[pe0 + 7] = 0;
+  } else if (p[pe0] != null && p[pe0] >= 20 && p[pe0 + 6] === 0) {
+    p[pe0 + 6] = 127;                            /* 2.0 / 2.1 loaded a bank voice with CUT 0 (shut): open */
+  }
+  return { ...pt, p, dxv: 3 };
 }
 
 /* one pattern step as the firmware keeps it (up_pat_norm): a tie has no note, a rest no flags */
@@ -1279,7 +1283,7 @@ function readLibraryFile(obj, ctx) {
     let pt = cleanPatch({ name: obj.presetName || obj.engineName || "PATCH", engine: e, engineName: obj.engineName,
       p: obj.p.slice(0, ctx.keys ? ctx.keys.length : obj.p.length), pattern: Array.isArray(obj.steps) ? patternFromSteps(obj.steps) : null, tags: ["file"],
       dxv: dxvOf(obj.firmware) });
-    if (dxvOf(ctx.firmware) >= 2) pt = dxMigrate(pt, ctx.pe0);
+    if (dxvOf(ctx.firmware) >= 3) pt = dxMigrate(pt, ctx.pe0);
     return { patches: [pt], skipped: 0, keys: null };
   }
   if (obj.format !== LIB.FORMAT) throw new Error("unknown format");
@@ -1295,7 +1299,7 @@ function readLibraryFile(obj, ctx) {
     const p = remapParams(x.params, fileKeys, ctx.keys);
     let pt = cleanPatch({ ...x, engine: e, engineName: (ctx.engines || [])[e] || x.engineName || (obj.engines || [])[x.engine], p,
       dxv: x.dxv || dxvOf(obj.firmware) });
-    if (dxvOf(ctx.firmware) >= 2) pt = dxMigrate(pt, ctx.pe0 ?? obj.pE0);
+    if (dxvOf(ctx.firmware) >= 3) pt = dxMigrate(pt, ctx.pe0 ?? obj.pE0);
     out.push(pt);
   }
   return { patches: out, skipped, keys: fileKeys };
@@ -1511,7 +1515,7 @@ function makeMockDevice(opt = {}) {
     E("MODE", ["OFF", "UP", "DN", "UPDN", "RND", "ORD"], 0), E("RATE", NDIV, 2), D("OCT", F.INT, 1, 4, 1), D("GATE", F.PCT, 1, 127, 64),
     D("SWG", F.SWING, 0, 100, 0), D("PROB", F.PCT, 0, 127, 127), E("HOLD", NONOFF, 0), E("ORD", ["NOTE", "PLAY"], 0),
     D("ROOT", F.NOTE, 0, 11, 0), E("SCL", ["CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM", "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"], 0), E("QNT", ["OFF", "SNAP", "WHITE"], 0), D("TRN", F.SEMI, -24, 24, 0),
-    D("LEN", F.STEPS, 1, 64, 16), E("DIV", NDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
+    D("LEN", F.STEPS, 1, 128, 16), E("DIV", NDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
     D("DST", F.PCT, 0, 127, 0), D("CHO", F.PCT, 0, 127, 0), D("DLY", F.PCT, 0, 127, 0), D("REV", F.PCT, 0, 127, 0),
     E("VCE", ["POLY", "MONO", "LEG", "UNI"], 0), D("GLD", F.TIME, 0, 127, 0), D("PAN", F.BIPCT, -64, 63, 0), E("MUTE", NONOFF, 0),
     E("GLMOD", ["RATE", "TIME"], 0), E("PRIO", ["LAST", "LOW", "HIGH"], 0), E("ALLOC", ["ROT", "REUSE"], 0), D("DTUNE", F.INT, 0, 127, 40),
@@ -1600,7 +1604,9 @@ function makeMockDevice(opt = {}) {
     [[60, 60, 61, 61, 62, 0, 63, 63, 64, 65, 65, 0, 66, 66, 66, 67], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
     [[60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75], [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]],
   ];
-  const P_COUNT = 58, G_COUNT = 32, NSTEP = 64, P_E0 = 50, G_ENGSEL = 20, P_SLCR = 45, P_CHORD = 49;
+  const P_COUNT = 58, G_COUNT = 32, NSTEP = 128, P_E0 = 50, G_ENGSEL = 20, P_SLCR = 45, P_CHORD = 49, P_SLEN = 29;
+  /* sloopDX 2.2: one pool of 256 steps, a track up to 128 of them (core.h slen_room) */
+  const slenRoom = (ti) => Math.max(1, Math.min(NSTEP, 256 - st.tracks.reduce((n, t, i) => n + (i === ti ? 0 : Math.max(1, t.p[P_SLEN])), 0)));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   /* four tracks (firmware v3); engine / preset / p / step below are the selected track's */
   const NTRK = 4, TRK_DRUM = 3;
@@ -1775,10 +1781,10 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.1 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.2 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
-        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : 10);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT */
+        if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */
         break;
       case CMD.GET: case CMD.SET: {
         if (a.length < 2) return null;
@@ -1788,6 +1794,7 @@ function makeMockDevice(opt = {}) {
         if (cmd === CMD.SET && a.length >= 4) {
           if (a[0] === 1 && a[1] === G_ENGSEL) setEngine(clamp(v14dec(a[2], a[3]), 0, ENG.length - 1));
           else if (d.max > d.min) arr[a[1]] = clamp(v14dec(a[2], a[3]), d.min, d.max);
+          if (!a[0] && a[1] === P_SLEN) arr[P_SLEN] = Math.min(arr[P_SLEN], slenRoom(st.sel));
         }
         b(a[0]); b(a[1]); v(arr[a[1]]);
         break;
@@ -1822,6 +1829,7 @@ function makeMockDevice(opt = {}) {
         if (a.length < 2 || a[0] >= NTRK || a[1] >= P_COUNT) return null;
         const t = st.tracks[a[0]], d = tdesc(t, a[1]);
         if (a.length >= 4 && d.max > d.min) t.p[a[1]] = clamp(v14dec(a[2], a[3]), d.min, d.max);
+        if (a.length >= 4 && a[1] === P_SLEN) t.p[P_SLEN] = Math.min(t.p[P_SLEN], slenRoom(a[0]));
         b(a[0]); b(a[1]); v(t.p[a[1]]);
         break;
       }
@@ -2876,7 +2884,7 @@ async function choosePreset(e, p) {
                                                         preset_go): the voice, its knobs as programmed, the bank's trim */
       const pe0 = dev.info.pe0;
       const sets = [[pe0, p], [pe0 + 1, 0], [pe0 + 2, 0], [pe0 + 3, 0], [pe0 + 4, 0], [pe0 + 5, 0], [pe0 + 6, 127], [pe0 + 7, 0],
-                    [P_ID.ATK, 0], [P_ID.DEC, 0], [P_ID.SUS, 127], [P_ID.REL, 0], [P_ID.TRIM, -12]];
+                    [P_ID.ATK, 0], [P_ID.DEC, 0], [P_ID.SUS, 127], [P_ID.REL, 0], [P_ID.TRIM, 0]];   /* (eng_dx7.c DX_BANK_TRIM) */
       for (const [id, v] of sets) await rq(req.set(0, id, v));
     } else {
       parse[CMD.PRESET](await rq(req.preset(e, p)));
@@ -3630,7 +3638,7 @@ async function libAdopt(d) {
       changed.push(p);
     }
   }
-  if (dxvOf(d.info.version) >= 2)                     /* sounds kept from sloopDX 1.9: the 2.0 numbering */
+  if (dxvOf(d.info.version) >= 3)                     /* sounds kept from older sloopDX: today's numbering */
     for (let i = 0; i < lib.length; i++) {
       const m = dxMigrate(lib[i], d.info.pe0);
       if (m !== lib[i]) { Object.assign(lib[i], m); if (!changed.includes(lib[i])) changed.push(lib[i]); }

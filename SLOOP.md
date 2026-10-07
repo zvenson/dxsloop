@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 2.1
+# sloopDX 2.2
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.1, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.2, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -175,7 +175,7 @@ The 16 white keys are the [punch-in effects](#punch-in-effects); they run while 
 Hold EDIT and press a key: that sound (drums) or that note (synths; with CHORD on, the notes of its chord) leaves the selected track's pattern — **while playing**, from every step the playhead passes while you hold the key (MPC style: hold the hat key for one bar and the hats of that bar are gone); **stopped**, from the whole pattern at once. *ERASED* flashes. The knobs reshape the whole pattern:
 
 - **KNOB 1 SHIFT** — every step one later / earlier (turns the groove around).
-- **KNOB 2 LENGTH** — right: ×2 (the pattern copied after itself, up to 64 steps); left: ½.
+- **KNOB 2 LENGTH** — right: ×2 (the pattern copied after itself, up to 128 steps, as far as the pool allows); left: ½.
 - **KNOB 3 TRANSPOSE** — every note a semitone up / down (synth tracks).
 - **OCT− undo · OCT+ redo** (the knob turns of one hold count as one change).
 
@@ -185,12 +185,12 @@ Hold ARP and hold a key: it repeats on the grid at the **RATE** of KNOB 1 — 1/
 
 ### SEQ — steps (step sequencer)
 
-The 16 white keys are the 16 steps of the page; the lit ones play. The first four black keys (F#3, G#3, A#3, C#4) or **OCT− / OCT+** pick page 1–4 (steps 1–16, 17–32, 33–48, 49–64, up to the track's LENGTH).
+The 16 white keys are the 16 steps of the page; the lit ones play. **OCT− / OCT+** page through the track (up to 8 pages: steps 1–16 … 113–128, as far as its LENGTH goes); the first eight black keys (F#3 … A#4) pick page 1–8 directly.
 
 - **An empty step:** press its key — it is set at once. Drums: with the sound shown (KNOB 1 picks it, or the last pad you hit); synths: with the note or chord you played last.
 - **A set step:** press and let go — it is cleared. Hold it and turn a knob instead — it is edited, and kept: **KNOB 1** sound (drums) / note (synths), **KNOB 2 LEVEL** (ghost, soft, norm, hard), **KNOB 3 RATCHET** (x1–x4). Hold several step keys to edit them together.
 - **Drum locks (2.1):** with a drum step held, **KNOB 4** locks the sound's **TUNE** (−16…+15 semitones) and **PRESETS** its **DECAY** for that hit only; the fourth dial shows *tune / decay*, the step a ★. One sound per step can be locked; clearing the hit clears its lock.
-- **No step held:** KNOB 1 the sound / note to set · KNOB 2 **DIV** (1/4 … 1/32, triplets) · KNOB 3 **SWING** of the track · KNOB 4 **LENGTH** (1–64 steps; each track loops on its own length, polymeters stay in phase).
+- **No step held:** KNOB 1 the sound / note to set · KNOB 2 **DIV** (1/4 … 1/32, triplets) · KNOB 3 **SWING** of the track · KNOB 4 **LENGTH** (1–128 steps; each track loops on its own length, polymeters stay in phase). The four tracks share **256 steps**: a track can have up to 128, and the others what is left (turn further and the screen says *STEPS FULL*). Only the steps inside a track's LENGTH are saved with the project.
 
 ### SCL — key and chords
 
@@ -244,7 +244,7 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 
 - **TRACKS** (HOME) — the performance view: tempo, swing, transport, bar.beat; each track with its voice, its steps, the playhead, mute / solo / rec badges and its level. Dials: *swing · level · steps · pan* (KNOB 2 on a muted track unmutes it).
 - **Layers** — while a layer button is held: 16 tiles (the white keys) and the knobs' dials, in the layer's colour.
-- **DRUMS** (EDIT or SEQ tapped on TRACKS with the drum track) — **grid**: the 16 sounds × 16 steps, levels as shades, ratchets as notches; dials *sound · step · hit · level*. **kit**: 16 pads that flash on every hit; dials *kit · level · drive · comp* (DRIVE and COMP on the whole drum bus; reverb and pan are on HOME). **lane** (EDIT on kit): the macros of the sound last played (see [Drum kits](#drum-kits)). SEQ tapped switches grid ↔ kit, EDIT kit → lane → kit, EDIT twice the dice, SAVE twice stores MY KIT.
+- **DRUMS** (EDIT or SEQ tapped on TRACKS with the drum track) — **grid**: the 16 sounds × 16 steps, levels as shades, ratchets as notches; dials *sound · step · hit · level*. **kit**: 16 pads that flash on every hit; dials *kit · level · drive · comp* (DRIVE and COMP on the whole drum bus; reverb and pan are on HOME). **lane** (EDIT on kit): the macros of the sound last played, its page in the corner (1/3 … 3/3; see [Drum kits](#drum-kits)). SEQ tapped switches grid ↔ kit, EDIT kit → lane → kit, SAVE twice stores MY KIT.
 - **EDIT** (tapped on a synth track) — the DX7 pages **VOICE** and **SHAPE**: the voice and its macro knobs. See [The DX7 engine](#the-dx7-engine).
 - **REC READY / FREE TAKE** — while REC is armed: the tracks, then **mode**, **length** and **start** on KNOB 1–3 (4-3-2-1 during a count-in); during a free take: the seconds and the loop it makes.
 - **Holds** — the ring of REC (clear) while held.
@@ -267,7 +267,7 @@ Tap **EDIT** on a synth track: the voice opens as a **list**, one row per settin
 | **HOME** | back to the top of the list; on the top, back to TRACKS |
 | **SAVE** | stores your bank in the FM-1's memory |
 | **PRESETS** | jumps straight to the next or previous operator (OP1 … OP6), on the same row |
-| **KNOB 1–4** | the voice's quick knobs, as on HOME |
+| **KNOB 1–4** | **CUT**, **RESO** (the low-pass), **REL**, **FDBK**; the value in the message bar while you turn |
 | keys, **OCT− / OCT+**, **PLAY** | play as always, so you hear every change |
 
 The top of the list:
@@ -357,15 +357,15 @@ Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the edit
 
 **Noise.** Drum voices can have operators that play **noise** instead of a sine (sample and hold of a 32-bit generator, a new value twice per period of the operator's frequency: low = rumble, high = hiss; the level and the envelope as a sine's). Snares, claps, hats, cymbals and shakers use it. It is a drums-only mode: no synth voice and no .syx voice ever turns it on.
 
-**Edit a sound (the lane page).** On the kit page tap **EDIT**: the sound you last played (a key, a pad) and its macros. KNOB 1–4, three pages on **PRESETS**; the value shows in the message bar while you turn. Each macro is an offset on the kit (0 = as the kit), saved with the project and its song sections:
+**Edit a sound (the lane page).** On the kit page tap **EDIT**: the sound you last played (a key, a pad) and its macros; the top right says *lane* and the page (1/3). KNOB 1–4, three pages on **PRESETS**; the message bar shows the sound, the macro and its value while you turn (*SNARE DECAY +8*). Each macro is an offset on the kit (0 = as the kit), saved with the project and its song sections:
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |
 | 1 | **TUNE** ±24 semitones (the note, and fixed-frequency operators with it) | **DECAY** ±40 (the falling rates of every operator; + longer) | **SWEEP** ±40 (the pitch drop: deeper and longer, or less) | **BRIGHT** ±40 (the modulators' level) |
 | 2 | **NOISE** ±40 (the noise operators' level; −40 off) | **LEVEL** −20…+10 dB | **PAN** L64…R63 | **CHOKE** kit / off / A / B / C |
-| 3 | **REV** 0…127 (the sound's reverb send; 64 = the drum REV as it is) | | | |
+| 3 | **REV** 0…127 (the sound's reverb send; 64 = the drum REV as it is) | | **dice kit** (turn right twice: a new MY KIT) | **dice sound** (turn right twice: only this sound new, the rest of the kit kept) |
 
-**MY KIT.** **SAVE twice** on the kit (or lane) page bakes the kit you are on, with every sound's macros, into MY KIT: the macros are now in its voices and table, back to 0, and the drum track plays MY KIT, kept in flash. **EDIT twice** quickly rolls the **dice**: a new MY KIT from rules per sound (kicks and toms: a body, a modulator, maybe a click; snares: body, tone and noise; the three hats share their metal and choke each other; …), the seed in the top right (#4711). The same seed gives the same kit: the web editor (Library → MY KIT) rolls a seed you type, loads a kit **.syx** and downloads MY KIT as one (a DX7 32-voice bank: voices 1–16 the sounds, 17–32 their table, so any DX7 librarian keeps it). A dice kit stays in RAM until you SAVE it.
+**MY KIT.** **SAVE twice** on the kit (or lane) page bakes the kit you are on, with every sound's macros, into MY KIT: the macros are now in its voices and table, back to 0, and the drum track plays MY KIT, kept in flash. The **dice** (lane page 3, KNOB 3, turned right once to arm and once more to roll) makes a new MY KIT from rules per sound (kicks and toms: a body, a modulator, maybe a click; snares: body, tone and noise; the three hats share their metal and choke each other; …), the seed in the top right (#4711). KNOB 4 there rolls only the sound you edit; a factory kit becomes MY KIT first (with your macros in it), the other sounds stay as they were. The same seed gives the same kit: the web editor (Library → MY KIT) rolls a seed you type, loads a kit **.syx** and downloads MY KIT as one (a DX7 32-voice bank: voices 1–16 the sounds, 17–32 their table, so any DX7 librarian keeps it). A dice kit stays in RAM until you SAVE it.
 
 **The drum bus.** Each sound at its level and pan → the sum → **DRIVE** → **COMP** (the kit page's KNOB 3 / 4) → each sound's reverb send. The drum track has **6 voices** of its own, so a busy pattern never steals from the synths. The kit is saved with projects and song sections. MIDI notes in on the drum channel (10) play the nearest of the 16 sounds (GM drum map).
 
@@ -445,7 +445,7 @@ The glow is a short pulse on every scan of the panel (about 900 times a second):
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
 | Sounds | 20 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; a low-pass CUT / RESO; 32 user presets |
-| Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
+| Sequencer | up to 128 steps per track from one pool of 256 for all four, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |
 | Drum kits | 4 FM kits (DX KIT, 808 FM, ELECTRO, METAL), 16 sounds each |
 | Effects | 16 punch-in effects; master DUST, DUCK, DJ filter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb; master limiter |

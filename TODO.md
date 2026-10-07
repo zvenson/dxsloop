@@ -32,6 +32,23 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1d. 2.2: 128 Steps, Bugs aus 2.1, erledigt
+
+- [x] Spuren bis 128 Steps, gemeinsamer Pool von 256 (`core.h slen_room`): eine Spur höchstens 128, die anderen den Rest,
+      sonst "STEPS FULL". OCT−/OCT+ blättern 8 Seiten, schwarze Tasten F#3..A#4 wählen Seite 1-8. Projektformat 6 (nur die
+      Steps innerhalb LEN), Format 5/4/.. laden weiter. Editor-Protokoll 11 (INFO: 0 = 128 Steps). RAM jetzt 93.4 KB von 96.
+- [x] Lane-Seite: kein Würfeln per Doppel-Tipp mehr (Prellen / Doppel-Tap landete nie auf der Lane-Seite und überschrieb MY KIT
+      ungefragt). Würfeln auf Lane-Seite 3: KNOB 3 Kit, KNOB 4 nur dieser Sound, je zweimal drehen (AGAIN). Layer-Tasten
+      entprellt (ein Druck < 40 ms nach dem Loslassen zählt nicht). Toter Tasten-Code in `drum_screen_input` entfernt.
+- [x] Lane-Seite zeigt "lane" und die Seite (1/3); Meldungszeile "SNARE DECAY +8".
+- [x] Bank-Sounds (21-52) viel leiser als 1-20: PRESETS setzte beim Laden einer Bank-Stimme alle Quick-Knobs auf 0, auch
+      CUT (seit 2.0 = Filter zu, 30 Hz). Jetzt die Engine-Defaults (CUT 127). Dazu DX_BANK_TRIM -6 dB -> 0: gemessen an den
+      8 ROM-Bänken (Median -29 LUFS mit -6 dB, Werk -23). Alte Projekte / Presets / Editor-Library mit Bank-Stimme + CUT 0
+      öffnen beim Laden (`core.h DX_CUT_FIX`, PROJ_DXV 2, UP_VER 3, editor dxv 3).
+- [x] Cheat Sheets: HOME-Knobs (Swing · Level · Steps · Pan), EDIT-Seiten (VOICE BRITE ATK DEC / REL FDBK CUT RESO),
+      Voice-Liste KNOB 1-4 = CUT RESO REL FDBK.
+- [ ] Am Gerät: Version prüfen (HOME halten -> ABOUT), Lane-Seite, Würfel, 128-Step-Spur, CPU.
+
 ## 1c. Ausbau FM-Drum-Engine (2.1), erledigt
 
 - [x] Drum-Editor pro Lane: TUNE DECAY SWEEP BRIGHT NOISE LEVEL PAN CHOKE (+ REV), Kit-Seite EDIT -> Lane-Seite, PRESETS

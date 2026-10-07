@@ -17,9 +17,9 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked against Dexed (99 % of samples identical, the rest within 1-2 LSB)). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
 
-**New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
+**New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
 
-> **Status: 2.1, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status: 2.2, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Why sloopDX
 
@@ -74,7 +74,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 ## What it does
 
 - **Programmable FM drums (2.1):** on the kit page, tap **EDIT** for the sound you last played: KNOB 1–4 are TUNE, DECAY, SWEEP and BRIGHT; PRESETS turns to NOISE, LEVEL, PAN and CHOKE, then the lane's REVERB send. Your edits are saved with the project. **Hold SEQ and a step:** KNOB 4 locks TUNE and PRESETS locks DECAY for that hit only (a ★ on the step).
-- **MY KIT and the dice (2.1):** SAVE twice on the kit page bakes the kit with your edits into **MY KIT** (kit 5, kept in flash). EDIT twice rolls a **dice kit** from rules per sound; its seed shows in the corner, and the editor rolls a given seed again. The web editor loads and downloads MY KIT as a **.syx** (voices 1–16 the drums, 17–32 their table).
+- **MY KIT and the dice (2.1):** SAVE twice on the kit page bakes the kit with your edits into **MY KIT** (kit 5, kept in flash). On the lane page's third page, KNOB 3 rolls a **dice kit** from rules per sound and KNOB 4 rolls only the sound you edit (turn once, then again to confirm); the kit's seed shows in the corner, and the editor rolls a given seed again. The web editor loads and downloads MY KIT as a **.syx** (voices 1–16 the drums, 17–32 their table).
 - **A noise operator (2.1):** drum operators can play noise instead of a sine (sample and hold of a 32-bit generator; the operator's frequency is the colour). The factory kits use it for snares, claps, hats, cymbals and shakers. Synth voices never do: they stay bit for bit as Dexed plays them.
 - **DX7 engine:** 6 operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch.
 - **20 factory voices** in the DX7 tradition (designed here, not copied): EPIANO 1 and 2, FM BASS, SLAP BASS, SUB BASS, BRASS, STRINGS, GLASS PAD, BELLS, MARIMBA, ORGAN, CLAV, PLUCK, FLUTE, SAW LEAD, KOTO, three modern basses (DEEP SUB: a pure sine an octave down; 808 SUB: it drops into the note and dies away; REESE: two detuned saw stacks over a sine sub) and INIT VOICE.
@@ -99,11 +99,13 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 
 ## Status
 
-**2.1, a usable beta.** What is known:
+**2.2, a usable beta.** What is known:
 
 - **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget) and the host test suite passes: audio renders against golden hashes, the voices, the sequencer (REC modes, count-in, MIDI clock), the UI pages and layers, the DX7 voice list, flash storage, the 8 banks, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages. On the FM-1: install, the boot screen, the DX7 voice list, a ROM bank in flash, the drum kits and the levels have been played.
 - **From 1.9:** projects, user presets and the editor's library keep their sounds. Three factory voices came in before INIT VOICE, so the bank moved from 18–49 to 21–52; older saves are renumbered when they load, and the new CUT starts open.
 - **From 2.0:** projects load with every drum sound as its kit (no macros, no locks); the project format is now 5. MY KIT starts as a copy of DX KIT.
+- **Bank voices were too quiet (fixed in 2.2):** PRESETS loaded a bank voice (21–52) with its filter shut, and a −6 dB trim on top. Now the filter is open and the bank voices sit at the factory voices' level (measured on the eight DX7 ROM banks). Projects and presets saved with the shut filter open it when they load.
+- **From 2.1:** projects load as they were (each track's 64 steps); the project format is now 6. Only the steps inside a track's LENGTH are saved now, so steps beyond it are gone after a save.
 - **Still to check on the device:** the web editor end to end (live sync, the Voice tab, the bank selector), the CPU with three synth tracks and the drums all sounding, and SLOOP 2.3's USB audio, MIDI IN jack and lights.
 - **Sound:** the 20 factory voices are designed here (no Yamaha data); they want a pass by ear. For the classic sounds, load the original DX7 ROM banks (yamahablackboxes.com) into one of the 8 bank slots.
 
@@ -121,7 +123,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.1.fwsc`) with `python tools/fm1_install.py sloopdx-2.1.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.2.fwsc`) with `python tools/fm1_install.py sloopdx-2.2.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -145,7 +147,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 4. **REC** again while it plays: you record on top. Hold **ARP** and hold the hat key for a hat roll.
 5. **ALGORITHM** to track **1** (*FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song; on track 2 (*EPIANO 1*), hold SCL and turn **KNOB 1** to *7TH*: every white key now plays a chord.
 6. Hold **FX** and press a white key for a punch-in effect; still holding FX, turn **KNOB 2** for DUST, **KNOB 3** for DUCK.
-7. Tap **EDIT** on a synth track: the DX7 voice list. **SELECT** to *OP2*, tap **EDIT**, turn **ALGORITHM** on *Output Level*: the tone opens up. **PRESETS** jumps to the next operator, **HOME** goes back, **SAVE** stores. On HOME, **KNOB 1 BRITE** does the same in one turn. In the voice list, **KNOB 1 CUT** and **KNOB 2 RESO** are the low-pass.
+7. Tap **EDIT** on a synth track: the DX7 voice list. **SELECT** to *OP2*, tap **EDIT**, turn **ALGORITHM** on *Output Level*: the tone opens up. **PRESETS** jumps to the next operator, **HOME** goes back, **SAVE** stores. On the EDIT pages (*More Pages*), **KNOB 2 BRITE** does the same in one turn. In the voice list, **KNOB 1 CUT** and **KNOB 2 RESO** are the low-pass.
 8. A mistake? Hold **EDIT** and press **OCT−**: undo.
 
 ## The controls
@@ -182,7 +184,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 2.1*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 2.2*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 
@@ -275,7 +277,7 @@ Something else? [Open an issue](../../issues): what you did, what you expected, 
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
 | Sounds | 20 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; a low-pass CUT / RESO; 32 user presets |
 | Drum kits | 4 FM kits (DX KIT, 808 FM, ELECTRO, METAL) and MY KIT, 16 sounds each; 8 macros and a reverb send per sound, TUNE / DECAY locks per step, a noise operator, the dice; DRIVE and COMP on the drum bus |
-| Sequencer | 64 steps per track, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock (no drift) |
+| Sequencer | up to 128 steps per track from one pool of 256 for all four, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock (no drift) |
 | Recording | live, quantised as heard (latency-compensated), overdub; free take (the tempo follows you) or the tempo set; start on the first note or a one-bar count-in; 1, 2 or 4 bars |
 | Performance | layers: punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo, song sections |
 | Effects | 16 punch-in effects; master DUST, DUCK, DJ filter, limiter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb |

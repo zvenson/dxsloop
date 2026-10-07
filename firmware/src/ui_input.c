@@ -269,6 +269,8 @@ static void tracks_edit(uint32_t slot, int32_t steps)
         break;
     }
     *vp = (int16_t)clamp(*vp + accel(EN_K1 + slot, steps, d->max - d->min), d->min, d->max);
+    if (vp == &t->p[P_SLEN] && slen_set(t, *vp))
+        ui_message("STEPS FULL");                         /* (the four tracks share 256 steps) */
 }
 
 static void step_edit(uint32_t slot, int32_t steps)
@@ -386,6 +388,8 @@ static void edit_param(uint32_t slot, int32_t steps)
         return;
     v = clamp(*vp + accel(EN_K1 + slot, steps, d->max - d->min), d->min, d->max);
     *vp = (int16_t)v;
+    if (vp == &TSEL->p[P_SLEN] && slen_set(TSEL, v))
+        ui_message("STEPS FULL");                         /* (the four tracks share 256 steps) */
     if (!v)
         return;
     if (pg->scope == SC_GLOBAL && (id == G_LOAD || id == G_SAVE || id == G_CLRSEQ || id == G_INITSND || id == G_NEWPRJ) &&
@@ -570,7 +574,7 @@ static void layer_unlock(void)
 static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
 {
     static uint8_t down[LY_COUNT], used[LY_COUNT];
-    static uint32_t t0[LY_COUNT];
+    static uint32_t t0[LY_COUNT], up_t[LY_COUNT];
     uint32_t l, now = fm1_ms, held = LY_PLAY, eat = 0;
     if (ly_lock != LY_PLAY) {
         uint32_t keep = 1u << panel.btn[B_PLAY] | 1u << panel.btn[B_REC] | 1u << panel.btn[B_OCTDN] | 1u << panel.btn[B_OCTUP];
@@ -586,8 +590,11 @@ static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
         uint32_t d = (fm1_in.buttons & ly_bit[l]) != 0u;
         if (d && !down[l]) {
             t0[l] = now;
-            used[l] = (uint8_t)((eat & ly_bit[l]) != 0u);  /* (the press that unlocked: not a tap) */
+            used[l] = (uint8_t)((eat & ly_bit[l]) != 0u ||   /* (the press that unlocked: not a tap; */
+                                now - up_t[l] < 40u);        /*  one within 40 ms of letting go: a bounce) */
         }
+        if (!d && down[l])
+            up_t[l] = now;
         if (d && note_edges)
             used[l] = 1;                                  /* a key while held: not a tap */
         if (!d && down[l] && !used[l] && now - t0[l] < TAP_MS && !ui.menu && !ui.confirm)
@@ -686,7 +693,8 @@ static void rec_knobs(void)
         } else {
             for (i = 2; i >= 0; i--) if (LENS[i] < len) { to = LENS[i]; break; }
         }
-        t->p[P_SLEN] = (int16_t)to;
+        if (slen_set(t, to))
+            ui_message("STEPS FULL");
         ui.hot_col = 1, ui.hot_t = 40;
     }
     if ((s = panel_enc(EN_K3)) != 0 && tempo) {

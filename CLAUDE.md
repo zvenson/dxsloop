@@ -30,6 +30,9 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
   (`ukit`, flash object `OBJ_DXKIT`, backup object 9, .syx via `ukit_syx_*`), the dice `dice_kit(seed)`. UI: kit
   screen pages grid / kit / lane (`ui_studio.c`), locks in the SEQ layer (`ui_layers.c`). Editor protocol v10.
 - `firmware/src/dx7_bank.h`: generated voices + `DX_DRUM[]` table (`tools/gen_dx7_bank.py`).
+- Steps (2.2): `NSTEP` 128 a track, one pool of `STEP_POOL` 256 for the four (`core.h slen_room / slen_set /
+  slen_fit_all`: every LEN change goes through them); projects format 6 store each track's LEN steps in order
+  (`project.c proj_capture / proj_apply`, older formats through format 5: `proj_from_v5`). INFO sends 128 as 0.
 - `firmware/src/engines.c`: `ENGINES[] = {&ENG_DX7}`, NENGINES 1 (`core.h`). Old engine numbers in
   projects / presets map through `% NENGINES`.
 - `tools/gen_logo.py`: logo and boot splash (`build/gen/sloopdx_logo.h`).

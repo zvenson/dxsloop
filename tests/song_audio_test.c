@@ -12,21 +12,7 @@ static struct { uint8_t force; } ui;
 static uint8_t sync_reload;
 #include "../firmware/src/arranger_scene.c"
 
-static void capture(uint32_t slot)
-{
-    project_t *p = &proj_slot[slot];
-    uint32_t i;
-    memset(p, 0, sizeof *p);
-    p->magic = PROJ_MAGIC; p->size = sizeof *p;
-    memcpy(p->g, song.g, sizeof song.g);
-    for (i = 0; i < NTRK; i++) {
-        memcpy(p->t[i].p, trk[i].p, sizeof trk[i].p);
-        memcpy(p->t[i].step, trk[i].step, sizeof trk[i].step);
-        p->t[i].engine = trk[i].eng_req;
-        p->t[i].preset = trk[i].preset;
-    }
-    p->sum = proj_sum(p);
-}
+static void capture(uint32_t slot) { proj_capture(&proj_slot[slot]); }   /* (format 6: the steps in the pool) */
 
 int main(int argc, char **argv)
 {
