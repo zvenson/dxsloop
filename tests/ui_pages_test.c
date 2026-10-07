@@ -183,6 +183,28 @@ int main(int argc, char **argv)
             dx_voice_for(TSEL, patch);
             check(ve_muted(2) && patch[3u * 21u + 16u] == 0u && dx_user_param_get(slot, 3u * 21u + 16u) != 0u,
                   "voice edit: OP3 off: silent in the patch played, its level kept in the voice");
+            encs[panel.enc[EN_SELECT]] = 1; frame();                  /* -> Solo (OP3 still off) */
+            encs[panel.enc[EN_ALGO]] = 1; frame();
+            check(ve_soloed(2) && dx_opmute[song.sel] == 0x3Bu && !ve_muted(2) && ve_muted(0) && ve_muted(5),
+                  "voice edit: Solo OP3: only OP3 sounds, even though it was off");
+            encs[panel.enc[EN_PRESET]] = 1; frame();                  /* OP4, the same row: Solo */
+            encs[panel.enc[EN_ALGO]] = 1; frame();
+            check(ve_soloed(3) && !ve_soloed(2) && dx_opmute[song.sel] == 0x37u, "voice edit: Solo on OP4 moves the solo");
+            encs[panel.enc[EN_ALGO]] = 1; frame();
+            check(!ve_soloed(3) && dx_opmute[song.sel] == 0x04u && ve_muted(2) && !ve_muted(3),
+                  "voice edit: Solo off: the switches as before both solos (OP3 off)");
+            encs[panel.enc[EN_ALGO]] = 1; frame();
+            TSEL->p[P_E0] = (int16_t)(TSEL->p[P_E0] + 1); frame();    /* another voice: the engine clears the mask */
+            {
+                uint8_t p2[156];
+                dx_voice_for(TSEL, p2);
+                check(!ve_soloed(3) && dx_opmute[song.sel] == 0u, "voice edit: another voice: the solo reads OFF with the cleared mask");
+            }
+            TSEL->p[P_E0] = (int16_t)(TSEL->p[P_E0] - 1); frame();
+            encs[panel.enc[EN_PRESET]] = -1; frame();                 /* back to OP3, row On */
+            encs[panel.enc[EN_SELECT]] = -1; frame();
+            encs[panel.enc[EN_ALGO]] = 1; frame();                    /* (the mask is clear: OP3 off once more) */
+            check(ve_muted(2) && !ve_muted(3), "voice edit: On turns OP3 off again, alone");
             ui.force = 1; frame(); ppm("voice-op3-off");
             encs[panel.enc[EN_ALGO]] = 1; frame();
             dx_voice_for(TSEL, patch);

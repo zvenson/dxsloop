@@ -97,8 +97,7 @@ static struct {
     uint8_t copy;                /* Copy To: the target slot */
     uint8_t arm;                 /* an action armed (its row kind + 1), EDIT again within 1.5 s runs it */
     uint32_t arm_ms;
-    uint8_t solo;                /* the operator soloed + 1 (0: none); mute_was: the switches before */
-    uint8_t mute_was;
+    uint8_t mute_was;            /* the operator switches before a Solo, put back when it goes off */
 } ve;
 
 static int on_voice_page(void) { return !ui.home && cur_page()->scope == SC_VOICE; }
@@ -133,24 +132,31 @@ static void ve_mute_toggle(uint32_t d)
     dx_opmute[song.sel] ^= (uint8_t)(1u << d);
 }
 
-/* Solo: only this operator sounds; off again: the switches as they were */
+/* Solo: only this operator sounds. It is nothing but the switches (every other operator off), so it reads true
+ * from the mask alone: eng_dx7.c clears the mask on another voice, and On rows can change it meanwhile */
+#define VE_SOLO_MASK(d) ((uint8_t)(0x3Fu & ~(1u << (d))))
+static int ve_is_solo_mask(uint8_t m) { uint32_t d; for (d = 0; d < 6u; d++) if (m == VE_SOLO_MASK(d)) return 1; return 0; }
+static int ve_soloed(uint32_t d)
+{
+    return song.sel < NPART && dx_opmute_v[song.sel] == ve_voice() && dx_opmute[song.sel] == VE_SOLO_MASK(d);
+}
 static void ve_solo_toggle(uint32_t d)
 {
+    uint8_t *m;
     if (song.sel >= NPART)
         return;
+    m = &dx_opmute[song.sel];
     if (dx_opmute_v[song.sel] != ve_voice()) {
-        dx_opmute[song.sel] = 0;
-        ve.solo = 0;
+        *m = 0;
+        ve.mute_was = 0;
     }
     dx_opmute_v[song.sel] = (uint8_t)ve_voice();
-    if (ve.solo == d + 1u) {
-        dx_opmute[song.sel] = ve.mute_was;
-        ve.solo = 0;
+    if (*m == VE_SOLO_MASK(d)) {                          /* off: the switches as they were before the solo */
+        *m = ve_is_solo_mask(ve.mute_was) ? 0 : ve.mute_was;
     } else {
-        if (!ve.solo)
-            ve.mute_was = dx_opmute[song.sel];
-        dx_opmute[song.sel] = (uint8_t)(0x3Fu & ~(1u << d));
-        ve.solo = (uint8_t)(d + 1u);
+        if (!ve_is_solo_mask(*m))                         /* (solo moved from another operator: keep the older state) */
+            ve.mute_was = *m;
+        *m = VE_SOLO_MASK(d);
     }
 }
 
@@ -275,7 +281,7 @@ static int32_t ve_row_value(const vrow_t *r, char *b)
         str_cpy(b, ">", 2);
         return -1;
     case VK_OPON: str_cpy(b, ve_muted(ve.op) ? "OFF" : "ON", 4); return -1;
-    case VK_OPSOLO: str_cpy(b, ve.solo == ve.op + 1u && dx_opmute_v[song.sel % NPART] == ve_voice() ? "ON" : "OFF", 4); return -1;
+    case VK_OPSOLO: str_cpy(b, ve_soloed(ve.op) ? "ON" : "OFF", 4); return -1;
     case VK_NAME: str_cpy(b, dx_names[ve_voice()], 12); return -1;
     case VK_COPY: ve_slot_label(b, ve.copy); return -1;
     case VK_BANK:
