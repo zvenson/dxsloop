@@ -32,6 +32,13 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1m. 3.1, erledigt
+
+- [x] Synth statt Groovebox (Nutzer-Feedback „clear visual envelopes like Dexed or Serum“): die Operator- und
+      Pitch-Hüllkurve als Grafik über der Liste, KNOB 1–4 = Rate 1–4 (auf Level-Zeile Level 1–4), das bearbeitete
+      Segment rot, die gespielte Note als Punkt in Echtzeit; Operator-Solo; im Algorithmusbild Output Level und
+      Live-Pegel je Operator. Offen: Web-Editor mit ziehbaren Hüllkurven.
+
 ## 1l. 3.0, erledigt
 
 - [x] FX: erste Seite SENDS, die vier Sends als Drehregler in einer Reihe (KNOB 1–4 DIST CHO DLY REV), dann die Effektseiten.

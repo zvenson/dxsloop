@@ -29,7 +29,7 @@ static void sloopdx_alg_frame(uint32_t alg)
     char b[4];
     const char *v = FELUCCA_VERSION;
     if (v[0] == 's' && v[1] == 'l' && v[7] == ' ')
-        v += 8;                                         /* "sloopDX 3.0" -> "3.0" */
+        v += 8;                                         /* "sloopDX 3.1" -> "3.1" */
     fmt_int(b, (int32_t)alg + 1);
     for (pass = 0; pass < 2u; pass++) {                 /* 240 x 180 in two halves (the canvas holds 124 rows) */
         cv_begin(240, 90, SPLASH_PANEL);

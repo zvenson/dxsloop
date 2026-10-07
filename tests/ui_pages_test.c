@@ -162,7 +162,7 @@ int main(int argc, char **argv)
         encs[panel.enc[EN_SELECT]] = 2; frame();                      /* -> OP3 */
         tap(B_EDIT);
         check(ve.lvl == VL_OP && ve.op == 2u && ve.row == 0u, "voice edit: EDIT on OP3 opens its list");
-        encs[panel.enc[EN_SELECT]] = 1; frame();                      /* (row 0 is On) -> Output Level */
+        encs[panel.enc[EN_SELECT]] = 2; frame();                      /* (rows 0, 1: On, Solo) -> Output Level */
         {
             uint32_t before = dx_user_param_get(slot, 3u * 21u + 16u);   /* OP3 = block 3: Output Level */
             encs[panel.enc[EN_ALGO]] = -3; frame();
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
         check(dx_user_param_get(slot, 3u * 21u + 0u) == 0u, "voice edit: a value stops at its range (Rate 1 at 0)");
         ui.force = 1; frame(); ppm("voice-op3");
         encs[panel.enc[EN_PRESET]] = 1; frame();                      /* PRESETS: the next operator, same row */
-        check(ve.lvl == VL_OP && ve.op == 3u && ve.row == 6u, "voice edit: PRESETS jumps to OP4 on the same row");
+        check(ve.lvl == VL_OP && ve.op == 3u && ve.row == 7u, "voice edit: PRESETS jumps to OP4 on the same row");
         encs[panel.enc[EN_PRESET]] = -1; frame();
         check(ve.op == 2u, "voice edit: PRESETS back to OP3");
         encs[panel.enc[EN_SELECT]] = -10; frame();                    /* -> On */
