@@ -136,7 +136,7 @@
     <p class="eyebrow">Early test build for the M-VAVE FM-1</p>
     <h1>Install <b>zp12</b></h1>
     <p class="lead">12-bit sampling drums in the spirit of the 80s: 32 sounds at 26.04 kHz, pitched without interpolation, eight channels with their filters. With the sequencer of such a machine (loops up to 32 bars, eleven of them on the black keys, a song, real-time recording, step editing, swing), the reverb and delay of sloopDX, and sampled chords, horns and bass from CC0 sources; it keeps your work in flash. Your own samples come next. Back to sloopDX any time with its installer.</p>
-      <video controls preload="none" playsinline style="width:100%;border-radius:12px;margin:8px 0 18px" src="zp12-beat.mp4?v=0.5"></video>
+      <video controls preload="none" playsinline style="width:100%;border-radius:12px;margin:8px 0 18px" src="zp12-beat.mp4?v=0.6"></video>
   </div>
   
 </div></header>
@@ -183,8 +183,8 @@
         <h2>Play it</h2>
         <p class="small"><b>White keys 1&ndash;8</b>: bank A, <b>9&ndash;16</b>: bank B &nbsp; <b>OCT+</b>: C + D (D: E-piano chords, horns, vibes, bass, scratches), <b>OCT&minus;</b>: A + B &nbsp; <b>Black keys</b>: loops 1&ndash;11 (playing: from the end of the loop) &nbsp; <b>ARP</b>: MULTI PITCH</p>
         <p class="small"><b>KNOB 1&ndash;4</b>: the faders of channels 1&ndash;4, <b>SEL held</b>: 5&ndash;8. A page (EDIT, FX, SEQ, GLO) takes the knobs; untouched for 6 s, or HOME, they are the faders again.</p>
-        <p class="small"><b>EDIT</b>: WAVE (the sample of the pad, copy the sound to another pad) &middot; SOUND &middot; TRUNC &middot; OUT &middot; SENDS of the last pad &nbsp; <b>FX</b>: CHORUS &middot; DELAY &middot; REVERB &nbsp; <b>GLO</b>: tempo, click</p>
-        <p class="small"><b>PLAY</b>: run / stop &nbsp; <b>REC</b>: record (stopped: a bar of count-in first; an empty loop set to AUTO takes the length of your first take) &nbsp; <b>SEQ tapped</b>: LOOP (bars 1&ndash;32 or AUTO, AUTO CORRECT, swing), LOOP TOOLS (clear, copy), SONG &nbsp; <b>SEQ held</b>: the 16 steps of the last pad on the white keys, OCT pages the bars &nbsp; <b>LFO held + pad</b>: erase &nbsp; <b>ENV</b>: tap tempo &nbsp; <b>SAVE</b>: save now (it also saves by itself when stopped)</p>
+        <p class="small"><b>EDIT</b>: WAVE (the sample of the pad, copy the sound to another pad) &middot; SOUND &middot; TRUNC &middot; OUT &middot; SENDS of the last pad &nbsp; <b>FX</b>: CHORUS &middot; DELAY &middot; REVERB &nbsp; <b>GLO</b>: tempo, click, FACTORY (turn twice: everything as new)</p>
+        <p class="small"><b>PLAY</b>: run / stop &nbsp; <b>REC</b>: record (stopped: a bar of count-in first; an empty loop set to AUTO takes the length of your first take) &nbsp; <b>SEQ tapped</b>: LOOP (bars 1&ndash;32 or AUTO, AUTO CORRECT, swing), LOOP TOOLS (clear, copy), SONG (four songs of your loops) &nbsp; <b>SEQ held</b>: the 16 steps of the last pad on the white keys, OCT pages the bars &nbsp; <b>LFO held + pad</b>: erase &nbsp; <b>ENV</b>: tap tempo &nbsp; <b>SAVE</b>: save now (it also saves by itself when stopped)</p>
         <h2>Back to sloopDX</h2>
         <p class="small">Open the <a href="../webapp/installer/">sloopDX installer</a> and press Install. If the FM-1 does not answer: hold OCT&minus; while switching it on (USB rescue), then install.</p>
       </section>
@@ -615,7 +615,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "0.5", "product": "FM-1_975", "pkg": "firmware/zp12-0.5.fwsc", "sha256": "6e025876098858ded60ef9bd5be850dff96dcd05855174c22566767e7415f53f"};
+const meta = {"version": "0.6", "product": "FM-1_976", "pkg": "firmware/zp12-0.6.fwsc", "sha256": "5d7f35472708c69667aedf5e658acf89d6b6ecda593a084c29b4bbff4d12773d"};
 
 let writing = false, stock = null;
 const lockAll = (on) => {
