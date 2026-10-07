@@ -127,16 +127,22 @@ static void record_test(void)
     song.rec = 1;
     press(BLACK[4]);                                    /* Am recorded as a chord */
     lift(BLACK[4]);
-    press(0);                                           /* a string: live only */
-    lift(0);
     s = &t->step[0];
     assert(s->n == 3);
+    clk_beat = 1, clk_pos = 0;                          /* a beat later (step 5): a string, recorded as its note */
+    press(0);                                           /* (the lowest white key: Am's first tone from G3, A3) */
+    lift(0);
+    assert(t->step[4].time == ST_NOTE && t->step[4].n == 1 && t->step[4].note[0] == 57);
+    clk_beat = 0;
     omni_ch = 0;                                        /* played back: the step sets the chord again */
     omni_new = 0;
     seq_step(t, s, 1000, 0);
     assert(omni_ch == 4 && omni_new);
     seq_release(t);
-    puts("omni: chords recorded, strings not, a chord step sets the chord on playback ok");
+    seq_step(t, &t->step[4], 1000, 0);                  /* the string step plays its note, the chord stays */
+    assert(sounding(t, 57) && gates(t) == 1 && omni_ch == 4);
+    seq_release(t);
+    puts("omni: chords and strings recorded, a chord step sets the chord on playback ok");
 }
 
 /* a recorded chord on a MONO / LEGATO track (many presets are) plays back as the whole chord, ratchets too */

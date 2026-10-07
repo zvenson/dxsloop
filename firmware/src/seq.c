@@ -1067,10 +1067,10 @@ static void omni_down(track_t *t, uint32_t k, uint32_t sel)
         }
         return;
     }
-    kb_kind[k] = KS_STRUM;                              /* a string: a tone of the chord, live */
+    kb_kind[k] = KS_STRUM;                              /* a string: a tone of the chord, recorded as its note (2.9) */
     kb_nt[k][0] = (uint8_t)omni_string(t, omni_idx(k, 0));
     kb_n[k] = 1;
-    omni_on(t, kb_nt[k][0], 0);
+    omni_on(t, kb_nt[k][0], 1);
     midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16 | 100u << 24);
 }
 
@@ -1230,7 +1230,7 @@ static void key_up(uint32_t k)
         }
         return;
     case KS_STRUM:
-        trk_note_off(t, kb_nt[k][0]);
+        input_off(t, kb_nt[k][0]);
         mc = trk_midi_ch(kb_trk[k] % NTRK);
         midi_out_event(0x08u | (0x80u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16);
         return;
