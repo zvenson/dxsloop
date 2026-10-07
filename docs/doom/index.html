@@ -1,0 +1,711 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FM-1 Doom: Doom on the M-VAVE FM-1, installed from the browser</title>
+<meta name="description" content="Doom (one Freedoom arena) on the M-VAVE FM-1, installed from Chrome or Edge. Back to sloopDX with its installer.">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://dx7.designburgapps.com/webapp/installer/">
+<meta property="og:title" content="FM-1 Doom">
+<meta property="og:image" content="https://dx7.designburgapps.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>
+  /* sloopDX installer: the start page's look (web/landing.html), the DX7 panel colours */
+  :root { --bg: #151213; --panel: #221e1f; --panel2: #2e2a2b; --line: #3a3435; --fg: #efe8e1; --dim: #a39a94;
+          --cyan: #42f5f5; --blue: #afd9f4; --pink: #f4c0cb; --beige: #e6d1b9; --led: #ff2e22;
+          --green: var(--blue); --yellow: var(--pink); --orange: var(--beige); --tile: var(--panel); --red: #ff2c34; }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body { margin: 0; color: var(--fg); background: var(--bg);
+         font: 16px/1.6 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 0 32px; }
+  nav.bar { position: sticky; top: 0; z-index: 10; background: rgba(21, 18, 19, 0.85); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--line); }
+  nav.bar .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+  nav.bar .logo svg { height: 34px; width: auto; display: block; } nav.bar .logo rect:first-child { fill: transparent; }
+  nav.bar .links { display: flex; gap: 22px; font-size: 14.5px; align-items: center; }
+  nav.bar .links a { color: var(--dim); } nav.bar .links a:hover { color: var(--fg); text-decoration: none; }
+  nav.bar .links a.gh { color: #111; background: var(--fg); padding: 6px 14px; border-radius: 999px; font-weight: 650; }
+  nav.bar .links a.gh:hover { background: var(--cyan); }
+  .lang { display: none; }
+  .hero { padding: 64px 0 56px; background: radial-gradient(900px 420px at 80% 20%, rgba(66, 245, 245, 0.10), transparent 70%),
+                                            radial-gradient(700px 380px at 5% 100%, rgba(244, 192, 203, 0.08), transparent 70%); }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px; align-items: center; }
+  .eyebrow { font-size: 13px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--beige); margin: 0 0 12px; }
+  h1 { font-size: clamp(40px, 5vw, 76px); line-height: 1.04; font-weight: 300; margin: 0 0 18px; letter-spacing: -0.5px; }
+  h1 b { font-weight: 800; background: linear-gradient(90deg, var(--cyan), var(--blue) 45%, var(--pink) 75%, var(--beige));
+         -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: 20px; color: #d8d0c9; margin: 0; max-width: 34em; }
+  .strip { display: flex; height: 4px; } .strip i { flex: 1; }
+  .strip i:nth-child(1) { background: var(--cyan); } .strip i:nth-child(2) { background: var(--blue); }
+  .strip i:nth-child(3) { background: var(--pink); } .strip i:nth-child(4) { background: var(--beige); }
+  /* the boot animation of the FM-1 (splash.c): the 32 algorithms going by */
+  .dxanim { background: var(--panel2); border-radius: 18px; padding: 26px 18px 14px; border: 1px solid var(--line);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 0 0 6px #1a1718; }
+  .dxanim svg { width: 100%; height: auto; display: block; }
+  .dxanim text { font: 12px ui-monospace, Menlo, monospace; fill: #cec8c2; }
+  .dxanim text.led { font: 600 28px ui-monospace, Menlo, monospace; fill: var(--led); }
+  .dxanim text.op { font-size: 11px; fill: #111; text-anchor: middle; dominant-baseline: central; }
+  .dxanim line { stroke: #cec8c2; stroke-width: 1; } .dxanim polyline { stroke: var(--pink); fill: none; stroke-width: 1.2; }
+  .dxanim rect.c { fill: var(--cyan); } .dxanim rect.m { fill: var(--blue); }
+  main { padding: 56px 0 72px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 32px; align-items: start; }
+  .card { background: linear-gradient(180deg, #262223, var(--panel)); border: 1px solid var(--line); border-radius: 16px; padding: 30px 32px; }
+  .card + .card { margin-top: 24px; }
+  .card h2 { margin: 0 0 16px; font-size: 24px; font-weight: 600; }
+  .card h2 small { font-weight: 400; color: var(--dim); font-size: 15px; margin-left: 8px; }
+  .steps { list-style: none; margin: 0 0 24px; padding: 0; display: grid; gap: 12px; counter-reset: s; }
+  .steps li { counter-increment: s; position: relative; padding: 4px 0 4px 48px; color: #d8d0c9; min-height: 34px; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%;
+                      display: grid; place-items: center; font-weight: 700; color: #111; background: var(--cyan); }
+  .steps li:nth-child(2)::before { background: var(--blue); } .steps li:nth-child(3)::before { background: var(--pink); }
+  .steps li p { margin: 0; }
+  button#go { font-family: inherit; font-size: 19px; font-weight: 750; line-height: 1; background: var(--cyan); color: #101010; border: 0; border-radius: 10px;
+              padding: 20px 0; width: 100%; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+              box-shadow: 0 10px 34px rgba(66, 245, 245, 0.28); transition: filter 0.15s, transform 0.08s; }
+  button#go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  button#go:disabled { background: var(--panel2); color: var(--dim); cursor: default; box-shadow: none; }
+  progress { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; margin-top: 18px; border: 0; border-radius: 4px;
+             background: var(--panel2); overflow: hidden; }
+  progress::-webkit-progress-bar { background: var(--panel2); }
+  progress::-webkit-progress-value { background: linear-gradient(90deg, var(--cyan), var(--blue), var(--pink)); }
+  progress::-moz-progress-bar { background: linear-gradient(90deg, var(--cyan), var(--blue), var(--pink)); }
+  #status { margin: 14px 0 0; min-height: 2.4em; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--beige);
+            background: #0f0d0e; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+  pre#log { color: var(--dim); font-size: 11.5px; white-space: pre-wrap; margin: 10px 0 0; max-height: 180px; overflow: auto; }
+  pre#log:empty { display: none; }
+  .small { color: var(--dim); font-size: 14px; }
+  .small a { color: var(--blue); }
+  p { margin: 0 0 12px; }
+  .side .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 0; }
+  .tile { background: var(--panel2); border-radius: 12px; padding: 14px 14px 12px; border-top: 3px solid var(--c); }
+  .tile b { display: block; font-size: 26px; font-weight: 800; color: var(--c); line-height: 1.05; }
+  .tile span { display: block; font-size: 13px; color: var(--dim); margin-top: 4px; }
+  .linkcard { display: flex; gap: 16px; align-items: center; color: var(--fg); }
+  .linkcard:hover { text-decoration: none; }
+  .linkcard img { width: 78px; border-radius: 4px; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); background: #fff; }
+  .linkcard b { display: block; font-size: 17px; } .linkcard span { color: var(--dim); font-size: 14px; }
+  a.ed { display: block; text-align: center; padding: 14px; border-radius: 10px; border: 1px solid var(--line);
+         background: rgba(255, 255, 255, 0.03); color: var(--fg); font-weight: 600; }
+  a.ed:hover { text-decoration: none; border-color: var(--cyan); }
+  details { margin: 6px 0 0; border-top: 1px solid var(--line); padding-top: 16px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 16px; }
+  button#stock-go { font-family: inherit; font-size: 15px; font-weight: 600; line-height: 1; background: var(--panel2); color: var(--fg);
+                    border: 1px solid var(--line); border-radius: 8px; padding: 12px 18px; cursor: pointer; }
+  button#stock-go:disabled { color: var(--dim); cursor: default; }
+  input[type=file] { color: var(--dim); }
+  p.risk { background: #2c1f21; border: 1px solid #6b3b40; border-radius: 10px; padding: 12px 16px; font-size: 14.5px; color: #d8d0c9; margin: 0 0 18px; }
+  p.risk a { color: var(--pink); }
+  footer { padding: 32px 0 48px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--blue); }
+  @media (max-width: 980px) { .hero .wrap, .grid { grid-template-columns: 1fr; } nav.bar .links a:not(.gh) { display: none; } }
+</style>
+<!-- Matomo (self-hosted, matomo.designburgapps.com): no cookies, IPs anonymised on the server, Do Not Track respected -->
+<script>
+  var _paq = window._paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['disableCookies']);
+  _paq.push(['setDoNotTrack', true]);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="https://matomo.designburgapps.com/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '1']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
+</head>
+<body>
+<nav class="bar"><div class="wrap">
+  <a class="logo" href="../" aria-label="sloopDX"><b>FM-1 <span style="color:var(--led)">DOOM</span></b></a>
+  <div class="links"><a href="../">sloopDX</a><a href="../webapp/installer/">Back to sloopDX</a><a class="gh" href="https://github.com/zvenson/fm1doom">GitHub</a></div>
+  <button class="lang" id="lang" hidden></button>
+</div></nav>
+<header class="hero"><div class="wrap">
+  <div>
+    <p class="eyebrow">An experiment for the M-VAVE FM-1</p>
+    <h1>It runs <b>Doom</b></h1>
+    <p class="lead">One Freedoom arena on the FM-1: imps, a shotgun, the automap. Health and ammo on the FM-1's screen. Back to sloopDX any time with its installer: your sloopDX projects and banks stay untouched.</p>
+  </div>
+  
+</div></header>
+<div class="strip"><i></i><i></i><i></i><i></i></div>
+<main><div class="wrap">
+  <!--STUDIO_GUIDE-->
+  <!--BANNER-->
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>Install <small>about one minute</small></h2>
+        <ol class="steps">
+          <li><p data-t="intro"></p></li>
+          <li><p>Press <b>Install</b> and choose the FM-1's MIDI port when the browser asks (allow SysEx).</p></li>
+          <li><p data-t="warn"></p></li>
+        </ol>
+        <p class="risk"><b>Use at your own risk.</b> Unofficial custom firmware, free and without any warranty. Back up your projects and banks first; do not unplug while it writes. No liability for damage or data loss. <a href="../impressum.html">Disclaimer</a></p>
+        <button id="go" disabled data-t="install"></button>
+        <progress id="bar" max="100" value="0"></progress>
+        <p id="status"></p>
+        <pre id="log"></pre>
+      </section>
+      <section class="card">
+        <h2>Good to know</h2>
+        <p class="small" data-t="direct"></p>
+        <p class="small" data-t="beta"></p>
+        <p class="small"><span data-t="brick"></span>
+          <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
+        <details>
+          <summary data-t="stockTitle"></summary>
+          <p class="small" data-t="stockHelp"></p>
+          <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">www.m-vave.com/download</a></p>
+          <p class="small" data-t="stockBackup"></p>
+          <p><a class="ed" href="../editor/" data-t="stockEditor"></a></p>
+          <p class="small"><label><input id="stock-saved" type="checkbox"> <span data-t="stockSaved"></span></label></p>
+          <p class="small"><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
+          <p><button id="stock-go" disabled data-t="stockGo"></button></p>
+          <p class="small" data-t="back"></p>
+        </details>
+      </section>
+    </div>
+    <aside class="side">
+      <section class="card">
+        <h2>Controls</h2>
+        <p class="small"><b>F3 · B3</b> or <b>KNOB 1</b>: turn &nbsp; <b>A3 · G3</b>: forward · back &nbsp; <b>F#3 · G#3</b> or <b>OCT− · OCT+</b>: strafe</p>
+        <p class="small"><b>C5</b> or <b>PLAY</b>: fire &nbsp; <b>D5</b> or <b>REC</b>: open, use &nbsp; <b>E5</b>: run &nbsp; <b>C#5 · D#5 · F#5</b>: fist · pistol · shotgun &nbsp; <b>ARP</b>: map</p>
+        <h2>Back to sloopDX</h2>
+        <p class="small">Open the <a href="../webapp/installer/">sloopDX installer</a> and press Install. If the FM-1 does not answer: hold OCT− while switching it on (USB rescue), then install.</p>
+      </section>
+    </aside>
+  </div>
+</div></main>
+<footer><div class="wrap">
+  FM-1 Doom: the Doom engine of doomgeneric / Chocolate Doom (GPL-2.0-or-later), the FM-1 platform of sloopDX / SLOOP / Felucca (GPL-3.0). Game data: FreeDM by the Freedoom project (BSD-3-Clause). Doom is a trademark of ZeniMax Media; not affiliated with id Software, ZeniMax, Bethesda or M-VAVE.<br>
+  <span data-t="license"></span> <a href="https://github.com/zvenson/fm1doom" target="_blank" rel="noopener">github.com/zvenson/fm1doom</a> · <a href="../impressum.html">Impressum · Disclaimer · Datenschutz</a>
+</div></footer>
+<script>
+/* the algorithm animation: the same layout as the FM-1's screen (ui_voice.c ve_draw_alg); op 0 = OP6 */
+(() => {
+  const ALG = [[0xc1,0x11,0x11,0x14,0x01,0x14],[0x01,0x11,0x11,0x14,0xc1,0x14],[0xc1,0x11,0x14,0x01,0x11,0x14],[0xc1,0x11,0x94,0x01,0x11,0x14],[0xc1,0x14,0x01,0x14,0x01,0x14],[0xc1,0x94,0x01,0x14,0x01,0x14],[0xc1,0x11,0x05,0x14,0x01,0x14],[0x01,0x11,0xc5,0x14,0x01,0x14],[0x01,0x11,0x05,0x14,0xc1,0x14],[0x01,0x05,0x14,0xc1,0x11,0x14],[0xc1,0x05,0x14,0x01,0x11,0x14],[0x01,0x05,0x05,0x14,0xc1,0x14],[0xc1,0x05,0x05,0x14,0x01,0x14],[0xc1,0x05,0x11,0x14,0x01,0x14],[0x01,0x05,0x11,0x14,0xc1,0x14],[0xc1,0x11,0x02,0x25,0x05,0x14],[0x01,0x11,0x02,0x25,0xc5,0x14],[0x01,0x11,0x11,0xc5,0x05,0x14],[0xc1,0x14,0x14,0x01,0x11,0x14],[0x01,0x05,0x14,0xc1,0x14,0x14],[0x01,0x14,0x14,0xc1,0x14,0x14],[0xc1,0x14,0x14,0x14,0x01,0x14],[0xc1,0x14,0x14,0x01,0x14,0x04],[0xc1,0x14,0x14,0x14,0x04,0x04],[0xc1,0x14,0x14,0x04,0x04,0x04],[0xc1,0x05,0x14,0x01,0x14,0x04],[0x01,0x05,0x14,0xc1,0x14,0x04],[0x04,0xc1,0x11,0x14,0x01,0x14],[0xc1,0x14,0x01,0x14,0x04,0x04],[0x04,0xc1,0x11,0x14,0x04,0x04],[0xc1,0x14,0x04,0x04,0x04,0x04],[0xc4,0x04,0x04,0x04,0x04,0x04]];
+  const svg = document.getElementById("dxalg"), NS = "http://www.w3.org/2000/svg";
+  if (!svg) return;
+  const add = (tag, at, txt) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (txt != null) e.textContent = txt; svg.append(e); return e; };
+  function draw(a) {
+    const bus = [0, 0, 0], mods = [0, 0, 0, 0, 0, 0];
+    let car = 0, fbin = -1, fbout = -1;
+    ALG[a].forEach((fl, i) => {
+      const inb = (fl >> 4) & 3, outb = fl & 3;
+      if (inb) mods[i] = bus[inb];
+      if (!outb) car |= 1 << i; else if (fl & 4) bus[outb] |= 1 << i; else bus[outb] = 1 << i;
+      if (fl & 0x40) fbin = i;
+      if (fl & 0x80) fbout = i;
+    });
+    const tgt = [0, 1, 2, 3, 4, 5].map((i) => { for (let j = i + 1; j < 6; j++) if ((mods[j] >> i) & 1) return j; return -1; });
+    const depth = [0, 0, 0, 0, 0, 0];
+    for (let i = 5; i >= 0; i--) depth[i] = tgt[i] < 0 ? 0 : depth[tgt[i]] + 1;
+    const x2 = []; let ncol = 0;
+    const place = (c) => { let sum = 0, n = 0; for (let j = 5; j >= 0; j--) if (tgt[j] === c) { sum += place(j); n++; } x2[c] = n ? sum / n : 2 * ncol++ + 1; return x2[c]; };
+    for (let i = 5; i >= 0; i--) if ((car >> i) & 1) place(i);
+    const colw = Math.min(40, 200 / Math.max(ncol, 1)), rowh = Math.min(34, 140 / (Math.max(...depth) + 1));
+    const X = (i) => 120 - (ncol * colw) / 2 + (x2[i] * colw) / 2, Y = (i) => 140 - depth[i] * rowh;
+    svg.textContent = "";
+    add("text", { x: 4, y: 12 }, "algorithm");
+    add("text", { class: "led", x: 4, y: 42 }, String(a + 1));
+    for (let i = 0; i < 6; i++) {
+      for (let j = 0; j < 6; j++) if ((mods[j] >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(j), y2: Y(j) - 10 });
+      if ((car >> i) & 1) add("line", { x1: X(i), y1: Y(i) + 10, x2: X(i), y2: 162 });
+    }
+    add("line", { x1: 10, y1: 162.5, x2: 230, y2: 162.5 });
+    if (fbin >= 0 && fbout >= 0) {
+      const xr = Math.max(X(fbin), X(fbout)) + 18;
+      add("polyline", { points: `${X(fbout) + 12},${Y(fbout)} ${xr},${Y(fbout)} ${xr},${Y(fbin) - 14} ${X(fbin)},${Y(fbin) - 14} ${X(fbin)},${Y(fbin) - 10}` });
+    }
+    for (let i = 0; i < 6; i++) {
+      const c = (car >> i) & 1 ? "c" : "m";
+      add("rect", { class: c, x: X(i) - 12, y: Y(i) - 10, width: 24, height: 20 });
+      add("text", { class: "op", x: X(i), y: Y(i) }, String(6 - i));
+    }
+  }
+  /* as on the FM-1 at power-on: the algorithms go by, then each stays a moment; reduced motion: algorithm 1 */
+  let a = 0;
+  draw(0);
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  setInterval(() => { a = (a + 1) % 32; draw(a); }, 900);
+})();
+</script>
+<script type="module">
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+//
+// FM-1 .fwsc packages in the browser: the package identity and the image the
+// device reads during an update.
+
+const BLOCKS = 20, BLK = 0x30, KEEP = 0x2F;
+
+// the package identity ("FM-1_904"): one marker byte after each of the first 20 blocks
+function productOf(fwsc) {
+  if (fwsc.length < BLOCKS * BLK) throw new Error("not an FM-1 package (too short)");
+  let s = "";
+  for (let i = 0; i < BLOCKS; i++) {
+    const m = fwsc[i * BLK + KEEP];
+    if (m !== 0x7D) s += String.fromCharCode((m - i - 1) & 0xFF);
+  }
+  return s;
+}
+
+// the image the device addresses during an update: the .fwsc without the 20 marker bytes
+function logicalImage(fwsc) {
+  const out = new Uint8Array(fwsc.length - BLOCKS);
+  for (let i = 0; i < BLOCKS; i++) out.set(fwsc.subarray(i * BLK, i * BLK + KEEP), i * KEEP);
+  out.set(fwsc.subarray(BLOCKS * BLK), BLOCKS * KEEP);
+  return out;
+}
+
+// The official FM-1 V15 (M-VAVE Downloads -> PC Firmware -> FM-1 V15, FM-1.fwsc), for the return to the
+// official firmware: only that exact file is accepted (its SHA-256 pins every byte: the loader, the app, the
+// layout; the name of the file proves nothing). The digest is the one Felucca 1.0 pins.
+const STOCK_V15_SHA256 = "db1642b2b6fa5c2cccb11ffd13878068bb28601678d3644049f99dc40e7edb8a";
+const STOCK_V15_SIZE = 699956;
+const STOCK_V15_PRODUCT = "FM-1_015";
+
+async function sha256hex(bytes) {
+  const d = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function validateStockPackage(bytes) {
+  if (bytes.length !== STOCK_V15_SIZE || await sha256hex(bytes) !== STOCK_V15_SHA256 || productOf(bytes) !== STOCK_V15_PRODUCT)
+    throw new Error("select the unmodified official FM-1 V15 file (FM-1.fwsc)");
+  return { product: STOCK_V15_PRODUCT, image: logicalImage(bytes) };
+}
+
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+//
+// The FM-1 USB-MIDI update protocol (M-UPGRADE compatible) over WebMIDI.
+// Step 1: the running firmware reads parts of the package and stages the update
+// loader. Step 2: the loader reads the whole image and writes it. In both steps
+// the device sends cmd 0x30 read requests on the logical image and we answer.
+
+const HS_QUERY = [0xF0, 0x00, 0x32, 0x45, 0x00, 0x00, 0x00, 0x40, 0x7F, 0xF7];
+const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
+const MAXDATA = 512;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const IS_OTA = (id) => /^ota-/i.test(id.model);
+// the update loader of SLOOP / Felucca packages ("ota-FM-1_9XX"). A device left in the update mode of another
+// firmware (the stock updater's loader) is never written: its loader may lay the image out differently.
+const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
+
+// errors carry a code the pages translate: notfound, model, stopped, noloader, lost, noreturn,
+// mismatch (detail: the identity the device reports), badreq, foreign (detail: the loader's identity)
+function fail(code, msg, detail = "") { const e = new Error(msg); e.code = code; e.detail = detail; return e; }
+
+function pack7(data) {
+  const out = []; let acc = 0, nb = 0;
+  for (const b of data) {
+    acc |= b << nb; nb += 8;
+    while (nb >= 7) { out.push(acc & 0x7F); acc >>>= 7; nb -= 7; }
+  }
+  if (nb) out.push(acc & 0x7F);
+  return out;
+}
+
+function unpack7(s) {
+  const out = []; let acc = 0, nb = 0;
+  for (const b of s) {
+    acc |= (b & 0x7F) << nb; nb += 7;
+    while (nb >= 8) { out.push(acc & 0xFF); acc >>>= 8; nb -= 8; }
+  }
+  return out;
+}
+
+function response(addr, data, fl = 0) {
+  const len = data.length;
+  const body = [0x00, 0x59, 0x30, (len + 8) & 0xFF, ((len + 8) >> 8) & 0xFF, 0, fl,
+    addr & 0xFF, (addr >>> 8) & 0xFF, (addr >>> 16) & 0xFF, (addr >>> 24) & 0xFF,
+    len & 0xFF, (len >> 8) & 0xFF, 0, ...data];
+  let s = 0;
+  for (let i = 6; i < body.length; i++) s += body[i];
+  body.push(~s & 0xFF);
+  return [0xF0, ...pack7(body), 0xF7];
+}
+
+function parseRequest(pkt) {
+  if (pkt[0] !== 0xF0 || pkt[pkt.length - 1] !== 0xF7) return null;
+  const u = unpack7(pkt.slice(1, -1));
+  if (u.length !== 15 || u[0] !== 0 || u[1] !== 0x59 || u[2] !== 0x30) return null;
+  let s = 0;
+  for (let i = 6; i < 14; i++) s += u[i];
+  if ((~s & 0xFF) !== u[14]) return null;
+  return { fl: u[6], addr: (u[7] | (u[8] << 8) | (u[9] << 16) | (u[10] << 24)) >>> 0, len: u[11] | (u[12] << 8) | (u[13] << 16) };
+}
+
+function parseIdentity(pkt) {
+  const d = unpack7(pkt.slice(1, -1));
+  if (d.length !== 34 || d[0] !== 0 || d[1] !== 0x59 || d[2] !== 0x11) return null;
+  const txt = String.fromCharCode(...d.slice(6, 33)).replace(/\0+$/, "");
+  const m = /^([^_]+)_(\d+)$/.exec(txt);
+  return m ? { text: txt, model: m[1], version: parseInt(m[2], 10) } : null;
+}
+
+// one MIDI in/out pair with a SysEx queue
+class Link {
+  constructor(input, output) {
+    this.input = input; this.output = output; this.q = []; this.waiter = null;
+    input.onmidimessage = (ev) => {
+      if (ev.data[0] !== 0xF0) return;
+      this.q.push(Array.from(ev.data));
+      if (this.waiter) { const w = this.waiter; this.waiter = null; w(); }
+    };
+  }
+  get lost() { return this.input.state === "disconnected" || this.output.state === "disconnected"; }
+  // false when the port is gone (unplugged): WebMIDI throws on a disconnected output
+  send(bytes) {
+    try { this.output.send(bytes); return true; } catch (_) { return false; }
+  }
+  drain() { this.q.length = 0; }
+  async read(ms) {
+    if (!this.q.length) {
+      let tm;
+      await Promise.race([new Promise((r) => { this.waiter = r; }), new Promise((r) => { tm = setTimeout(r, ms); })]);
+      clearTimeout(tm);
+      this.waiter = null;
+    }
+    return this.q.shift() || null;
+  }
+  close() { this.input.onmidimessage = null; }
+}
+
+async function handshake(link, tries = 3) {
+  link.drain();
+  for (let t = 0; t < tries; t++) {
+    if (!link.send(HS_QUERY)) return null;
+    const end = Date.now() + 1000;
+    while (Date.now() < end) {
+      const p = await link.read(end - Date.now());
+      if (!p) break;
+      const id = parseIdentity(p);
+      if (id) return id;
+    }
+  }
+  return null;
+}
+
+class Updater {
+  constructor(access, log) {
+    this.access = access;
+    this.log = log || (() => {});
+  }
+
+  // every in/out pair with the same port name that answers the handshake
+  async find(filter) {
+    const outs = [...this.access.outputs.values()];
+    for (const input of this.access.inputs.values()) {
+      if (input.state === "disconnected") continue;
+      if (!/fm-1|felucca|ota|composite|sinco|usb-midi/i.test(input.name || "")) continue;   // never probe other gear
+      const output = outs.find((o) => o.name === input.name) || (outs.length === 1 ? outs[0] : null);
+      if (!output) continue;
+      try { await input.open(); await output.open(); } catch (_) { continue; }
+      const link = new Link(input, output);
+      const id = await handshake(link, 2);
+      if (id && (!filter || filter(id))) return { link, id, name: input.name };
+      link.close();
+    }
+    return null;
+  }
+
+  async waitFor(filter, ms) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      const dev = await this.find(filter);
+      if (dev) return dev;
+      await sleep(1000);
+    }
+    return null;
+  }
+
+  // serve read requests until the device asks for one of the finish addresses; stops early
+  // when the port disappears (lost: true) instead of waiting out idleMs
+  async serve(link, image, finishAddr, idleMs, onProgress) {
+    let served = 0, last = Date.now();
+    for (;;) {
+      const pkt = await link.read(1000);
+      if (!pkt) {
+        if (link.lost) return { served, finished: false, lost: true };
+        if (Date.now() - last > idleMs) return { served, finished: false };
+        continue;
+      }
+      const r = parseRequest(pkt);
+      if (!r) continue;
+      last = Date.now();
+      if (r.addr === 0xE0000000 || r.addr === 0xF0000000) {
+        link.send(response(r.addr, [...new TextEncoder().encode("success"), 0]));
+        if (r.addr === finishAddr) return { served, finished: true };
+        continue;
+      }
+      if (r.len > MAXDATA || r.addr + r.len > image.length) throw fail("badreq", `bad request ${r.addr.toString(16)}+${r.len}`);
+      await sleep(10);
+      if (!link.send(response(r.addr, Array.from(image.subarray(r.addr, r.addr + r.len)), r.fl))) {
+        return { served, finished: false, lost: true };
+      }
+      served++;
+      if (onProgress) onProgress(served, r.addr);
+    }
+  }
+
+  // full install: running firmware -> loader -> new firmware
+  async install(image, product, onStep) {
+    const step = onStep || (() => {});
+    const dev = await this.find((id) => !IS_OTA(id));
+    if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)");
+    const [model] = product.split("_");
+    if (dev.id.model !== model) { dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
+    step("start", dev.id.text);
+    dev.link.send(UPGRADE);
+    await sleep(2000);
+    const s1 = await this.serve(dev.link, image, 0xE0000000, 8000, (n) => step("verify", n));
+    dev.link.close();
+    if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `the device ${s1.lost ? "was disconnected" : "stopped"} after ${s1.served} requests: nothing was written`);
+    step("loader");
+    await sleep(3000);
+    const ota = await this.waitFor(IS_OTA, 30000);
+    if (!ota) throw fail("noloader", "the update loader did not appear. Replug the USB cable and press Install again: the device stays in update mode until it is finished.");
+    const s2 = await this.write(ota, image, step);
+    if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);
+    step("reboot");
+    await sleep(3000);
+    const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+    if (!back) throw fail("noreturn", "the device did not come back: power-cycle it");
+    back.link.close();
+    if (back.id.text !== product) throw fail("mismatch", `installed, but the device reports ${back.id.text}`, back.id.text);
+    step("done", back.id.text);
+    return back.id.text;
+  }
+
+  // step 2 with the loader found by find()/waitFor()
+  async write(ota, image, step) {
+    ota.link.send(UPGRADE);
+    await sleep(2000);
+    const s2 = await this.serve(ota.link, image, 0xF0000000, 180000, (n) => step("write", n));
+    ota.link.close();
+    return s2;
+  }
+
+  // resume: the device is already in update mode (loader) -> true when the write finished. Only SLOOP's
+  // own loader is resumed, except for the return to the official firmware (opts.product: the official
+  // package, its identity checked once the FM-1 is back, after Felucca 1.0): that one is the official
+  // loader's own image, as M-UPGRADE would write it
+  async resume(image, onStep, opts = {}) {
+    const ota = await this.find(IS_OTA);
+    if (!ota) return false;
+    if (!OUR_LOADER(ota.id) && !opts.product) {
+      ota.link.close();
+      throw fail("foreign", `the FM-1 is in the update mode of another firmware (${ota.id.text}): finish that update with its own updater`, ota.id.text);
+    }
+    const step = onStep || (() => {});
+    if (!(await this.write(ota, image, step)).finished) return false;
+    if (opts.product) {
+      step("reboot");
+      await sleep(3000);
+      const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+      if (!back) throw fail("noreturn", "the FM-1 did not come back after the write: power-cycle it");
+      back.link.close();
+      if (back.id.text !== opts.product) throw fail("mismatch", `written, but the FM-1 reports ${back.id.text}`, back.id.text);
+      step("done", back.id.text);
+    }
+    return true;
+  }
+}
+
+const $ = (id) => document.getElementById(id);
+const TEXT = {
+  ja: {
+    intro: "FM-1 を USB で接続してください。（Chrome か Edge で使えます）",
+    warn: "書き込み中は USB を抜かないでください。",
+    install: "インストール", other: "English",
+    editor: "エディタ（インストール後、パソコンから音色やシーケンスを編集）",
+    direct: "USB ケーブルはパソコンに直接つないでください。Probe や Transporter などの機材は不要です。",
+    brick: "万一インストールに失敗して起動しなくなった場合は、復旧に Transporter が必要です:",
+    beta: "これはベータ版で、不安定な場合があります。このカスタムファームウェアを使ったことで FM-1 が壊れたり不具合が起きたりしても、作者は一切の責任を負いません。自己責任でお使いください。",
+    back: "公式ファームウェアに戻すには、M-VAVE 公式のアップデーター M-UPGRADE（Downloads → PC Software → M-UPGRADE）と公式ファームウェア（PC Firmware → FM-1 V15）が必要です。",
+    nomidi: "このブラウザでは使えません。Chrome か Edge で開いてください。", loadfail: "読み込めませんでした: ",
+    start: "開始します", verify: "確認中", loader: "書き込みモードに切り替え中", write: "書き込み中",
+    reboot: "再起動中", done: "完了しました", stopped: "途中で止まりました。USB を挿し直してもう一度押してください。",
+    error: "エラー: ",
+    denied: "MIDI（SysEx）の使用が許可されませんでした。アドレスバーのサイト設定で MIDI を許可して、もう一度押してください。",
+    notfound: "FM-1 が見つかりません。USB ケーブル（データ通信用か）を確かめ、MIDI を使う他のアプリを閉じてから、もう一度押してください。",
+    model: "接続されている機器は FM-1 ではありません。",
+    lost: "USB の接続が切れました。挿し直してもう一度押してください。",
+    noloader: "書き込みモードの FM-1 が見つかりません。USB を挿し直してもう一度押してください（終わるまで書き込みモードのままです）。",
+    noreturn: "FM-1 が戻ってきません。電源を入れ直してください。",
+    mismatch: "書き込みは終わりましたが、FM-1 が別のバージョンを報告しています: ",
+    foreign: "FM-1 は別のファームウェアの書き込みモードです。そのアップデーター（M-UPGRADE）で書き込みを終えてから、もう一度インストールしてください: ",
+    badpkg: "インストールするファイルが壊れています。ページを再読み込みしてください。",
+    leave: "書き込み中です。ページを閉じないでください。",
+    license: "GPL-3.0、無保証。ソース:",
+    stockTitle: "公式ファームウェア（V15）に戻す",
+    stockHelp: "M-VAVE のサイトから公式の FM-1 V15 をダウンロードし、中の FM-1.fwsc（変更していないもの）を選んでください。ファイルはこのブラウザの中で確認され、どこにも送られません。",
+    stockBackup: "公式ファームウェアは sloopDX の曲・プロジェクト・DX7 バンクを開けません。先にエディタでバックアップを保存してください（Projects → Backup）。sloopDX を入れ直せば、エディタから復元できます。",
+    stockEditor: "エディタを開いてバックアップする", stockSaved: "バックアップをパソコンに保存しました",
+    stockFile: "公式の FM-1.fwsc", stockGo: "公式 V15 をインストール",
+    stockValid: "公式 V15 を確認しました", stockBad: "公式 V15 ではありません: ",
+    stockConfirm: "FM-1 に公式 V15 をインストールします。sloopDX の曲は公式ファームウェアでは開けません。バックアップは保存しましたか？",
+    stockFinish: "FM-1 は sloopDX の書き込みモードです。先に「インストール」で sloopDX の書き込みを終えてから、公式 V15 に戻してください。",
+    back: "M-VAVE のアップデーター M-UPGRADE（Downloads → PC Software）でも戻せます。FM-1 が見つからない場合は、MIDI を使う他のアプリとブラウザのタブを閉じてください。",
+  },
+  en: {
+    intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
+    warn: "Do not unplug the USB cable while writing.",
+    install: "Install", other: "日本語",
+    editor: "Editor (after installing: edit sounds and sequences from the computer)",
+    direct: "Connect the USB cable directly to the computer. No probe or Transporter is needed.",
+    brick: "If an install fails and the FM-1 no longer starts, recovering it needs a Transporter:",
+    beta: "This is a beta and may be unstable. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
+    back: "To go back to the official firmware you need M-VAVE's official updater, M-UPGRADE (Downloads → PC Software → M-UPGRADE), and the official firmware (PC Firmware → FM-1 V15).",
+    nomidi: "This browser cannot do it. Open the page in Chrome or Edge.", loadfail: "Could not load: ",
+    start: "Starting", verify: "Verifying", loader: "Switching to update mode", write: "Writing",
+    reboot: "Restarting", done: "Done", stopped: "Stopped. Replug the USB cable and press Install again.",
+    error: "Error: ",
+    denied: "MIDI (SysEx) access was not allowed. Allow MIDI in the site settings (address bar) and press Install again.",
+    notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
+    model: "The connected device is not an FM-1.",
+    lost: "The USB connection was lost. Replug it and press Install again.",
+    noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
+    noreturn: "The FM-1 did not come back. Power-cycle it.",
+    mismatch: "Written, but the FM-1 reports another version: ",
+    foreign: "The FM-1 is in the update mode of another firmware. Finish that update with its own updater (M-UPGRADE), then press Install again: ",
+    badpkg: "The file to install is damaged. Reload the page.",
+    leave: "Writing. Do not close the page.",
+    license: "GPL-3.0, no warranty. Source:",
+    stockTitle: "Return to the official firmware (V15)",
+    stockHelp: "Download the official FM-1 V15 from M-VAVE and select the FM-1.fwsc inside it, unmodified. The file is checked in this browser; it is not sent anywhere.",
+    stockBackup: "The official firmware cannot open sloopDX's music, projects or DX7 bank. Save a backup with the editor first (Projects → Backup); reinstall sloopDX and restore it from the editor whenever you want them back.",
+    stockEditor: "Open the editor to back up", stockSaved: "I saved a backup on this computer",
+    stockFile: "The official FM-1.fwsc", stockGo: "Install the official V15",
+    stockValid: "Official V15 verified", stockBad: "Not the official V15: ",
+    stockConfirm: "Install the official V15 on the FM-1? The official firmware cannot open sloopDX's music. Did you save a backup?",
+    stockFinish: "The FM-1 is in sloopDX's update mode. Press Install to finish the sloopDX update first, then return to the official V15.",
+    back: "M-VAVE's own updater, M-UPGRADE (Downloads → PC Software), works too. If it does not find the FM-1, close every other app and browser tab that uses MIDI.",
+  },
+};
+let lang = "en";                                   /* sloopDX: English only (the Japanese strings stay, unused) */
+const t = (k) => TEXT[lang][k];
+let lastKey = null, lastArg = "";
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t(e.dataset.t); });
+  $("lang").textContent = t("other");
+  if (lastKey) $("status").textContent = t(lastKey) + lastArg;
+}
+$("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
+applyLang();
+const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; };
+const say = (txt) => { lastKey = null; $("status").textContent = txt; };
+const log = (t) => { $("log").textContent += t + "\n"; };
+let image = null;
+const meta = {"version": "0.1", "product": "FM-1_980", "pkg": "firmware/fm1doom-0.1.fwsc", "sha256": "5c50d52e7a604b19842b95964392a145f318f32d065576cb6f7ffd7cc2089f53"};
+
+let writing = false, stock = null;
+const lockAll = (on) => {
+  writing = on;
+  $("go").disabled = on || !image;
+  $("stock-go").disabled = on || !stock || !$("stock-saved").checked;
+  $("stock-file").disabled = on;
+};
+window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
+
+(async () => {
+  if (!navigator.requestMIDIAccess) { sayK("nomidi"); return; }
+  try {
+    const r = await fetch(meta.pkg);
+    if (!r.ok) throw new Error(`${meta.pkg}: HTTP ${r.status}`);
+    const pkg = new Uint8Array(await r.arrayBuffer());
+    if (productOf(pkg) !== meta.product) { sayK("badpkg"); return; }
+    if (meta.sha256 && self.crypto && crypto.subtle) {   /* a damaged download is never offered (the loader checks its CRC too) */
+      const h = [...new Uint8Array(await crypto.subtle.digest("SHA-256", pkg))].map((b) => b.toString(16).padStart(2, "0")).join("");
+      if (h !== meta.sha256) { sayK("badpkg"); log(`sha256 ${h}, expected ${meta.sha256}`); return; }
+    }
+    image = logicalImage(pkg);
+    say(`FM-1 Doom ${meta.version}`);
+    lockAll(writing);
+  } catch (e) { sayK("loadfail", e.message); }
+})();
+
+const total = 74 + 1179;                           /* reads: step 1, step 2 (head + app area, SLOOP 2.0 loader) */
+const step = (k, a) => {
+  log(`${k} ${a ?? ""}`);
+  if (k === "start") sayK("start");
+  if (k === "verify") { sayK("verify"); $("bar").value = Math.min(100, (a / total) * 100); }
+  if (k === "loader") sayK("loader");
+  if (k === "write") { sayK("write"); $("bar").value = Math.min(100, ((74 + a) / total) * 100); }
+  if (k === "reboot") sayK("reboot");
+  if (k === "done") { $("bar").value = 100; sayK("done"); }
+};
+const failed = (e) => {
+  if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
+  else sayK("error", e && e.message);
+  log(String(e && e.stack || e));
+};
+
+$("go").addEventListener("click", async () => {
+  if (writing) return;
+  lockAll(true);
+  let midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { sayK("denied"); lockAll(false); return; }
+  try {
+    const up = new Updater(midi, log);
+    const ota = await up.find((id) => /^ota-/i.test(id.model));
+    if (ota) {
+      ota.link.close();
+      sayK((await up.resume(image, step)) ? "done" : "stopped");
+    } else {
+      await up.install(image, meta.product, step);
+    }
+  } catch (e) { failed(e); }
+  lockAll(false);
+});
+
+/* back to the official V15 (after Felucca 1.0): only the exact official file, a backup first (the editor),
+   through the same update path as M-UPGRADE; a device left in the official updater's mode is finished */
+$("stock-saved").addEventListener("change", () => lockAll(writing));
+$("stock-file").addEventListener("change", async () => {
+  const f = $("stock-file").files[0];
+  stock = null;
+  lockAll(writing);
+  if (!f) return;
+  try { stock = await validateStockPackage(new Uint8Array(await f.arrayBuffer())); sayK("stockValid"); }
+  catch (e) { sayK("stockBad", e.message); }
+  lockAll(writing);
+});
+$("stock-go").addEventListener("click", async () => {
+  if (writing || !stock || !$("stock-saved").checked || !confirm(t("stockConfirm"))) return;
+  lockAll(true);
+  let midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { sayK("denied"); lockAll(false); return; }
+  try {
+    const up = new Updater(midi, log);
+    const ota = await up.find((id) => /^ota-/i.test(id.model));
+    if (ota) {
+      ota.link.close();
+      if (OUR_LOADER(ota.id)) sayK("stockFinish");    /* SLOOP's loader: finish SLOOP first (Install) */
+      else sayK((await up.resume(stock.image, step, { product: stock.product })) ? "done" : "stopped");
+    } else {
+      await up.install(stock.image, stock.product, step);
+    }
+  } catch (e) { failed(e); }
+  lockAll(false);
+});
+</script>
+</body>
+</html>
