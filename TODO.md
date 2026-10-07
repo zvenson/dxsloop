@@ -32,6 +32,11 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1l. 3.0, erledigt
+
+- [x] FX: erste Seite SENDS, die vier Sends als Drehregler in einer Reihe (KNOB 1–4 DIST CHO DLY REV), dann die Effektseiten.
+- [x] OMNI: der Akkordname kommt nur noch beim Drücken einer Akkordtaste, nicht bei jedem abgespielten Akkord-Step.
+
 ## 1k. 2.9, erledigt
 
 - [x] OMNI: die Saiten (weiße Tasten) werden mit aufgenommen, als die Note, die sie gespielt haben („das ist nämlich so geil“).

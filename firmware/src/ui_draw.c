@@ -298,6 +298,16 @@ static void graph_scale(const track_t *t, uint16_t c)
     }
 }
 
+/* SENDS page: the track's four as dials in a row, KNOB 1..4 (DIST is its drive: 0 = off) */
+static void graph_sends(const track_t *t)
+{
+    uint32_t i;
+    for (i = 0; i < 4u; i++) {
+        int32_t v = t->p[P_DIST + i], cx = 30 + (int32_t)i * 60;
+        te_dial(cx, 42, 25, v * 1000 / 127, v ? TE_COL[i] : C_DIM, C_LINE);   /* (each in its column's colour) */
+        te_text_c(cx, 76, LAB_SENDS[i], v ? C_HI : C_DIM);
+    }
+}
 /* SLICER page: the pattern's 16 steps, a 'x' step a full bar; a '.' step: GATE a bar as high as
  * it stays open (DEPTH), STUT hatched (it repeats the last 'x'); the step playing underlined.
  * Grey when the SLICER is OFF. */
@@ -678,6 +688,9 @@ static void draw_graph(void)
         case GR_SCALE:
             graph_scale(t, c);
             break;
+        case GR_SENDS:
+            graph_sends(t);
+            break;
         case GR_SLCR:
             graph_slicer(t, c);
             break;
@@ -904,7 +917,7 @@ static void draw_columns(void)
         } else {
             param_format(d, *vp, val, &unit);
         }
-        draw_column(c, d->label, val, unit, VAL(c), d->fmt == F_ENUM && d->max < 2 ? -1 : RATIO(d, *vp),
+        draw_column(c, cur_page()->lab ? cur_page()->lab[c] : d->label, val, unit, VAL(c), d->fmt == F_ENUM && d->max < 2 ? -1 : RATIO(d, *vp),
                     param_icon(d, *vp));
     }
 }

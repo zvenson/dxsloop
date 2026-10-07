@@ -1796,7 +1796,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.9 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 3.0 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */

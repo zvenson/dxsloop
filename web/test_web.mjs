@@ -237,7 +237,7 @@ async function editorLibrarian() {
   const pe0 = info.pe0, mk = (v) => ({ ...file.patches[0], dxv: undefined, params: file.patches[0].params.map((x, i) => (i === pe0 ? v : i >= pe0 + 6 ? 0 : x)) });
   const old19 = E.readLibraryFile({ ...file, firmware: "FELUCCA sloopDX 1.9", patches: [mk(15), mk(16), mk(20)] }, ctx);
   const new10 = E.readLibraryFile({ ...file, patches: [{ ...mk(20), dxv: 2 }, { ...mk(5), dxv: 2 }, { ...mk(20), dxv: 3 }] }, ctx);
-  ok(/sloopDX 2\.\d/.test(info.version) && file.patches.every((x) => x.dxv === 3)
+  ok(/sloopDX [23]\.\d/.test(info.version) && file.patches.every((x) => x.dxv === 3)
     && old19.patches.map((x) => x.p[pe0]).join() === "15,19,23" && old19.patches.every((x) => x.p[pe0 + 6] === 127 && x.p[pe0 + 7] === 0 && x.dxv === 3)
     && new10.patches[0].p[pe0] === 20 && new10.patches[0].p[pe0 + 6] === 127 && new10.patches[1].p[pe0 + 6] === 0
     && new10.patches[2].p[pe0 + 6] === 0,

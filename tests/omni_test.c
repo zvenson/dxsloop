@@ -137,7 +137,7 @@ static void record_test(void)
     omni_ch = 0;                                        /* played back: the step sets the chord again */
     omni_new = 0;
     seq_step(t, s, 1000, 0);
-    assert(omni_ch == 4 && omni_new);
+    assert(omni_ch == 4 && !omni_new);                  /* (set again, but not announced: 3.0) */
     seq_release(t);
     seq_step(t, &t->step[4], 1000, 0);                  /* the string step plays its note, the chord stays */
     assert(sounding(t, 57) && gates(t) == 1 && omni_ch == 4);
@@ -188,21 +188,21 @@ static void follow_test(void)
     seq_step(b, &s, 1000, 0);                           /* no chord yet: as written */
     assert(sounding(b, 36));
     seq_release(b);
-    omni_set(&trk[0], 2);                               /* G: down a fourth (the nearer way) */
+    omni_set(&trk[0], 2, 0);                               /* G: down a fourth (the nearer way) */
     seq_step(b, &s, 1000, 0);
     assert(sounding(b, 31));
-    omni_set(&trk[0], 0);                               /* F while it sounds: its release still ends it */
+    omni_set(&trk[0], 0, 0);                               /* F while it sounds: its release still ends it */
     seq_release(b);
     assert(gates(b) == 0);
     seq_step(b, &s, 1000, 0);                           /* F: up a fourth */
     assert(sounding(b, 41));
     seq_release(b);
-    omni_set(&trk[0], 4);                               /* Am: down a minor third */
+    omni_set(&trk[0], 4, 0);                               /* Am: down a minor third */
     seq_step(b, &s, 1000, 0);
     assert(sounding(b, 33));
     seq_release(b);
     trk[0].p[P_TRANS] = 2;                              /* TRN +2: the Am button is Bm, the bass B */
-    omni_set(&trk[0], 4);
+    omni_set(&trk[0], 4, 0);
     seq_step(b, &s, 1000, 0);
     assert(sounding(b, 35));
     seq_release(b);

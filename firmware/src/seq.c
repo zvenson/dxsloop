@@ -976,11 +976,12 @@ static void omni_on(track_t *t, uint32_t note, int input)
     t->p[P_VOICE] = vm;
 }
 
-static void omni_set(const track_t *t, uint32_t c)
+static void omni_set(const track_t *t, uint32_t c, int say)   /* say: the message bar names it (a key, not a step) */
 {
     omni_ch = (uint8_t)c;
     omni_pc = (uint8_t)((omni_keypc(t) + OMNI_ROOT[c]) % 12u);
-    omni_new = 1;
+    if (say)
+        omni_new = 1;
 }
 
 static void omni_name(char *b)                  /* "Am", "G7" */
@@ -1036,7 +1037,7 @@ static void omni_detect(const track_t *t, const step_t *s)
             w |= 1u << (nt[i] % 12u);
         if (w == m) {
             if (c != omni_ch)
-                omni_set(t, c);
+                omni_set(t, c, 0);                  /* (played back: no message over the screen) */
             return;
         }
     }
@@ -1058,7 +1059,7 @@ static void omni_down(track_t *t, uint32_t k, uint32_t sel)
         uint32_t c = omni_idx(k, 1);
         if (c >= 11u)
             return;
-        omni_set(t, c);
+        omni_set(t, c, 1);
         kb_kind[k] = KS_NOTE;
         kb_n[k] = (uint8_t)omni_pad(t, c, kb_nt[k]);
         for (i = 0; i < kb_n[k]; i++) {

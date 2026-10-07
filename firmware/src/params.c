@@ -270,20 +270,23 @@ enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE,
 enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_SONG, SC_DRUM, SC_VOICE,
        SC_MIX };                 /* the track's parameters and, with PG_G, globals (the effect pages) */
 #define PG_G 0x80u
-enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
+enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_SENDS, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR };
 
 typedef struct {
     const char *title;
     uint8_t fam, scope, graph;
     uint8_t id[4];               /* param ids; 0xFF = empty slot */
+    const char *const *lab;      /* the columns' labels, when not the parameters' own (0) */
 } page_t;
+static const char *const LAB_SENDS[4] = {"DIST", "CHO", "DLY", "REV"};
 
 static const page_t PAGES[] = {
     {"ENV", FAM_ENV, SC_TRACK, GR_ADSR, {P_ATK, P_DEC, P_SUS, P_REL}},
     {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, 0xFF}},   /* (P_ED_FX: the level trim, no page) */
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
+    {"SENDS", FAM_FX, SC_TRACK, GR_SENDS, {P_DIST, P_CHOR, P_DLY, P_REV}, LAB_SENDS},   /* the four at a glance (3.0) */
     {"DIST", FAM_FX, SC_MIX, GR_NONE, {P_DIST, P_DTONE, P_DTYPE, P_DMIX}},   /* one page per effect (2.7) */
     {"CHORUS", FAM_FX, SC_MIX, GR_NONE, {P_CHOR, PG_G | G_CRATE, PG_G | G_CDEPTH, PG_G | G_CMIX}},
     {"DELAY", FAM_FX, SC_MIX, GR_NONE, {P_DLY, PG_G | G_DTIME, PG_G | G_DFDBK, PG_G | G_DMIX}},   /* (COLR: no page) */
