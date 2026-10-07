@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 2.6
+# sloopDX 2.7
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.6, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.7, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -216,6 +216,26 @@ Changing a voice (PRESETS, a user preset) never changes the key, the chord mode,
 - **Save:** SAVE + keys 5–8 save the loop into section / project A–D (= SLOT 1–4); SAVE → PROJECT has SLOT, LOAD, SAVE too.
 - **Autosave:** when the transport is stopped and you have not touched anything for 2.5 s (at most every 20 s), the working project is kept in flash; at power-on sloopDX comes back exactly as you left it.
 - **New project:** SAVE → TOOLS → NEW (turn to GO): the four tracks back to their power-on sounds, empty patterns (undoable).
+
+## The effect pages
+
+Tap **FX** to step through one page per effect (2.7). Each page has the selected track's send first, then
+the effect itself on KNOB 2–4:
+
+| Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
+| --- | --- | --- | --- | --- |
+| **DIST** (on the track) | **DRIVE** (0 = off) | **TONE** (centre: closes with the drive; left darker, right brighter) | **TYPE**: SOFT · HARD · FUZZ · CRUSH | **MIX** dry ↔ distorted |
+| **CHORUS** | **SEND** | **RATE** | **DEPTH** | **MIX** (the chorus' level) |
+| **DELAY** | **SEND** | **TIME** (1/4 … 16T, in tempo) | **FDBK** | **MIX** |
+| **REVERB** | **SEND** | **SIZE** | **DAMP** | **PRE** 0–90 ms (pre-delay) |
+| **SLICER** | mode | pattern | rate | depth |
+
+The sends are per track; the chorus, delay and reverb themselves are shared by all tracks. **TYPE**: SOFT
+the warm drive of before; HARD clips flat (square-ish); FUZZ more bias and a second stage, thick; CRUSH
+fewer bits and a lower sample rate as DRIVE goes up. The delay's tone (COLR) has no page any more; it
+keeps its value and is in the web editor. On the drum track the DIST page and the sends are not used (its
+sounds have their own reverb sends, its bus DRIVE / COMP on the kit page); CHORUS, DELAY and REVERB show
+the shared settings.
 
 ## Master: DUST, DUCK, FILT
 

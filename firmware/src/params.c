@@ -21,6 +21,7 @@ static const char *const N_GO[] = {"--", "GO"};
 static const char *const N_SLCR[] = {"OFF", "GATE", "STUT"};             /* SL_OFF .. SL_STUT (slicer.c) */
 static const char *const N_SLDIV[] = {"1/8", "1/16", "1/32", "8T", "16T", "32T"};   /* SL_DEN */
 static const char *const N_CHORD[] = {"OFF", "TRIAD", "7TH", "9TH", "SUS4", "POWER"};   /* seq.c CHORD_DEG */
+static const char *const N_DTYPE[] = {"SOFT", "HARD", "FUZZ", "CRUSH"};   /* fx.c track_dist */
 static const char *const N_ROLL[] = {"1/8", "1/16", "1/32", "32T", "1/64"};   /* seq.c ROLL_DEN */
 static const char *const N_ENGNAME[] = {"DX7"};
 
@@ -61,10 +62,10 @@ static const param_desc_t TP[P_COUNT] = {
     [P_SDIV] = PE("DIV", N_DIV, 2),
     [P_SSWING] = PD("SWG", F_SWING, 0, 100, 0),
     [P_SGATE] = PD("GATE", F_PCT, 1, 127, 64),
-    [P_DIST] = PD("DST", F_PCT, 0, 127, 0),
-    [P_CHOR] = PD("CHO", F_PCT, 0, 127, 0),
-    [P_DLY] = PD("DLY", F_PCT, 0, 127, 0),
-    [P_REV] = PD("REV", F_PCT, 0, 127, 0),
+    [P_DIST] = PD("DRIVE", F_PCT, 0, 127, 0),
+    [P_CHOR] = PD("SEND", F_PCT, 0, 127, 0),      /* (each effect's page: its send first) */
+    [P_DLY] = PD("SEND", F_PCT, 0, 127, 0),
+    [P_REV] = PD("SEND", F_PCT, 0, 127, 0),
     [P_VOICE] = PE("VCE", N_VOICE, 0),
     [P_GLIDE] = PD("GLD", F_TIME, 0, 127, 0),
     [P_GLMODE] = PE("GLMOD", N_GLMODE, 0),
@@ -78,6 +79,9 @@ static const param_desc_t TP[P_COUNT] = {
     [P_SLRATE] = PE("RATE", N_SLDIV, 1),
     [P_SLDEPTH] = PD("DEPTH", F_PCT, 0, 127, 127),
     [P_CHORD] = PE("CHORD", N_CHORD, 0),
+    [P_DTONE] = PD("TONE", F_BIPCT, -64, 63, 0),  /* 0: closes with DRIVE, as before 2.7 */
+    [P_DTYPE] = PE("TYPE", N_DTYPE, 0),
+    [P_DMIX] = PD("MIX", F_PCT, 0, 127, 127),
 };
 /* a preset's extra parameters (preset_t.x) into p, each clamped to its range */
 static void preset_extras(int16_t *p, const preset_t *pr)
@@ -102,8 +106,8 @@ static const param_desc_t GP[G_COUNT] = {
     [G_DMIX] = PD("MIX", F_PCT, 0, 127, 90),
     [G_RSIZE] = PD("SIZE", F_PCT, 0, 127, 90),
     [G_RDAMP] = PD("DAMP", F_PCT, 0, 127, 60),
-    [G_CRATE] = PD("CRT", F_LFOHZ, 0, 127, 40),
-    [G_CDEPTH] = PD("CDP", F_PCT, 0, 127, 60),
+    [G_CRATE] = PD("RATE", F_LFOHZ, 0, 127, 40),
+    [G_CDEPTH] = PD("DEPTH", F_PCT, 0, 127, 60),
     [G_MIDI] = PE("MIDI", N_DASH, 0),
     [G_SYNC] = PE("SYNC", N_SYNC, 0),           /* a setting of the FM-1, not of a project (panel.c lights_sync) */
     [G_ROUTE] = PE("ROUT", N_DASH, 0),
@@ -124,6 +128,8 @@ static const param_desc_t GP[G_COUNT] = {
     [G_FILT] = PD("FILT", F_FILT, -64, 63, 0),
     [G_ROLL] = PE("ROLL", N_ROLL, 1),
     [G_NEWPRJ] = PE("NEW", N_GO, 0),
+    [G_CMIX] = PD("MIX", F_PCT, 0, 127, 127),
+    [G_RPRE] = {"PRE", F_INT, 0, 90, 0, 0, "ms"},  /* fx.c REV_PRE */
 };
 
 static const param_desc_t DRUM_KIT_DESC = PE("KIT", DRUM_KIT_NAMES, 0);
@@ -261,7 +267,9 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
 /* ------------------------------------------------------------ pages --- */
 enum { FAM_HOME, FAM_ENV, FAM_LFO, FAM_FX, FAM_SCL, FAM_EDIT, FAM_GLO, FAM_SAVE, FAM_ARP, FAM_SEQ, FAM_TRK,
        FAM_COUNT };
-enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_SONG, SC_DRUM, SC_VOICE };
+enum { SC_TRACK, SC_GLOBAL, SC_ENGINE, SC_STEP, SC_TRK, SC_SONG, SC_DRUM, SC_VOICE,
+       SC_MIX };                 /* the track's parameters and, with PG_G, globals (the effect pages) */
+#define PG_G 0x80u
 enum { GR_NONE, GR_ADSR, GR_LFO, GR_STEPS, GR_ARP, GR_SCALE, GR_FX, GR_ROLL, GR_BROWSE, GR_SLOTS, GR_USER, GR_TRK,
        GR_SLCR };
 
@@ -276,10 +284,11 @@ static const page_t PAGES[] = {
     {"ENV DEST", FAM_ENV, SC_TRACK, GR_NONE, {P_ED_FLT, P_ED_PIT, P_ED_SHP, 0xFF}},   /* (P_ED_FX: the level trim, no page) */
     {"LFO", FAM_LFO, SC_TRACK, GR_LFO, {P_LRATE, P_LWAVE, P_LPHASE, P_LFADE}},
     {"LFO DEST", FAM_LFO, SC_TRACK, GR_NONE, {P_LD_PIT, P_LD_FLT, P_LD_SHP, P_LD_AMP}},
-    {"FX", FAM_FX, SC_TRACK, GR_FX, {P_DIST, P_CHOR, P_DLY, P_REV}},
+    {"DIST", FAM_FX, SC_MIX, GR_NONE, {P_DIST, P_DTONE, P_DTYPE, P_DMIX}},   /* one page per effect (2.7) */
+    {"CHORUS", FAM_FX, SC_MIX, GR_NONE, {P_CHOR, PG_G | G_CRATE, PG_G | G_CDEPTH, PG_G | G_CMIX}},
+    {"DELAY", FAM_FX, SC_MIX, GR_NONE, {P_DLY, PG_G | G_DTIME, PG_G | G_DFDBK, PG_G | G_DMIX}},   /* (COLR: no page) */
+    {"REVERB", FAM_FX, SC_MIX, GR_NONE, {P_REV, PG_G | G_RSIZE, PG_G | G_RDAMP, PG_G | G_RPRE}},
     {"SLICER", FAM_FX, SC_TRACK, GR_SLCR, {P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH}},   /* drum track too */
-    {"DLY", FAM_FX, SC_GLOBAL, GR_NONE, {G_DTIME, G_DFDBK, G_DCOLOR, G_DMIX}},
-    {"REV/CHO", FAM_FX, SC_GLOBAL, GR_NONE, {G_RSIZE, G_RDAMP, G_CRATE, G_CDEPTH}},
     {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_CHORD}},
     {"SCL 2", FAM_SCL, SC_TRACK, GR_SCALE, {P_TRANS, 0xFF, 0xFF, 0xFF}},
     {"DX7", FAM_EDIT, SC_VOICE, GR_NONE, {0xFF, 0xFF, 0xFF, 0xFF}},    /* the voice list (ui_voice.c) */
@@ -306,10 +315,12 @@ static const page_t PAGES[] = {
 #define NPAGES (sizeof(PAGES) / sizeof(PAGES[0]))
 
 /* the drum track has no sound of its own: it uses the global pages (not the preset
- * pages, nor TOOLS > INIT: page_desc), STEP, PATTERN, SLICER and TRACKS; every other page
- * shows "DRUM TRACK" */
+ * pages, nor TOOLS > INIT: page_desc), the effect pages' globals, STEP, PATTERN, SLICER and TRACKS;
+ * every other page shows "DRUM TRACK" */
 static int page_for_drum(const page_t *pg)
 {
+    if (pg->scope == SC_MIX)                     /* its globals (the drum lanes have their own sends) */
+        return (pg->id[1] & PG_G) != 0u;
     if (pg->scope == SC_GLOBAL)
         return pg->graph != GR_BROWSE && pg->graph != GR_USER;
     return pg->scope != SC_ENGINE && (pg->scope != SC_TRACK || pg->fam == FAM_SEQ || pg->graph == GR_SLCR);
@@ -326,9 +337,14 @@ static const param_desc_t *page_desc(const page_t *pg, uint32_t slot, int16_t **
         *valp = 0;
         return 0;
     }
-    if (pg->scope == SC_GLOBAL) {
+    if (pg->scope == SC_GLOBAL || (pg->scope == SC_MIX && (id & PG_G))) {
+        id &= ~PG_G;
         *valp = &song.g[id];
         return &GP[id];
+    }
+    if (pg->scope == SC_MIX && is_drum(TSEL)) {  /* (its P_DIST / P_CHOR are the kit's DRIVE / COMP) */
+        *valp = 0;
+        return 0;
     }
     *valp = &TSEL->p[id];
     return track_desc(TSEL, id);

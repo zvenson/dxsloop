@@ -21,7 +21,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 **New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
 
-> **Status: 2.6, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status: 2.7, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Why sloopDX
 
@@ -79,6 +79,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 - **MY KIT and the dice (2.1):** SAVE twice on the kit page bakes the kit with your edits into **MY KIT** (kit 5, kept in flash). On the lane page's third page, KNOB 3 rolls a **dice kit** from rules per sound and KNOB 4 rolls only the sound you edit (turn once, then again to confirm); the kit's seed shows in the corner, and the editor rolls a given seed again. The web editor loads and downloads MY KIT as a **.syx** (voices 1–16 the drums, 17–32 their table).
 - **A noise operator (2.1):** drum operators can play noise instead of a sine (sample and hold of a 32-bit generator; the operator's frequency is the colour). The factory kits use it for snares, claps, hats, cymbals and shakers. Synth voices never do: they stay bit for bit as Dexed plays them.
 - **OMNI, the chord harp (2.5):** set a synth track's ARP MODE to **OMNI** and the keys become an Omnichord: the 11 black keys are chord buttons (F C G · Dm Am · Em G7 E7 · D7 Bb · A7; TRN transposes them), the 16 white keys are strings over the chord's tones, so a swipe is a harp glissando and nothing sounds wrong. Recorded, the chords go into the pattern and set the chord again on playback. ARP MODE **FLW** on another track makes its pattern follow the chord's root: a bass that walks with your chords. See [OMNI](SLOOP.md#omni-the-chord-harp).
+- **One page per effect (2.7):** tap FX for DIST (drive, tone, type SOFT / HARD / FUZZ / CRUSH, mix), CHORUS (send, rate, depth, mix), DELAY (send, time, feedback, mix) and REVERB (send, size, damp, pre-delay). See [The effect pages](SLOOP.md#the-effect-pages).
 - **DX7 engine:** 6 operators, 32 algorithms, operator envelopes with rate and level scaling, pitch envelope, LFO with pitch and amp modulation, feedback. The same output as Dexed for the same patch.
 - **20 factory voices** in the DX7 tradition (designed here, not copied): EPIANO 1 and 2, FM BASS, SLAP BASS, SUB BASS, BRASS, STRINGS, GLASS PAD, BELLS, MARIMBA, ORGAN, CLAV, PLUCK, FLUTE, SAW LEAD, KOTO, three modern basses (DEEP SUB: a pure sine an octave down; 808 SUB: it drops into the note and dies away; REESE: two detuned saw stacks over a sine sub) and INIT VOICE.
 - **Your own DX7 banks:** 8 banks of 32 voices (256) in flash, standard bulk dumps (.syx, 4104 bytes), loaded from the web editor's Library tab or with `tools/fm1_bank_upload.py --bank N`. The bank in use plays as 21–52 (U01–U32), and PRESETS runs on into it. The checksum is verified and every value is clamped to its range.
@@ -102,7 +103,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 
 ## Status
 
-**2.6, a usable beta.** What is known:
+**2.7, a usable beta.** What is known:
 
 - **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget) and the host test suite passes: audio renders against golden hashes, the voices, the sequencer (REC modes, count-in, MIDI clock), the UI pages and layers, the DX7 voice list, flash storage, the 8 banks, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages. On the FM-1: install, the boot screen, the DX7 voice list, a ROM bank in flash, the drum kits and the levels have been played.
 - **From 1.9:** projects, user presets and the editor's library keep their sounds. Three factory voices came in before INIT VOICE, so the bank moved from 18–49 to 21–52; older saves are renumbered when they load, and the new CUT starts open.
@@ -127,7 +128,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.6.fwsc`) with `python tools/fm1_install.py sloopdx-2.6.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-2.7.fwsc`) with `python tools/fm1_install.py sloopdx-2.7.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -188,7 +189,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 2.6*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 2.7*) and its build date, the credits |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 

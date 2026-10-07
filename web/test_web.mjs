@@ -44,7 +44,7 @@ async function editorMock() {
   inp.onmidimessage = (e) => link.receive(e.data);
   const rq = async (r, o) => link.request(r, o);
   const info = E.parse[E.CMD.INFO](await rq(E.req.info()));
-  ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 58 && info.pe0 === 50 && info.gcount === 32 && info.nstep === 128
+  ok(info.nengines === 1 && info.engines.join() === "DX7" && info.pcount === 61 && info.pe0 === 53 && info.gcount === 34 && info.nstep === 128
     && info.ntrk === 4 && info.proto === 11 && /^FELUCCA sloopDX/.test(info.version), "editor: INFO (one engine, DX7; protocol 11)");
   /* the DX7 engine as eng_dx7.c describes it: VOICE (20 factory voices, then U01..U32), BRITE ATK DEC REL FDBK, CUT RESO */
   const ed = [];
@@ -207,7 +207,7 @@ async function editorLibrarian() {
   const ctx = { keys, engines: info.engines, firmware: info.version, pe0: info.pe0 };
   const pts = [cap, { ...bass, engineName: info.engines[bass.engine], tags: ["bass", "device"] }];
   const file = JSON.parse(JSON.stringify(E.libraryFile("library", pts, ctx)));
-  ok(file.format === "felucca-library" && file.version === 1 && file.pCount === 58 && file.paramLabels.length === 58 && file.engines.join() === "DX7",
+  ok(file.format === "felucca-library" && file.version === 1 && file.pCount === 61 && file.paramLabels.length === 61 && file.engines.join() === "DX7",
     "library file: versioned, with P_COUNT, labels and engines");
   const back = E.readLibraryFile(file, ctx);
   ok(back.patches.length === 2 && !back.skipped && eq(back.patches[0].p, cap.p) && eq(back.patches[1].p, bass.p)
@@ -218,8 +218,19 @@ async function editorLibrarian() {
   const eng2 = ["FMDRUM", "DX7"];
   const fut = E.readLibraryFile(file, { keys: keys2, engines: eng2 });
   const p0 = fut.patches[0].p;
-  ok(fut.patches.length === 2 && p0.length === 59 && p0[5] === null && p0[6] === cap.p[5] && p0[58] === cap.p[57]
+  ok(fut.patches.length === 2 && p0.length === 62 && p0[5] === null && p0[6] === cap.p[5] && p0[61] === cap.p[60]
     && fut.patches[0].engine === 1 && fut.patches[1].engine === 1, "library file: other ids / engine order mapped by label and name");
+  /* a library and a sound file of sloopDX 2.6 (58 parameters, the sends labelled DST CHO DLY REV, E0 at 50) */
+  {
+    const k26 = [...keys.slice(0, 33), "DST", "CHO", "DLY", "REV", ...keys.slice(37, 50), ...keys.slice(53)];
+    const p26 = [...cap.p.slice(0, 33), 11, 22, 33, 44, ...cap.p.slice(37, 50), ...cap.p.slice(53)];
+    const lib = E.readLibraryFile({ ...file, paramLabels: k26, patches: [{ ...file.patches[0], params: p26 }] }, ctx);
+    const q = lib.patches[0].p;
+    const one = E.readLibraryFile({ format: "felucca-patch", version: 1, engine: 0, engineName: "DX7", p: p26 }, ctx).patches[0].p;
+    ok(q.length === 61 && q[33] === 11 && q[34] === 22 && q[35] === 33 && q[36] === 44 && q[50] === null && q[53] === cap.p[53]
+      && one.length === 61 && one[36] === 44 && one[50] === null && one[52] === null && one[53] === cap.p[53] && one[60] === cap.p[60],
+      "2.6 files: old send labels and E0..E7 mapped (DIST page params default)");
+  }
   /* a library of sloopDX 1.9 (17 factory voices, no CUT / RESO: E6 / E7 saved as 0) read with a 2.0 device:
      VOICE 16 on moves up by three (2.0 put DEEP SUB, 808 SUB and REESE before INIT VOICE), CUT open, RESO 0;
      a 2.0 file as it is */
@@ -258,7 +269,7 @@ async function editorLive() {
   const dump = E.parse[C.DUMP](await pend, info);
   const ch = ev.pushes.find((f) => f.cmd === C.CHANGED);
   const cv = ch && E.parse[C.CHANGED](ch.a);
-  ok(dump.p.length === 58 && ch && ch.pending === C.DUMP && cv.scope === 0 && cv.id === 9 && cv.value === kn.value && !ev.unknown.length,
+  ok(dump.p.length === 61 && ch && ch.pending === C.DUMP && cv.scope === 0 && cv.id === 9 && cv.value === kn.value && !ev.unknown.length,
     "live: CHANGED while DUMP waits -> push handler, reply still matched");
   const rl = m.sim.reload();
   m.sim.step(3);
@@ -574,7 +585,7 @@ async function editorV5() {
   const C = E.CMD;
   const { m, rq, ev, done } = attachMock({ watchMs: 1000 });
   const info = E.parse[C.INFO](await rq(E.req.info()));
-  ok(info.proto === 11 && /sloopDX/.test(info.version) && info.pcount === 58 && info.gcount === 32 && info.pe0 === 50, "v5: INFO ends with the protocol version (11: sloopDX, 128 steps)");
+  ok(info.proto === 11 && /sloopDX/.test(info.version) && info.pcount === 61 && info.gcount === 34 && info.pe0 === 53, "v5: INFO ends with the protocol version (11: sloopDX, 128 steps)");
   /* the firmware says the same: ED_DRUM_STEP is command 33, the backup 34..36 (SLOOP 2.3, protocol 6), the bank
      commands 37..41 (sloopDX, protocol 7), voice editing 42..45 (protocol 8), P_CHORD / the master globals as the mock has them */
   const ec = readFileSync(join(HERE, "../firmware/src/editor.c"), "utf8"), pc = readFileSync(join(HERE, "../firmware/src/params.c"), "utf8");

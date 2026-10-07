@@ -1185,10 +1185,13 @@ function paramKeys(pdesc, pe0, pcount) {
   return out;
 }
 const sameKeys = (a, b) => !!a && !!b && a.length === b.length && a.every((k, i) => k === b[i]);
+/* labels renamed in sloopDX 2.7 (one page per effect: DIST's DRIVE, then each send) */
+const KEY_ALIAS = { DST: "DRIVE", CHO: "SEND", DLY: "SEND#2", REV: "SEND#3" };
 /* values by fromKeys -> values by toKeys (null where the source has no such key) */
 function remapParams(p, fromKeys, toKeys) {
   if (!fromKeys || !toKeys || sameKeys(fromKeys, toKeys)) return p.slice();
-  const at = new Map(fromKeys.map((k, i) => [k, i]));
+  const want = new Set(toKeys);
+  const at = new Map(fromKeys.map((k, i) => [!want.has(k) && KEY_ALIAS[k] ? KEY_ALIAS[k] : k, i]));
   return toKeys.map((k) => (at.has(k) ? p[at.get(k)] ?? null : null));
 }
 /* the DX7 numbering a sound was saved with: 2 = sloopDX 2.0 (20 factory voices, CUT / RESO), 1 = before.
@@ -1266,6 +1269,16 @@ function libraryFile(kind, patches, ctx) {
   };
 }
 /* -> {patches, skipped, keys (the file's, for a library that has none yet)}; throws on a file it cannot read */
+/* a "Save to file" sound's values are by id: another firmware's count maps as the device maps user presets
+   (the last 8 are E0..E7, the ones added since: null = their defaults) */
+function patchByCount(p, ctx) {
+  const n = ctx.keys ? ctx.keys.length : p.length, pe0 = ctx.pe0;
+  if (p.length === n || pe0 == null || p.length < 8) return p.slice(0, n);
+  const out = [];
+  for (let i = 0; i < pe0; i++) out.push(i < p.length - 8 ? p[i] : null);
+  for (let k = 0; k < 8; k++) out.push(p[p.length - 8 + k]);
+  return out;
+}
 function readLibraryFile(obj, ctx) {
   if (!obj || typeof obj !== "object") throw new Error("not JSON");
   const engIndex = (name, idx, fileEngines) => {
@@ -1281,7 +1294,7 @@ function readLibraryFile(obj, ctx) {
     const e = engIndex(obj.engineName, obj.engine);
     if (e < 0) return { patches: [], skipped: 1, keys: null };
     let pt = cleanPatch({ name: obj.presetName || obj.engineName || "PATCH", engine: e, engineName: obj.engineName,
-      p: obj.p.slice(0, ctx.keys ? ctx.keys.length : obj.p.length), pattern: Array.isArray(obj.steps) ? patternFromSteps(obj.steps) : null, tags: ["file"],
+      p: patchByCount(obj.p, ctx), pattern: Array.isArray(obj.steps) ? patternFromSteps(obj.steps) : null, tags: ["file"],
       dxv: dxvOf(obj.firmware) });
     if (dxvOf(ctx.firmware) >= 3) pt = dxMigrate(pt, ctx.pe0);
     return { patches: [pt], skipped: 0, keys: null };
@@ -1516,16 +1529,17 @@ function makeMockDevice(opt = {}) {
     D("SWG", F.SWING, 0, 100, 0), D("PROB", F.PCT, 0, 127, 127), E("HOLD", NONOFF, 0), E("ORD", ["NOTE", "PLAY"], 0),
     D("ROOT", F.NOTE, 0, 11, 0), E("SCL", ["CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM", "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"], 0), E("QNT", ["OFF", "SNAP", "WHITE"], 0), D("TRN", F.SEMI, -24, 24, 0),
     D("LEN", F.STEPS, 1, 128, 16), E("DIV", NDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
-    D("DST", F.PCT, 0, 127, 0), D("CHO", F.PCT, 0, 127, 0), D("DLY", F.PCT, 0, 127, 0), D("REV", F.PCT, 0, 127, 0),
+    D("DRIVE", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0),
     E("VCE", ["POLY", "MONO", "LEG", "UNI"], 0), D("GLD", F.TIME, 0, 127, 0), D("PAN", F.BIPCT, -64, 63, 0), E("MUTE", NONOFF, 0),
     E("GLMOD", ["RATE", "TIME"], 0), E("PRIO", ["LAST", "LOW", "HIGH"], 0), E("ALLOC", ["ROT", "REUSE"], 0), D("DTUNE", F.INT, 0, 127, 40),
     E("SLCR", ["OFF", "GATE", "STUT"], 0), D("PAT", F.INT, 1, 16, 1), E("RATE", ["1/8", "1/16", "1/32", "8T", "16T", "32T"], 1), D("DEPTH", F.PCT, 0, 127, 127),
     E("CHORD", ["OFF", "TRIAD", "7TH", "9TH", "SUS4", "POWER"], 0),
+    D("TONE", F.BIPCT, -64, 63, 0), E("TYPE", ["SOFT", "HARD", "FUZZ", "CRUSH"], 0), D("MIX", F.PCT, 0, 127, 127),
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 90), D("SWING", F.SWING, 0, 100, 0), E("CLICK", ["OFF", "REC", "ON"], 0), D("TUNE", F.INT, -50, 50, 0),
     E("TIME", NDIV, 1), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
-    D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("CRT", F.LFOHZ, 0, 127, 40), D("CDP", F.PCT, 0, 127, 60),
+    D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("RATE", F.LFOHZ, 0, 127, 40), D("DEPTH", F.PCT, 0, 127, 60),
     E("MIDI", NDASH, 0), E("SYNC", ["INT", "USB", "TRS"], 0), E("ROUT", NDASH, 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
     E("ENG", ["DX7"], 0), E("SET", NGO, 0),
@@ -1533,6 +1547,7 @@ function makeMockDevice(opt = {}) {
     D("CH", F.INT, 0, 16, 10), D("LVL", F.INT, 0, 127, 100), D("REV", F.INT, 0, 127, 16),
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.FILT, -64, 63, 0),
     E("ROLL", ["1/8", "1/16", "1/32", "32T", "1/64"], 1), E("NEW", NGO, 0),
+    D("MIX", F.PCT, 0, 127, 127), D("PRE", F.INT, 0, 90, 0, null, "ms"),
   ];
   /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
      first 16 voices of the DX7 user bank) */
@@ -1604,7 +1619,7 @@ function makeMockDevice(opt = {}) {
     [[60, 60, 61, 61, 62, 0, 63, 63, 64, 65, 65, 0, 66, 66, 66, 67], [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]],
     [[60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75], [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]],
   ];
-  const P_COUNT = 58, G_COUNT = 32, NSTEP = 128, P_E0 = 50, G_ENGSEL = 20, P_SLCR = 45, P_CHORD = 49, P_SLEN = 29;
+  const P_COUNT = 61, G_COUNT = 34, NSTEP = 128, P_E0 = 53, G_ENGSEL = 20, P_SLCR = 45, P_CHORD = 49, P_SLEN = 29;
   /* sloopDX 2.2: one pool of 256 steps, a track up to 128 of them (core.h slen_room) */
   const slenRoom = (ti) => Math.max(1, Math.min(NSTEP, 256 - st.tracks.reduce((n, t, i) => n + (i === ti ? 0 : Math.max(1, t.p[P_SLEN])), 0)));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1781,7 +1796,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.6 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 2.7 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */
@@ -2185,7 +2200,7 @@ const GLYPH = {
 const HEAD_IC = { ENV: "function_env_adsr_exp", LFO: "waveform_sine", EDIT: "ui_knob", VOICE: "symbol_keyboard",
   FX: "symbol_effector", SCL: "symbol_tuning", ARP: "control_arrow_up_down", "SEQ PATTERN": "symbol_grid",
   GLOBAL: "symbol_cog", MASTER: "ui_slider_vertical", DRUMS: "symbol_drum", INSTRUMENT: "symbol_keyboard" };
-const PAGE_IC = { FLT: "function_filter_lpf_peak", FILT: "function_filter_lpf_peak", DLY: "symbol_echo", "REV/CHO": "symbol_spring", SLICER: "symbol_grid" };
+const PAGE_IC = { FLT: "function_filter_lpf_peak", FILT: "function_filter_lpf_peak", DLY: "symbol_echo", "REV/CHO": "symbol_spring", DELAY: "symbol_echo", REVERB: "symbol_spring", SLICER: "symbol_grid" };
 /* WAVE / WAVE2 choices; phase-distortion shapes without a close glyph (SPLS, RSAW, RTRI, RTRP) get none */
 const WAVE_IC = { SIN: "waveform_sine", TRI: "waveform_triangle_ac", SAW: "waveform_sawtooth_ac", SQR: "waveform_square",
   PLS: "waveform_pulse_quarter", PWM: "waveform_pulse_eighth", "S&H": "waveform_noise_step", NOIS: "waveform_noise_white",
@@ -2473,15 +2488,21 @@ function selfLoad() {
 }
 const stepEdit = new Map(); /* index -> time of the last edit */
 
-/* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match */
-const EXPECT = { pcount: 58, gcount: 32, pe0: 50 };
+/* parameter ids (firmware/src/core.h); used only when P_COUNT / G_COUNT match: sloopDX 2.7 (the effect pages:
+   one per effect, a page entry [scope, id] for a global on a track page), or 2.2 .. 2.6 */
+const EXPECTS = [{ pcount: 61, gcount: 34, pe0: 53, fx: 7 }, { pcount: 58, gcount: 32, pe0: 50, fx: 6 }];
+const FX_PAGES = {
+  7: [["DIST", 0, [33, 50, 51, 52]], ["CHORUS", 0, [34, [1, 10], [1, 11], [1, 32]]], ["DELAY", 0, [35, [1, 4], [1, 5], [1, 7], [1, 6]]],
+    ["REVERB", 0, [36, [1, 8], [1, 9], [1, 33]]], ["SLICER", 0, [45, 46, 47, 48]]],
+  6: [["FX", 0, [33, 34, 35, 36]], ["SLICER", 0, [45, 46, 47, 48]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]]],
+};
 const P = { LEVEL: 0, SLEN: 29, CHORD: 49 };
-const LAYOUT = (pe0) => [
+const LAYOUT = (pe0, fx) => [
   { t: "ENV", pages: [["ENV", 0, [1, 2, 3, 4]], ["ENV DEST", 0, [5, 6, 7, 8]]] },
   { t: "LFO", pages: [["LFO", 0, [9, 10, 11, 12]], ["LFO DEST", 0, [13, 14, 15, 16]]] },
   { t: "EDIT", engine: true, pages: [["EDIT 1", 0, [pe0, pe0 + 1, pe0 + 2, pe0 + 3]], ["EDIT 2", 0, [pe0 + 4, pe0 + 5, pe0 + 6, pe0 + 7]]] },
   { t: "VOICE", pages: [["LEVEL", 0, [0]], ["VOICE", 0, [37, 38, 41, 42]], ["VOICE 2", 0, [43, 44, 39, 40]]] },
-  { t: "FX", pages: [["FX", 0, [33, 34, 35, 36]], ["SLICER", 0, [45, 46, 47, 48]], ["DLY", 1, [4, 5, 6, 7]], ["REV/CHO", 1, [8, 9, 10, 11]]] },
+  { t: "FX", pages: FX_PAGES[fx] },
   { t: "SCL", pages: [["SCL", 0, [25, 26, 27, 49]], ["SCL 2", 0, [28]]] },
   { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]]] },
   { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]]] },
@@ -2748,11 +2769,12 @@ function buildGroups() {
   /* Sound: the selected track's parameters; Sequencer: its pattern settings; Settings: globals and drums */
   const groups = { groups: [], seqgroups: [], setgroups: [] };
   const { info } = dev;
-  if (info.pcount === EXPECT.pcount && info.gcount === EXPECT.gcount && info.pe0 === EXPECT.pe0) {
-    for (const g of LAYOUT(info.pe0)) {
+  const lay = EXPECTS.find((x) => info.pcount === x.pcount && info.gcount === x.gcount && info.pe0 === x.pe0);
+  if (lay) {
+    for (const g of LAYOUT(info.pe0, lay.fx)) {
       const div = el("div", { class: "group" }, el("h2", { ic: HEAD_IC[g.t], text: g.engine ? `EDIT ${info.engines[dev.dump.engine] || ""}` : g.t }));
       for (const [title, s, ids] of g.pages) {
-        const rows = ids.map((id) => paramRow(s, id)).filter(Boolean);
+        const rows = ids.map((id) => (Array.isArray(id) ? paramRow(id[0], id[1]) : paramRow(s, id))).filter(Boolean);
         if (!rows.length) continue;
         const tt = g.engine && (dev.titles[dev.dump.engine] || [])[g.pages.findIndex((x) => x[0] === title)];
         if (g.pages.length > 1) div.append(el("h3", { ic: PAGE_IC[tt || title], text: tt || title }));

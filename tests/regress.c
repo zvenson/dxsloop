@@ -193,10 +193,13 @@ static void job_mode(const job_t *j)            /* arg: the voice mode, ARP off,
     phrase(t, 60);
 }
 
-static void job_sends(const job_t *j)           /* arg: 0 dry, 1 chorus, 2 delay, 3 reverb, 4 all, 5 DIST */
+/* arg: 0 dry, 1 chorus, 2 delay, 3 reverb, 4 all, 5 DIST; the effect pages (2.7): 6 HARD, 7 FUZZ, 8 CRUSH,
+ * 9 SOFT dark at half MIX, 10 chorus MIX 40, 11 reverb PRE 60 ms */
+static void job_sends(const job_t *j)
 {
-    static const int16_t S[6][4] = {{0, 0, 0, 0}, {0, 110, 0, 0}, {0, 0, 110, 0}, {0, 0, 0, 110},
-                                    {40, 80, 80, 80}, {110, 0, 0, 30}};
+    static const int16_t S[12][4] = {{0, 0, 0, 0}, {0, 110, 0, 0}, {0, 0, 110, 0}, {0, 0, 0, 110},
+                                     {40, 80, 80, 80}, {110, 0, 0, 30}, {90, 0, 0, 0}, {90, 0, 0, 0}, {100, 0, 0, 0},
+                                     {110, 0, 0, 0}, {0, 110, 0, 0}, {0, 0, 0, 110}};
     track_t *t = &trk[0];
     uint32_t i;
     host_tracks_init();
@@ -204,6 +207,12 @@ static void job_sends(const job_t *j)           /* arg: 0 dry, 1 chorus, 2 delay
     t->p[P_AMODE] = 0;
     for (i = 0; i < 4u; i++)
         t->p[P_DIST + i] = S[j->arg][i];
+    if (j->arg >= 6u && j->arg <= 8u)
+        t->p[P_DTYPE] = (int16_t)(j->arg - 5u);
+    if (j->arg == 9u)
+        t->p[P_DTONE] = -50, t->p[P_DMIX] = 64;
+    song.g[G_CMIX] = j->arg == 10u ? 40 : GP[G_CMIX].def;
+    song.g[G_RPRE] = j->arg == 11u ? 60 : GP[G_RPRE].def;
     phrase(t, 60);
 }
 
@@ -757,7 +766,8 @@ int main(int argc, char **argv)
     int gupd = getenv("GOLDEN_UPDATE") != 0, cupd = getenv("BUDGET_UPDATE") != 0, verbose = getenv("VERBOSE") != 0;
     uint32_t jobs_at_once = getenv("JOBS") ? (uint32_t)atoi(getenv("JOBS")) : 8u;
     static const char *const MN[4] = {"POLY", "MONO", "LEGATO", "UNISON"};
-    static const char *const SN[6] = {"dry", "chorus", "delay", "reverb", "all", "dist"};
+    static const char *const SN[12] = {"dry", "chorus", "delay", "reverb", "all", "dist", "dist_hard", "dist_fuzz",
+                                       "dist_crush", "dist_dark_mix", "chorus_mix", "reverb_pre"};
     static const uint8_t MODE_E[3][2] = {{0, 2}, {0, 0}, {0, 6}};   /* engine, preset: DX7 FM BASS, EPIANO 1, STRINGS */
     static const uint8_t SEND_E[2][2] = {{0, 12}, {0, 0}};   /* DX7 PLUCK, EPIANO 1 */
     static uint8_t cpu_parts[MAXJ][NPART + 1][3];
@@ -794,7 +804,7 @@ int main(int argc, char **argv)
             j->arg = (uint8_t)k0;
         }
     for (i = 0; i < 2u; i++)
-        for (k0 = 0; k0 < 6u; k0++) {
+        for (k0 = 0; k0 < 12u; k0++) {
             job_t *j;
             snprintf(name, sizeof name, "sends/%s/%s/%s", ENGINES[SEND_E[i][0]]->name,
                      ENGINES[SEND_E[i][0]]->presets[SEND_E[i][1]].name, SN[k0]);

@@ -62,6 +62,7 @@ enum {                          /* per-track parameters */
     P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH,      /* SLICER insert (slicer.c); new common parameters go just
                                                 * before P_E0 (user presets and projects map by count) */
     P_CHORD,                                   /* chord mode: one key plays a chord of the scale (seq.c) */
+    P_DTONE, P_DTYPE, P_DMIX,                  /* DIST page (2.7): its tone, type (SOFT HARD FUZZ CRUSH), dry / wet */
     P_E0, P_E1, P_E2, P_E3, P_E4, P_E5, P_E6, P_E7,
     P_COUNT
 };
@@ -78,6 +79,7 @@ enum {                          /* global parameters */
     G_DUST, G_DUCK, G_FILT,     /* the master bus: lo-fi / vinyl, the kick ducking the parts, the DJ filter (fx.c) */
     G_ROLL,                     /* note repeat rate (ARP + key, seq.c) */
     G_NEWPRJ,                   /* TOOLS > NEW: a new project (GO) */
+    G_CMIX, G_RPRE,             /* CHO page: the chorus' level; REV page: its pre-delay (2.7) */
     G_COUNT
 };
 
@@ -238,6 +240,8 @@ typedef struct track {
     int32_t lvl;                 /* the LEVEL gain (Q12) of the last block: a change is ramped (fx.c) */
     int32_t peak;
     int32_t dist_hp, dist_lp1, dist_lp2;   /* DIST insert state (fx.c) */
+    int32_t dist_sh;             /* CRUSH: the held sample; dist_n its age */
+    uint8_t dist_n;
     int32_t att;                 /* mute / solo fade: attenuation, Q15 (0 = heard; fx.c mix_part, drums_mix) */
     uint8_t dist_on;             /* DIST was on in the last block (its states restart when it comes on) */
     uint8_t tail;                /* blocks to mix after the last voice (the DIST tail) */

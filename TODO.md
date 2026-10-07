@@ -32,6 +32,12 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1i. 2.7, erledigt
+
+- [x] Effekte: eine Seite je Effekt (vorher FX = vier Sends, DLY, REV/CHO gemischt; „versteht kein Mensch“). DIST: DRIVE TONE
+      TYPE (SOFT HARD FUZZ CRUSH) MIX; CHORUS: SEND RATE DEPTH MIX; DELAY: SEND TIME FDBK MIX (COLR ohne Seite, im Editor);
+      REVERB: SEND SIZE DAMP PRE (0–90 ms). Projektformat 7 (FUN7), 6 wird nach Anzahl umgesetzt; Editor-Dateien von 2.6 auch.
+
 ## 1h. 2.6, erledigt
 
 - [x] OMNI-Knöpfe fest beschriftet: spielen ihren Akkord unabhängig von ROOT (am Gerät stand ROOT F, der F-Knopf spielte Bb); nur TRN

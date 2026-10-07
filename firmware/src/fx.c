@@ -14,19 +14,26 @@ static const uint16_t REV_LINE[4] = {1559, 1931, 2389, 2791};   /* 35..63 ms, co
 static const uint16_t REV_AP[2] = {556, 441};
 static int16_t rev_line[1559 + 1931 + 2389 + 2791 + REV_MOD + 2];   /* (.bss: the pool is full) */
 static int16_t rev_ap[556 + 441] __attribute__((section(".pool")));
+#define PRE_LEN 4096u            /* the reverb's pre-delay (REV page PRE): 93 ms; 90 used */
+static int16_t pre_buf[PRE_LEN] __attribute__((section(".pool")));
 static struct {
-    uint32_t dly_w, cho_w, cho_ph, rev_ph;
+    uint32_t dly_w, cho_w, cho_ph, rev_ph, pre_w;
     int32_t dly_lp;
     uint16_t line_i[4], ap_i[2];
     int32_t line_lp[4];
 } fx;
 
-/* DIST: low cut -> drive (1x..8x, exponential) -> asymmetric soft clip
- * (a little bias = even harmonics) -> tone low-pass that closes with drive ->
- * make-up gain. State per part (track_t dist_*). */
+/* DIST: low cut -> drive (1x..8x, exponential) -> the TYPE's shaper -> tone low-pass (TONE 0: it closes
+ * with drive, as before 2.7; - darker, + brighter) -> make-up gain -> dry / wet (MIX).
+ *   SOFT  asymmetric soft clip (a little bias = even harmonics)
+ *   HARD  the soft clip driven 4x harder: nearly square
+ *   FUZZ  much more bias (strong even harmonics), then a second clip stage: thick, compressed
+ *   CRUSH no clip: fewer bits (13 .. 4) and a lower sample rate (44.1 .. 3.4 kHz) as DRIVE goes up
+ * State per part (track_t dist_*). */
 static void track_dist(track_t *t, int32_t *b, uint32_t n)
 {
-    int32_t d = t->p[P_DIST], i, g, k, mk, bias = 2400, b0;
+    int32_t d = t->p[P_DIST], i, g, k, mk, bias = 2400, b0, type = t->p[P_DTYPE], wet = t->p[P_DMIX] * 258;
+    uint32_t mask = 0, hold = 1;
     if (!d) {
         t->dist_on = 0;
         return;
@@ -35,19 +42,45 @@ static void track_dist(track_t *t, int32_t *b, uint32_t n)
         t->dist_on = 1;
         t->dist_hp = b[0];
         t->dist_lp1 = t->dist_lp2 = 0;
+        t->dist_sh = 0;
+        t->dist_n = 0;
     }
     g = 4096 + d * d * 2;                                /* Q12: 1x .. ~9x, gentle at first */
-    k = 32000 - d * 95;                                  /* tone: transparent at low drive .. ~3 kHz, Q15 */
+    k = clamp(32000 - d * 95 + t->p[P_DTONE] * 250, 1500, 32700);   /* tone: Q15 */
     mk = 30000 - d * 120;                                /* make-up */
+    if (type == 1) {
+        g <<= 2;
+        mk = mk * 3 / 4;
+    } else if (type == 2) {
+        bias = 9000;
+        g <<= 1;
+        mk = mk * 3 / 4;
+    } else if (type == 3) {
+        mask = ~((1u << (2u + (uint32_t)d / 14u)) - 1u);  /* (Q15: 2 .. 11 bits off) */
+        hold = 1u + (uint32_t)d / 10u;
+        mk = 30000;
+    }
     b0 = softclip(bias);
     for (i = 0; i < (int32_t)n; i++) {
         int32_t x = b[i], y;
         t->dist_hp += (x - t->dist_hp + 64) >> 7;           /* ~55 Hz low cut: keep the bass out of the clipper */
         x = clamp(x - t->dist_hp, -230000, 230000);         /* (x >> 2) * g fits 32 bits; the clip is flat out there */
-        y = softclip((((x >> 2) * g) >> 10) + bias) - b0;   /* >> 2 first: no overflow for loud poly */
+        if (type == 3) {
+            if (++t->dist_n >= hold) {
+                t->dist_n = 0;
+                y = clamp(x, -524288, 524287);
+                t->dist_sh = y >= 0 ? (int32_t)((uint32_t)y & mask) : -(int32_t)((uint32_t)-y & mask);   /* towards zero */
+            }
+            y = t->dist_sh;
+        } else {
+            y = softclip((((x >> 2) * g) >> 10) + bias) - b0;   /* >> 2 first: no overflow for loud poly */
+            if (type == 2)
+                y = softclip(y * 3);                        /* (symmetric: no new offset) */
+        }
         t->dist_lp1 += mulq15(y - t->dist_lp1, k);         /* two poles: tames the fizz */
         t->dist_lp2 += mulq15(t->dist_lp1 - t->dist_lp2, k);
-        b[i] = mulq15(t->dist_lp2, mk);
+        y = mulq15(t->dist_lp2, mk);
+        b[i] = wet >= 32766 ? y : b[i] + ((((y - b[i]) >> 4) * wet) >> 11);   /* (>> 4: loud poly fits) */
     }
 }
 
@@ -171,7 +204,8 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
     int32_t fb = song.g[G_DFDBK] * 230, col = 2000 + song.g[G_DCOLOR] * 240;
     int32_t dmix = song.g[G_DMIX] * 258;
     int32_t g = 17000 + song.g[G_RSIZE] * 104, lpk = 32767 - song.g[G_RDAMP] * 200;   /* loop gain (RT60 ~0.4..4 s), damping */
-    int32_t cdepth = song.g[G_CDEPTH] * 6;
+    int32_t cdepth = song.g[G_CDEPTH] * 6, cmix = song.g[G_CMIX] * 258;
+    uint32_t pre = (uint32_t)song.g[G_RPRE] * (FS / 1000u);
     int32_t ca0, ca1, cb0, cb1, ma, mb, dca, dcb;
     const uint32_t L0 = REV_LINE[0] + REV_MOD + 2u, B1 = L0, B2 = B1 + REV_LINE[1], B3 = B2 + REV_LINE[2];
     {   /* the chorus' two read points (Q8 samples back) and line 0's extra length, at both ends of the block */
@@ -196,6 +230,10 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
             int32_t d0 = cho_buf[(fx.cho_w - i1) & (CHO_LEN - 1u)], d1 = cho_buf[(fx.cho_w - i1 - 1u) & (CHO_LEN - 1u)];
             yl = (c0 + (((c1 - c0) * (r0 & 255)) >> 8)) << 1;
             yr = (d0 + (((d1 - d0) * (r1 & 255)) >> 8)) << 1;
+            if (cmix < 32766) {                     /* CHORUS MIX */
+                yl = mulq15(yl, cmix);
+                yr = mulq15(yr, cmix);
+            }
         }
         fx.cho_w++;
         /* delay with a low-passed feedback (in the middle) */
@@ -209,6 +247,11 @@ static void fx_buses(const int32_t *cho_in, const int32_t *dly_in, const int32_t
         yr += x;
         /* reverb: two diffusers, then the four lines */
         a = mulq15(rev_in[i], 13000);
+        if (pre) {                                  /* REVERB PRE */
+            pre_buf[fx.pre_w & (PRE_LEN - 1u)] = (int16_t)clamp(a, -32768, 32767);
+            a = pre_buf[(fx.pre_w - pre) & (PRE_LEN - 1u)];
+            fx.pre_w++;
+        }
         {
             int16_t *c = rev_ap;
             for (k = 0; k < 2u; k++) {

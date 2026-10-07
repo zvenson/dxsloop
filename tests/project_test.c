@@ -105,6 +105,16 @@ static int track_ok_v2(const project_t *q, const proj_trk_v2_t *o, uint32_t t)
     return ok;
 }
 
+/* today's parameters -> a format 4..6 track's (the inverse of proj_p_from_v6, for building old projects) */
+static void p_to_v6(int16_t *d, const int16_t *s)
+{
+    uint32_t k;
+    for (k = 0; k < PROJ_NP_V6 - 8u; k++)
+        d[k] = s[k];
+    for (k = 0; k < 8u; k++)
+        d[PROJ_NP_V6 - 8u + k] = s[P_E0 + k];
+}
+
 int main(void)
 {
     static project_v3_t v3;
@@ -120,8 +130,9 @@ int main(void)
     uint32_t i, t;
     int bad = 0, ok;
 
-    bad += check("layout: P_CHORD just before P_E0 (50), P_COUNT = format 3's + 1",
-                 P_CHORD + 1 == P_E0 && P_E0 == 50 && P_COUNT == PROJ_NP_V3 + 1u && P_SLDEPTH + 1 == P_CHORD);
+    bad += check("layout: P_CHORD after P_SLDEPTH, then the DIST page's three before P_E0 (53); format 6 = format 3's + 1",
+                 P_SLDEPTH + 1 == P_CHORD && P_DMIX + 1 == P_E0 && P_E0 == 53 && PROJ_NP_V6 == PROJ_NP_V3 + 1u &&
+                 P_COUNT == PROJ_NP_V6 + 3u && G_COUNT == PROJ_NG_V6 + 2u);
     bad += check("format 5 fits one flash object; 4 slots fit .noinit", sizeof(project_t) <= 4096u - 256u &&
                  4u * sizeof(project_t) < 0x3D50u - 1024u);
 
@@ -279,9 +290,9 @@ int main(void)
         ok &= dext.m[0][DM_TUNE] == 24;
         memset(&o4, 0, sizeof o4);
         o4.magic = PROJ_MAGIC_V4, o4.size = sizeof o4, o4.sel = 2, o4.dxv = PROJ_DXV;
-        memcpy(o4.g, q5.g, sizeof o4.g);
+        memcpy(o4.g, q5.g, sizeof o4.g);                 /* (the first PROJ_NG_V6: the same ids) */
         for (t = 0; t < NTRK; t++) {
-            memcpy(o4.t[t].p, q5.t[t].p, sizeof o4.t[t].p);
+            p_to_v6(o4.t[t].p, q5.t[t].p);
             o4.t[t].step[PROJ_NSTEP_OLD - 1u].n = (uint8_t)(t + 1u);   /* (the last of its 64: kept in the pool) */
         }
         o4.sum = proj_hash(&o4, sizeof o4 - 4u);
@@ -292,6 +303,36 @@ int main(void)
         ok &= !proj_import(&q, &o4, (int)sizeof o4);
         memset(&dext, 0, sizeof dext);
         bad += check("format 5: drum macros and locks kept; FUN4 loads with neutral ones", ok);
+    }
+
+    {   /* format 6 (2.2 .. 2.6) -> 7: the parameters mapped by count (E0..E7 moved up by three), the DIST page's
+         * and the CHORUS MIX / REVERB PRE take their defaults; the pool and the drum macros as they were */
+        static project_t q7;
+        static project_v6_t o6;
+        host_tracks_init();
+        trk[0].p[P_E0 + 3] = 77, trk[1].p[P_SLDEPTH] = 33, trk[2].p[P_CHORD] = 2;
+        trk[0].p[P_DTYPE] = 3, song.g[G_RPRE] = 40;     /* (format 6 has no room for these: defaults) */
+        dext.m[4][DM_TUNE] = 7;
+        proj_capture(&q7);
+        memset(&o6, 0, sizeof o6);
+        o6.magic = PROJ_MAGIC_V6, o6.size = sizeof o6, o6.sel = q7.sel, o6.dxv = q7.dxv;
+        memcpy(o6.g, q7.g, sizeof o6.g);
+        for (t = 0; t < NTRK; t++) {
+            p_to_v6(o6.t[t].p, q7.t[t].p);
+            o6.t[t].engine = q7.t[t].engine, o6.t[t].preset = q7.t[t].preset, o6.t[t].nst = q7.t[t].nst;
+        }
+        memcpy(o6.pool, q7.pool, sizeof o6.pool);
+        memcpy(&o6.dext, &q7.dext, sizeof o6.dext);
+        o6.sum = proj_hash(&o6, sizeof o6 - 4u);
+        ok = proj_import(&q, &o6, (int)sizeof o6) && proj_ok(&q) && q.t[0].p[P_E0 + 3] == 77 && q.t[1].p[P_SLDEPTH] == 33 &&
+             q.t[2].p[P_CHORD] == 2 && q.t[0].p[P_DTYPE] == TP[P_DTYPE].def && q.t[3].p[P_DMIX] == TP[P_DMIX].def &&
+             q.g[G_RPRE] == GP[G_RPRE].def && q.g[G_CMIX] == GP[G_CMIX].def && q.g[G_BPM] == q7.g[G_BPM] &&
+             !memcmp(q.pool, q7.pool, sizeof q.pool) && q.dext.m[4][DM_TUNE] == 7 && q.t[2].nst == q7.t[2].nst;
+        o6.sum ^= 1u;
+        ok &= !proj_import(&q, &o6, (int)sizeof o6);
+        memset(&dext, 0, sizeof dext);
+        song.g[G_RPRE] = 0;
+        bad += check("format 6 -> 7: parameters mapped by count, the new ones at their defaults", ok);
     }
 
     {   /* format 6: one pool of 256 steps. A track up to 128, the others what is left (slen_room / slen_set);

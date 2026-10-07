@@ -298,16 +298,6 @@ static void graph_scale(const track_t *t, uint16_t c)
     }
 }
 
-static void graph_fx(const track_t *t, uint16_t c)
-{
-    uint32_t i;
-    for (i = 0; i < 4u; i++) {
-        int32_t h = t->p[P_DIST + i] * 80 / 127, x = (int32_t)i * 60 + 28;
-        cv_rect(x, 10, 1, 80, C_LINE);
-        cv_rect(x, 90 - h, 1, h, c);
-        cv_rect(x - 3, 90 - h, 7, 1, c);
-    }
-}
 /* SLICER page: the pattern's 16 steps, a 'x' step a full bar; a '.' step: GATE a bar as high as
  * it stays open (DEPTH), STUT hatched (it repeats the last 'x'); the step playing underlined.
  * Grey when the SLICER is OFF. */
@@ -687,9 +677,6 @@ static void draw_graph(void)
             break;
         case GR_SCALE:
             graph_scale(t, c);
-            break;
-        case GR_FX:
-            graph_fx(t, c);
             break;
         case GR_SLCR:
             graph_slicer(t, c);

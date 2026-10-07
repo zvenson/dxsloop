@@ -31,10 +31,13 @@ SLOOP 2.2 as forked. Open work: TODO.md. First build on a machine: START.md.
   screen pages grid / kit / lane (`ui_studio.c`), locks in the SEQ layer (`ui_layers.c`). Editor protocol v10.
 - `firmware/src/dx7_bank.h`: generated voices + `DX_DRUM[]` table (`tools/gen_dx7_bank.py`).
 - Steps (2.2): `NSTEP` 128 a track, one pool of `STEP_POOL` 256 for the four (`core.h slen_room / slen_set /
-  slen_fit_all`: every LEN change goes through them); projects format 6 store each track's LEN steps in order
+  slen_fit_all`: every LEN change goes through them); projects (format 7 since 2.7, format 6 read) store each track's LEN steps in order
   (`project.c proj_capture / proj_apply`, older formats through format 5: `proj_from_v5`). INFO sends 128 as 0.
 - OMNI (2.5): ARP MODE 6 = chord harp (black keys chords, white keys strings), 7 = FLW (a pattern follows the
   chord's root): `seq.c omni_*`, `core.h AM_OMNI / AM_FLW / ARP_RUNS`, test `tests/omni_test.c`.
+- Effect pages (2.7): one page per effect (`params.c PAGES`, scope `SC_MIX`: a slot with `PG_G` is a global). New
+  track params `P_DTONE / P_DTYPE / P_DMIX` (DIST in `fx.c track_dist`), globals `G_CMIX`, `G_RPRE` (`fx_buses`).
+  New common params go before P_E0 and need a new project format (`project.c`: freeze the old one, map by count).
 - `firmware/src/engines.c`: `ENGINES[] = {&ENG_DX7}`, NENGINES 1 (`core.h`). Old engine numbers in
   projects / presets map through `% NENGINES`.
 - `tools/gen_logo.py`: logo and boot splash (`build/gen/sloopdx_logo.h`).

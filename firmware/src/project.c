@@ -6,7 +6,9 @@
  * the transport is stopped and nothing sounds) and comes back at power-on: SLOOP starts where you
  * left it.
  *
- * Formats: 5 ("FUN5", written, sloopDX 2.1): format 4 and the drum track's lane macros and step locks
+ * Formats: 7 ("FUN7", written, sloopDX 2.7): format 6 and the effect pages' new parameters (P_DTONE..,
+ * G_CMIX..); 6 ("FUN6", sloopDX 2.2 .. 2.6): PROJ_NP_V6 / PROJ_NG_V6, the steps in one pool, read and mapped by
+ * count as user presets are. 5 ("FUN5", sloopDX 2.1): format 4 and the drum track's lane macros and step locks
  * (drum_ext_t). 4 ("FUN4", SLOOP 2.0, sloopDX up to 2.0): today's P_COUNT / G_COUNT, 10-byte steps (levels and
  * ratchets; the drum track: 16 lanes); read with neutral macros. Read and converted: 3 ("FUN3", SLOOP 1.x: 8-byte steps, the
  * drum track's notes become its lanes, the swings x 0.8 for the MPC scale), 2 ("FUN2") and 1 ("FUN1"),
@@ -17,12 +19,15 @@
  *
  * Built on the host too (tests/project_test.c, -DPROJ_HOST): the part above the #ifndef
  * PROJ_HOST needs core.h, params.c (TP), drums.c (the lanes), the engines and trk_def_engine (ui.c). */
-#define PROJ_MAGIC 0x46554E36u                 /* "FUN6": four tracks, P_COUNT parameters each, their steps in one pool */
+#define PROJ_MAGIC 0x46554E37u                 /* "FUN7": four tracks, P_COUNT parameters each, their steps in one pool */
+#define PROJ_MAGIC_V6 0x46554E36u              /* "FUN6": the same with PROJ_NP_V6 / PROJ_NG_V6; read only */
 #define PROJ_MAGIC_V5 0x46554E35u              /* "FUN5": 64 steps a track and the drum macros; read only */
 #define PROJ_MAGIC_V4 0x46554E34u              /* "FUN4": the same without the drum macros; read only */
 #define PROJ_MAGIC_V3 0x46554E33u              /* "FUN3": SLOOP 1.x; read only */
 #define PROJ_MAGIC_V2 0x46554E32u              /* "FUN2": four tracks, PROJ_NP_V2 parameters; read only */
 #define PROJ_MAGIC_V1 0x46554E31u              /* "FUN1": one instrument; loads into track 1 */
+#define PROJ_NP_V6 58u                         /* P_COUNT of formats 4..6 (P_E0 was 50) */
+#define PROJ_NG_V6 32u                         /* G_COUNT of formats 4..6 */
 #define PROJ_NP_V3 57u                         /* P_COUNT of format 3 (P_E0 was 49) */
 #define PROJ_NG_V3 27u                         /* G_COUNT of formats 1..3 */
 #define PROJ_NP_V2 53u                         /* P_COUNT of formats 1 and 2 (P_E0 was 45) */
@@ -30,12 +35,12 @@
 #define PROJ_DXV 2u                            /* 1: the DX7 voice numbers of sloopDX 2.0 (core.h DX_VOICE_FROM_V1);
                                                 * 2: a bank voice's CUT as saved (2.2; before: DX_CUT_FIX) */
 #define PROJ_NSTEP_OLD 64u                     /* the steps per track of formats 1..5 */
-typedef struct {                               /* one track of format 6: its parameters; its steps are in the pool */
+typedef struct {                               /* one track of format 7: its parameters; its steps are in the pool */
     int16_t p[P_COUNT];
     uint8_t engine, preset;
     uint8_t nst, rsv;                          /* how many of the pool's steps are its (in track order) */
 } proj_trk_t;
-typedef struct {                               /* format 6 (sloopDX 2.2): the steps of all tracks in one pool */
+typedef struct {                               /* format 7 (sloopDX 2.7): the steps of all tracks in one pool */
     uint32_t magic, size;
     int16_t g[G_COUNT];
     uint8_t sel, dxv, rsv[2];                  /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0) */
@@ -44,9 +49,23 @@ typedef struct {                               /* format 6 (sloopDX 2.2): the st
     drum_ext_t dext;                           /* the drum lanes' macros and step locks (drums.c) */
     uint32_t sum;
 } project_t;
+typedef struct {                               /* a track of format 6, read only */
+    int16_t p[PROJ_NP_V6];
+    uint8_t engine, preset;
+    uint8_t nst, rsv;
+} proj_trk6_t;
+typedef struct {                               /* format 6 (sloopDX 2.2 .. 2.6), read only */
+    uint32_t magic, size;
+    int16_t g[PROJ_NG_V6];
+    uint8_t sel, dxv, rsv[2];
+    proj_trk6_t t[NTRK];
+    step_t pool[STEP_POOL];
+    drum_ext_t dext;
+    uint32_t sum;
+} project_v6_t;
 _Static_assert(sizeof(step_t) == sizeof(dstep_t), "a pool step holds either");
 typedef struct {                               /* a track of formats 4 and 5, read only */
-    int16_t p[P_COUNT];
+    int16_t p[PROJ_NP_V6];
     uint8_t engine, preset;
     union {
         step_t step[PROJ_NSTEP_OLD];
@@ -59,7 +78,7 @@ typedef struct {                               /* the drum macros of format 5 (6
 } drum_ext5_t;
 typedef struct {                               /* format 5 (sloopDX 2.1), read only; every older format converts to it */
     uint32_t magic, size;
-    int16_t g[G_COUNT];
+    int16_t g[PROJ_NG_V6];
     uint8_t sel, dxv, rsv[2];
     proj_trk5_t t[NTRK];
     drum_ext5_t dext;
@@ -67,7 +86,7 @@ typedef struct {                               /* format 5 (sloopDX 2.1), read o
 } project_v5_t;
 typedef struct {                               /* format 4 (SLOOP 2.x, sloopDX up to 2.0), read only */
     uint32_t magic, size;
-    int16_t g[G_COUNT];
+    int16_t g[PROJ_NG_V6];
     uint8_t sel, dxv, rsv[2];
     proj_trk5_t t[NTRK];
     uint32_t sum;
@@ -142,23 +161,23 @@ static void dstep_from8(dstep_t *d, const step8_t *s)
 }
 static int16_t swing_from_v3(int32_t v) { return (int16_t)clamp((v * 4 + 2) / 5, 0, 100); }   /* /250 -> /200 */
 
-/* the globals of formats 1..3 (G_* unchanged since; any added later: their defaults) */
+/* the globals of formats 1..3 into format 5's (G_* unchanged since; any added later: their defaults) */
 static void proj_g_from_old(int16_t *g, const int16_t *g2)
 {
     uint32_t i;
-    for (i = 0; i < G_COUNT; i++)
+    for (i = 0; i < PROJ_NG_V6; i++)
         g[i] = i < PROJ_NG_V3 ? g2[i] : GP[i].def;
     g[G_SWING] = swing_from_v3(g[G_SWING]);
 }
 
-/* a track of format 3 -> today's (by id up to P_SLDEPTH; P_E0.. moved) */
+/* a track of format 3 -> format 5's (by id up to P_SLDEPTH; P_E0.. moved) */
 static void proj_trk_from_v3(proj_trk5_t *d, const proj_trk_v3_t *s, int drum)
 {
     uint32_t k, nc = PROJ_NP_V3 - 8u;
-    for (k = 0; k < P_E0; k++)
+    for (k = 0; k < PROJ_NP_V6 - 8u; k++)
         d->p[k] = k < nc ? s->p[k] : TP[k].def;
     for (k = 0; k < 8u; k++)
-        d->p[P_E0 + k] = s->p[nc + k];
+        d->p[PROJ_NP_V6 - 8u + k] = s->p[nc + k];
     d->p[P_SSWING] = swing_from_v3(d->p[P_SSWING]);
     d->p[P_ASWING] = swing_from_v3(d->p[P_ASWING]);
     d->engine = drum ? 0u : s->engine;
@@ -239,8 +258,8 @@ static int proj_from_v1(project_v5_t *q, const project_v1_t *v1, int n)
     proj_from_v3_ok(q, v3);
     for (i = 1; i < NTRK; i++) {               /* the other tracks: their defaults, no steps */
         uint32_t k;
-        for (k = 0; k < P_COUNT; k++)
-            q->t[i].p[k] = k >= P_E0 ? ENGINES[trk_def_engine(i)]->edit[k - P_E0].def : TP[k].def;
+        for (k = 0; k < PROJ_NP_V6; k++)
+            q->t[i].p[k] = k >= PROJ_NP_V6 - 8u ? ENGINES[trk_def_engine(i)]->edit[k - (PROJ_NP_V6 - 8u)].def : TP[k].def;
         q->t[i].engine = (uint8_t)trk_def_engine(i);
         q->t[i].preset = 0xFF;                 /* 0xFF: its default preset (project_load) */
         memset(q->t[i].step, 0, sizeof q->t[i].step);
@@ -279,18 +298,56 @@ static step_t *proj_steps(project_t *q, uint32_t k)
 }
 static const step_t *proj_steps_c(const project_t *q, uint32_t k) { return proj_steps((project_t *)q, k); }
 
-/* a format 5 project -> slot q as format 6: each track's 64 steps into the pool (4 x 64 = all of it) */
+/* the parameters of a format 4..6 track (PROJ_NP_V6) and the globals -> today's: mapped by count, the
+ * last 8 are P_E0..P_E7; the ones added since take their defaults */
+static void proj_p_from_v6(int16_t *d, const int16_t *s)
+{
+    uint32_t k, nc = PROJ_NP_V6 - 8u;
+    for (k = 0; k < P_E0; k++)
+        d[k] = k < nc ? s[k] : TP[k].def;
+    for (k = 0; k < 8u; k++)
+        d[P_E0 + k] = s[nc + k];
+}
+static void proj_g_from_v6(int16_t *d, const int16_t *s)
+{
+    uint32_t i;
+    for (i = 0; i < G_COUNT; i++)
+        d[i] = i < PROJ_NG_V6 ? s[i] : GP[i].def;
+}
+
+/* a format 6 project -> slot q as format 7 */
+static void proj_from_v6(project_t *q, const project_v6_t *v)
+{
+    uint32_t k;
+    memset(q, 0, sizeof *q);
+    q->magic = PROJ_MAGIC;
+    q->size = sizeof *q;
+    proj_g_from_v6(q->g, v->g);
+    q->sel = v->sel;
+    q->dxv = v->dxv;
+    for (k = 0; k < NTRK; k++) {
+        proj_p_from_v6(q->t[k].p, v->t[k].p);
+        q->t[k].engine = v->t[k].engine;
+        q->t[k].preset = v->t[k].preset;
+        q->t[k].nst = v->t[k].nst;
+    }
+    memcpy(q->pool, v->pool, sizeof q->pool);
+    memcpy(&q->dext, &v->dext, sizeof q->dext);
+    q->sum = proj_sum(q);
+}
+
+/* a format 5 project -> slot q as format 7: each track's 64 steps into the pool (4 x 64 = all of it) */
 static void proj_from_v5(project_t *q, const project_v5_t *v)
 {
     uint32_t k;
     memset(q, 0, sizeof *q);
     q->magic = PROJ_MAGIC;
     q->size = sizeof *q;
-    memcpy(q->g, v->g, sizeof q->g);
+    proj_g_from_v6(q->g, v->g);
     q->sel = v->sel;
     q->dxv = v->dxv;
     for (k = 0; k < NTRK; k++) {
-        memcpy(q->t[k].p, v->t[k].p, sizeof q->t[k].p);
+        proj_p_from_v6(q->t[k].p, v->t[k].p);
         q->t[k].engine = v->t[k].engine;
         q->t[k].preset = v->t[k].preset;
         q->t[k].nst = (uint8_t)PROJ_NSTEP_OLD;
@@ -302,12 +359,18 @@ static void proj_from_v5(project_t *q, const project_v5_t *v)
 }
 static project_v5_t proj_v5_tmp __attribute__((section(".pool")));   /* (older formats: through format 5) */
 
-/* n bytes of a stored project (any format) -> slot q as format 6; 0 = not a project */
+/* n bytes of a stored project (any format) -> slot q as format 7; 0 = not a project */
 static int proj_import(project_t *q, const void *b, int n)
 {
     project_v5_t *v = &proj_v5_tmp;
+    const project_v6_t *v6 = (const project_v6_t *)b;
     if (n == (int)sizeof *q && proj_ok((const project_t *)b)) {
         memcpy(q, b, sizeof *q);
+        return 1;
+    }
+    if (n == (int)sizeof *v6 && v6->magic == PROJ_MAGIC_V6 && v6->size == sizeof *v6 &&
+        v6->sum == proj_hash(v6, sizeof *v6 - 4u)) {
+        proj_from_v6(q, v6);
         return 1;
     }
     if (n == (int)sizeof *v && ((const project_v5_t *)b)->magic == PROJ_MAGIC_V5 && ((const project_v5_t *)b)->size == sizeof *v &&
@@ -415,9 +478,10 @@ static void proj_apply(const project_t *p, int all)
 #endif
 static uint8_t sec_dirty, song_dirty;           /* live sections / the song: in RAM, not yet in flash */
 #if FELUCCA_FLASH
-/* slot from flash into RAM (format 6, or an old one converted) */
+/* slot from flash into RAM (format 7, or an old one converted) */
 static union {
     project_t v4;                                   /* (today's format: the name stayed) */
+    project_v6_t v6;
     project_v5_t v5;
     project_v3_t v3;
     project_v2_t v2;
