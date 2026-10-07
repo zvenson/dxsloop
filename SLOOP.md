@@ -312,7 +312,7 @@ The top of the list:
 
 **Where the edit goes.** As on a DX7, you edit a voice in one of your 32 slots. Change anything on a factory voice and sloopDX first copies it into the first slot called INIT VOICE (with no bank loaded: U01), switches the track to that slot and says *COPIED TO U01*. With no free slot it says so: pick one with **Copy To**. The next note plays every change; notes already sounding keep theirs. A dot after the name at the bottom means the bank has changes that are not stored: **SAVE** keeps them, power-off forgets them.
 
-**In the web editor** the **Voice** tab shows the same voice on one page: the algorithm drawn, every operator as a column of sliders with its envelope, the pitch envelope and the LFO. Every slider plays on the FM-1 at once. Pick the slot, copy in a factory voice, import or export a single voice (.syx, the DX7's one-voice format) or one voice of a bank, give it a name, **Store bank**. The FM-1's list and the editor work on the same slots.
+**In the web editor** the **Voice** tab shows the same voice on one page: the algorithm drawn, every operator as a column of sliders under its envelope, the pitch envelope and the LFO. The envelopes are drawn as on the FM-1 and can be **dragged**: a point moved across sets its rate, up and down its level (the start point: Level 4); the segment you move turns red and the sliders follow. Every change plays on the FM-1 at once. Pick the slot, copy in a factory voice, import or export a single voice (.syx, the DX7's one-voice format) or one voice of a bank, give it a name, **Store bank**. The FM-1's list and the editor work on the same slots.
 
 ### The quick knobs
 

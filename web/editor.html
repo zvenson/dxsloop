@@ -80,8 +80,14 @@
   #valg text.c { fill: var(--bg); } #valg text.m { fill: var(--fg); }
   #valg line, #valg polyline { stroke: var(--dim); fill: none; }
   #valg .fb { stroke: var(--fg); stroke-dasharray: 3 2; }
-  svg.env { width: 100%; height: 36px; display: block; margin: 2px 0 4px; }
+  svg.env { width: 100%; height: auto; display: block; margin: 2px 0 4px; touch-action: none; user-select: none; }
   svg.env polyline { fill: none; stroke: var(--fg); stroke-width: 1.5; }
+  svg.env polygon { fill: currentColor; fill-opacity: .08; stroke: none; }
+  svg.env .seg { fill: none; stroke: #ff2e22; stroke-width: 2.5; }
+  svg.env .h { fill: var(--bg, #222); stroke: currentColor; stroke-width: 1.5; cursor: grab; }
+  svg.env .h.on { fill: #ff2e22; stroke: #ff2e22; }
+  svg.env .hit { fill: transparent; cursor: grab; }
+  svg.env text { font: 10px ui-monospace, Menlo, monospace; fill: currentColor; fill-opacity: .7; }
   /* the Voice tab in the DX7's colours: the panel, mint membrane keys, light blue operators, salmon and
      orange functions, the red LED, the green LCD */
   #p-voice { --dxpanel: #2e2a2b; --dxtrack: #4a4344; --dxlabel: #cec8c2; --dxmint: #42f5f5; --dxblue: #afd9f4;
@@ -105,6 +111,8 @@
   #p-voice #valg line { stroke: var(--dxlabel); } #p-voice #valg .fb { stroke: var(--dxorange); }
   #p-voice #valg .led { fill: var(--dxled); font: 600 26px ui-monospace, Menlo, monospace; text-anchor: start; }
   #p-voice svg.env polyline { stroke: var(--dxlcd); }
+  #p-voice svg.env { color: var(--dxlcd); }
+  #p-voice svg.env .h { fill: var(--dxpanel); }
   #p-voice #vstate { color: var(--dxlcd); background: #111; padding: 3px 6px; font-family: ui-monospace, Menlo, monospace; }
   .row.pushed .v { font-weight: 600; }
   /* librarian: local library and the device's user bank side by side, stacked on a phone */
@@ -857,6 +865,27 @@ const DX7_ALG = [[0xc1, 0x11, 0x11, 0x14, 0x01, 0x14], [0x01, 0x11, 0x11, 0x14, 
 const DX7_OPMAX = [99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 3, 3, 7, 3, 7, 99, 1, 31, 99, 14];
 const DX7_GMAX = [99, 99, 99, 99, 99, 99, 99, 99, 31, 7, 1, 99, 99, 99, 99, 1, 5, 7, 48];
 const DX7_NPARAM = 155;
+/* an envelope laid out as on the FM-1 (ui_voice.c ve_seg_w / ve_graph): a segment as wide as it takes, the hold
+   fixed. x of the six points (start at L4, L1, L2, L3, end of the hold, back at L4); unit = width of one time step */
+const dx7SegW = (r, from, to) => {
+  const e = 99 - Math.min(r, 99);
+  return Math.floor(((16 + Math.floor((e % 12) * 16 / 12)) << Math.floor(e / 12)) / 16) * (Math.abs(from - to) + 12);
+};
+function dx7EnvLayout(R, L, W, SUS, unit) {
+  const w = [0, 1, 2, 3].map((k) => dx7SegW(R[k], k ? L[k - 1] : L[3], L[k]));
+  if (unit == null) unit = (W - SUS - 16) / Math.max(w[0] + w[1] + w[2] + w[3], 1);
+  const x = [0];
+  for (let k = 0; k < 3; k++) x.push(x[k] + 4 + w[k] * unit);
+  x.push(x[3] + SUS);
+  x.push(x[4] + 4 + w[3] * unit);
+  return { x, unit };
+}
+/* the rate whose segment comes nearest px wide (a dragged point) */
+function dx7RateFor(px, unit, from, to) {
+  let best = 0, bd = Infinity;
+  for (let r = 0; r < 100; r++) { const d = Math.abs(4 + dx7SegW(r, from, to) * unit - px); if (d < bd) { bd = d; best = r; } }
+  return best;
+}
 const dx7ParamMax = (i) => (i < 126 ? DX7_OPMAX[i % 21] : i < 145 ? DX7_GMAX[i - 126] : i < DX7_NPARAM ? 127 : 0);
 function dx7Unpack(b) {
   const u = new Uint8Array(156);
@@ -2226,7 +2255,7 @@ const TEXT = {
     vFactory: "ファクトリーからコピー", vInit: "初期化", vImport: ".syx を読む", vExport: ".syx に書き出す", vAlgorithm: "アルゴリズム", vPitchEnv: "ピッチ EG",
     vNoProto: "このファームウェアはボイス編集に対応していません（sloopDX 1.1 以降）。", vDrum: "ドラムトラックにはボイス編集はありません。トラック 1〜3 を選んでください。",
     vEditing: "編集中: ", vNotInSlot: "（まだスロットにありません。最初の変更で書き込みます）", vStored: "バンクを保存しました", vStoreFail: "保存できません: rc ",
-    vLoaded: "ボイスを読み込みました: ", vCarrier: "キャリア", vModulator: "モジュレーター", vBadSyx: ".syx を読めません: ", vWhich: "バンクのどのボイス（1〜32）？",
+    vLoaded: "ボイスを読み込みました: ", vCarrier: "キャリア", vDrag: "点をドラッグ: ↔ レート ↕ レベル", vModulator: "モジュレーター", vBadSyx: ".syx を読めません: ", vWhich: "バンクのどのボイス（1〜32）？",
     vConfirmInit: "このスロットを INIT VOICE にしますか？",
     track: "トラック", drum: "ドラム",
     saveFile: "ファイルに保存", loadFile: "ファイルを読み込む", projects: "プロジェクト",
@@ -2308,7 +2337,7 @@ const TEXT = {
     vFactory: "Copy a factory voice", vInit: "Init voice", vImport: "Import .syx", vExport: "Export .syx", vAlgorithm: "Algorithm", vPitchEnv: "Pitch envelope",
     vNoProto: "This firmware has no voice editing (sloopDX 1.1 or later).", vDrum: "The drum track has no voice to edit: select track 1, 2 or 3.",
     vEditing: "Editing ", vNotInSlot: " (not in the slot yet: the first change writes it)", vStored: "Bank stored", vStoreFail: "Could not store: rc ",
-    vLoaded: "Voice loaded: ", vCarrier: "carrier", vModulator: "modulator", vBadSyx: "Cannot read the .syx: ", vWhich: "Which voice of the bank (1-32)?",
+    vLoaded: "Voice loaded: ", vCarrier: "carrier", vDrag: "drag a point: ↔ rate  ↕ level", vModulator: "modulator", vBadSyx: "Cannot read the .syx: ", vWhich: "Which voice of the bank (1-32)?",
     vConfirmInit: "Make this slot an INIT VOICE?",
     track: "Track", drum: "Drums",
     saveFile: "Save to file", loadFile: "Load file", projects: "Projects",
@@ -4229,30 +4258,78 @@ function vRow(label, idx, kind, onChange) {
     val.textContent = vFmt(kind, VX.u[idx], idx);
     if (onChange) onChange(idx);
   });
-  return el("div", { class: "vrow", "data-idx": idx }, el("span", { text: label }), inp, val);
+  return el("div", { class: "vrow", "data-idx": idx, "data-kind": kind || "" }, el("span", { text: label }), inp, val);
 }
-/* one operator's envelope, rates as time, levels as height (a sketch, not to scale) */
-function vEnvSvg(rates, levels, mid) {
-  const w = (r) => 4 + (99 - r) * 0.55;
-  let x = 0;
-  const y = (l) => 34 - (l / 99) * 32;
-  const pts = [[0, y(levels[3])]];
-  for (let i = 0; i < 3; i++) { x += w(rates[i]); pts.push([x, y(levels[i])]); }
-  x += 30; pts.push([x, y(levels[2])]);
-  x += w(rates[3]); pts.push([x, y(levels[3])]);
-  const sx = 200 / Math.max(x, 1);
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "env"); svg.setAttribute("viewBox", "0 0 200 36"); svg.setAttribute("preserveAspectRatio", "none");
-  const pl = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  pl.setAttribute("points", pts.map(([a, b]) => `${(a * sx).toFixed(1)},${b.toFixed(1)}`).join(" "));
-  svg.append(pl);
-  if (mid != null) {
-    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    ln.setAttribute("x1", 0); ln.setAttribute("x2", 200); ln.setAttribute("y1", y(mid)); ln.setAttribute("y2", y(mid));
-    ln.setAttribute("stroke", "currentColor"); ln.setAttribute("stroke-opacity", ".25");
-    svg.append(ln);
+/* an envelope to edit by hand: rates R at VX.u[b..b+3], levels at b+4..b+7, drawn as on the FM-1 (dx7EnvLayout). A
+   point dragged across sets its rate, up / down its level; the start point only L4. While a point moves the scale
+   stays, so the point follows the pointer; on release the envelope fits the width again. mid: the pitch EG's 0 */
+function vEnvEdit(b, mid, onChange) {
+  const NS = "http://www.w3.org/2000/svg", W = 240, H = 100, TOP = 16, BOT = 94, SUS = 24;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "env"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const add = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); svg.append(e); return e; };
+  const LV = [3, 0, 1, 2, 2, 3], RK = [-1, 0, 1, 2, -1, 3];   /* the level / rate of each point */
+  const y = (l) => BOT - (l / 99) * (BOT - TOP);
+  let drag = null, hover = -1;
+  const R = () => VX.u.slice(b, b + 4), L = () => VX.u.slice(b + 4, b + 8);
+  const say = (p) => p < 0 ? t("vDrag") : (RK[p] >= 0 ? `R${RK[p] + 1} ${VX.u[b + RK[p]]}  ` : "") + `L${LV[p] + 1} ${mid != null ? vSigned(VX.u[b + 4 + LV[p]], mid) : VX.u[b + 4 + LV[p]]}`;
+  function draw() {
+    const { x } = dx7EnvLayout(R(), L(), W - 8, SUS, drag ? drag.unit : null), l = L();
+    const pts = x.map((xi, p) => [Math.min(xi + 4, W - 4), y(l[LV[p]])]);
+    const act = drag ? drag.p : hover;
+    svg.textContent = "";
+    add("line", { x1: 4, x2: W - 4, y1: BOT, y2: BOT, stroke: "currentColor", "stroke-opacity": ".25" });
+    if (mid != null) add("line", { x1: 4, x2: W - 4, y1: y(mid), y2: y(mid), stroke: "currentColor", "stroke-opacity": ".35", "stroke-dasharray": "3 3" });
+    add("line", { x1: pts[3][0], x2: pts[3][0], y1: TOP, y2: BOT, stroke: "currentColor", "stroke-opacity": ".2", "stroke-dasharray": "2 3" });
+    add("line", { x1: pts[4][0], x2: pts[4][0], y1: TOP, y2: BOT, stroke: "currentColor", "stroke-opacity": ".2", "stroke-dasharray": "2 3" });
+    add("polygon", { points: `${pts[0][0]},${BOT} ` + pts.map((q) => q.join(",")).join(" ") + ` ${pts[5][0]},${BOT}` });
+    add("polyline", { points: pts.map((q) => q.join(",")).join(" ") });
+    if (act > 0 && RK[act] >= 0) add("polyline", { class: "seg", points: `${pts[act - 1].join(",")} ${pts[act].join(",")}` });
+    add("text", { x: 4, y: 10 }).textContent = say(act);
+    pts.forEach(([px, py], p) => {
+      if (p === 4) return;
+      add("circle", { class: "h" + (p === act ? " on" : ""), cx: px, cy: py, r: 4 });
+      const hit = add("circle", { class: "hit", cx: px, cy: py, r: 11, "data-p": p });
+      hit.addEventListener("pointerenter", () => { if (!drag && hover !== p) { hover = p; draw(); } });
+      hit.addEventListener("pointerleave", () => { if (!drag) { hover = -1; draw(); } });
+    });
   }
+  const at = (ev) => { const m = svg.getScreenCTM(); return m ? new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()) : { x: 0, y: 0 }; };
+  svg.addEventListener("pointerdown", (ev) => {
+    const p = +(ev.target.getAttribute && ev.target.getAttribute("data-p"));
+    if (!(ev.target.classList && ev.target.classList.contains("hit"))) return;
+    const lay = dx7EnvLayout(R(), L(), W - 8, SUS);
+    drag = { p, unit: lay.unit, x0: p > 0 ? lay.x[p - 1] + 4 : 0 };
+    try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* a synthetic event */ }
+    ev.preventDefault();
+    draw();
+  });
+  svg.addEventListener("pointermove", (ev) => {
+    if (!drag) return;
+    const q = at(ev), p = drag.p, li = b + 4 + LV[p];
+    const lv = Math.max(0, Math.min(99, Math.round((BOT - q.y) / (BOT - TOP) * 99)));
+    const ch = [];
+    if (lv !== VX.u[li]) { vSet(li, lv); ch.push(li); }
+    if (RK[p] >= 0) {
+      const l = L(), from = RK[p] ? l[RK[p] - 1] : l[3];
+      const r = dx7RateFor(q.x - drag.x0, drag.unit, from, l[LV[p]]);
+      if (r !== VX.u[b + RK[p]]) { vSet(b + RK[p], r); ch.push(b + RK[p]); }
+    }
+    if (ch.length) { ch.forEach(vSyncRow); draw(); if (onChange) onChange(); }
+  });
+  const end = () => { if (drag) { drag = null; draw(); } };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+  svg.redraw = draw;
+  draw();
   return svg;
+}
+/* a slider row shows a value set elsewhere (the envelope) */
+function vSyncRow(idx) {
+  const row = document.querySelector(`#p-voice .vrow[data-idx="${idx}"]`);
+  if (!row) return;
+  row.querySelector("input").value = VX.u[idx];
+  row.querySelector(".v").textContent = vFmt(row.dataset.kind || "", VX.u[idx], idx);
 }
 /* the algorithm, as on the FM-1's screen (ui_voice.c): carriers on the bottom row, modulators above the op
    they feed, feedback dashed */
@@ -4316,17 +4393,15 @@ function renderVoice() {
   const glob = $("vglob0"), peg = $("vpeg"), lfo = $("vlfo"), ops = $("vops");
   glob.textContent = ""; peg.textContent = ""; lfo.textContent = ""; ops.textContent = "";
   V_GLOB.forEach(([l, i, k]) => glob.append(vRow(l, i, k, i === 134 ? vDrawAlg : null)));
-  const pegEnv = el("div");
-  const drawPeg = () => { pegEnv.textContent = ""; pegEnv.append(vEnvSvg(VX.u.slice(126, 130), VX.u.slice(130, 134), 50)); };
-  drawPeg();
+  const pegEnv = vEnvEdit(126, 50);
+  const drawPeg = () => pegEnv.redraw();
   peg.append(pegEnv);
   V_PEG.forEach(([l, i, k]) => peg.append(vRow(l, i, k, drawPeg)));
   V_LFO.forEach(([l, i, k]) => lfo.append(vRow(l, i, k)));
   for (let d = 0; d < 6; d++) {                        /* OP1 first: block 5 */
     const base = (5 - d) * 21;
-    const env = el("div");
-    const drawEnv = () => { env.textContent = ""; env.append(vEnvSvg(VX.u.slice(base, base + 4), VX.u.slice(base + 4, base + 8))); };
-    drawEnv();
+    const env = vEnvEdit(base);
+    const drawEnv = () => env.redraw();
     const card = el("div", { class: "group vop" }, el("h2", { text: "OP" + (d + 1) }, el("span", { class: "tag" })), env);
     const coarseRows = [];
     V_OP.forEach(([l, off, k]) => {

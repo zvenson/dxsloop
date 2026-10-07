@@ -227,7 +227,7 @@ On USB the FM-1 is also an **audio input named "Felucca"**: 44.1 kHz, 16-bit ste
 Open it from the [installer page](https://dx7.designburgapps.com/) (or the [editor link](https://dx7.designburgapps.com/webapp/editor/)) in Chrome or Edge, with the FM-1 on USB, and press **Connect**. It follows the device live: turn a knob on the FM-1 and the editor moves.
 
 - **Sound** — the presets 01–20 and the voices of your bank 21–52, and every parameter of the selected track: the voice and its quick knobs BRITE / ATK / DEC / REL / FDBK, CUT / RESO, envelope, LFO, arp, sends.
-- **Voice** — the whole DX7 voice on one page, in the DX7's colours: the algorithm drawn, all six operators with their envelopes, the pitch envelope, the LFO, the name. Every change plays at once; import / export single voices (.syx); store the bank.
+- **Voice** — the whole DX7 voice on one page, in the DX7's colours: the algorithm drawn, all six operators with their envelopes (drag a point: across = rate, up / down = level), the pitch envelope, the LFO, the name. Every change plays at once; import / export single voices (.syx); store the bank.
 - **Sequencer** — the steps; on the drum track a grid of 16 sounds × the steps, with levels and ratchets, and the kit.
 - **Tracks** — the four channel strips.
 - **Library** — your user presets and preset files, and your **DX7 banks**: pick one of the 8 banks, open or drop a `.syx`, see U01–U32 by name, erase it.

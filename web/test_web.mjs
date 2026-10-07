@@ -33,7 +33,7 @@ const E = vm.runInNewContext(proto + `
    UP, bank, capturePatch, auditionPatch, startWatch, libraryFile, readLibraryFile, paramKeys, patternFromSteps, stepsFromPattern, upName,
    mixer, GM_DRUM, drumName, parseNotes, fmtValue, F, DRUM_LANES, LV_NAMES, emptyDrum,
    backupCapture, backupRestore, backupObjects, b64enc, b64dec,
-   DX7_ALG, dx7Unpack, dx7Pack, dx7ParamMax, dx7InitVoice, dx7AlgGraph, dx7VcedMake, dx7VcedCheck, dxvoice,
+   DX7_ALG, dx7Unpack, dx7Pack, dx7ParamMax, dx7InitVoice, dx7AlgGraph, dx7VcedMake, dx7VcedCheck, dxvoice, dx7SegW, dx7EnvLayout, dx7RateFor,
    UKIT, kitIsSyx, kitImgFromSyx, kitSyxFromImg, kitSeedOf, bkPutObject, bkGetObject })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
@@ -695,6 +695,18 @@ async function editorVoice() {
     "voice: algorithm graphs (1: OP2->OP1, OP4->OP3; 22: OP6 feeds OP5, OP4, OP3; 32: six carriers; every one has feedback)");
   ok(E.dx7ParamMax(134) === 31 && E.dx7ParamMax(135) === 7 && E.dx7ParamMax(144) === 48 && E.dx7ParamMax(20) === 14 && E.dx7ParamMax(150) === 127,
     "voice: parameter ranges as eng_dx7.c");
+  /* the envelope the voice page draws and drags: segment widths as ui_voice.c ve_seg_w, a dragged point lands on a
+     rate as wide as where it was let go */
+  const segC = (r, f, t2) => { const e = 99 - r; return Math.floor(((16 + Math.floor((e % 12) * 16 / 12)) * 2 ** Math.floor(e / 12)) / 16) * (Math.abs(f - t2) + 12); };
+  let segOk = true, dragOk = true;
+  for (let r = 0; r < 100; r++) for (const [f, t2] of [[0, 99], [99, 0], [50, 50], [10, 70]]) {
+    segOk &&= E.dx7SegW(r, f, t2) === segC(r, f, t2);
+    const lay = E.dx7EnvLayout([r, 50, 70, 30], [f, 80, 60, t2], 232, 24), px = lay.x[1] - lay.x[0];
+    dragOk &&= E.dx7SegW(E.dx7RateFor(px, lay.unit, t2, f), t2, f) === E.dx7SegW(r, t2, f);
+  }
+  const lay = E.dx7EnvLayout([99, 99, 99, 99], [99, 99, 99, 0], 232, 24);
+  ok(segOk && dragOk && Math.abs(lay.x[5] - 232) < 1e-9 && lay.x[4] - lay.x[3] === 24,
+    "voice: envelope layout as the FM-1 (ve_seg_w), fills the width; a dragged point gives its rate back");
   const ved = E.dx7VcedMake(voices[3]), back = E.dx7VcedCheck(ved);
   const code = (b) => { try { E.dx7VcedCheck(b); return "ok"; } catch (e) { return e.code; } };
   const bad = Uint8Array.from(ved); bad[50] ^= 1;
