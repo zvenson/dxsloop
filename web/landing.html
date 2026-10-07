@@ -70,6 +70,16 @@
   .stats div:last-child { border-right: 0; }
   .stats b { display: block; font-size: clamp(34px, 4vw, 56px); font-weight: 800; line-height: 1; }
   .stats span { color: var(--dim); font-size: 14px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .stats a { color: inherit; text-decoration: none; display: block; }
+  /* Highlights: the list right under the hero */
+  .hl { padding: 56px 0 64px; border-bottom: 1px solid var(--line); }
+  .hl h2 { margin-bottom: 26px; }
+  .hlgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .hlgrid div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; border-top: 3px solid var(--c, var(--cyan)); }
+  .hlgrid b { display: block; font-size: 18px; margin-bottom: 6px; }
+  .hlgrid p { margin: 0; color: var(--dim); font-size: 15px; line-height: 1.5; }
+  @media (max-width: 1100px) { .hlgrid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .hlgrid { grid-template-columns: 1fr; } }
   .stats div:nth-child(1) b { color: var(--cyan); } .stats div:nth-child(2) b { color: var(--blue); }
   .stats div:nth-child(3) b { color: var(--pink); } .stats div:nth-child(4) b { color: var(--beige); }
   .small { font-size: 13px; color: var(--dim); margin-top: 14px; }
@@ -184,6 +194,7 @@
 <nav><div class="wrap">
   <a class="logo" href="#top" aria-label="sloopDX"><!--LOGO--></a>
   <div class="links">
+    <a href="#highlights">Highlights</a>
     <a href="#new">New</a>
     <a href="#video">Video</a>
     <a href="#features">Features</a>
@@ -213,7 +224,21 @@
   </div>
 </div></header>
 <div class="strip"><i></i><i></i><i></i><i></i></div>
-<div class="stats"><div><b>6</b><span>operators</span></div><div><b>32</b><span>algorithms</span></div><div><b>256</b><span>voices from your banks</span></div><div><b>16×8</b><span>drum sounds × macros</span></div></div>
+<div class="stats"><div><a href="#new"><b>16×8</b><span>drum sounds × macros</span></a></div><div><a href="#highlights"><b>CUT·RESO</b><span>on every FM voice</span></a></div><div><a href="#highlights"><b>128</b><span>steps per track</span></a></div><div><a href="#features"><b>6-OP</b><span>Dexed's DX7 engine</span></a></div></div>
+
+<section id="highlights" class="hl"><div class="wrap">
+  <h2><b>Highlights</b></h2>
+  <div class="hlgrid">
+    <div style="--c: var(--beige)"><b>Drum sounds with macros</b><p>16 FM drums, each with TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE and its own reverb send, edited on the FM-1.</p></div>
+    <div style="--c: var(--cyan)"><b>FM with cutoff and resonance</b><p>A low-pass behind every DX7 voice: CUT and RESO on KNOB 1 and 2, moved by envelope and LFO. Open, the patch sounds as written.</p></div>
+    <div style="--c: var(--blue)"><b>Up to 128 steps per track</b><p>The four tracks share 256 steps: two of 128, or 128 + 64 + 32 + 32, or four of 64. OCT− / OCT+ page through them.</p></div>
+    <div style="--c: var(--pink)"><b>A six-operator engine from Dexed</b><p>32 algorithms, envelopes, keyboard scaling, LFO, feedback. Ported to the FM-1's chip, 99 % of samples identical to Dexed.</p></div>
+    <div style="--c: var(--beige)"><b>Real noise, locks, a dice</b><p>A noise operator for snares and hats, TUNE / DECAY locks per step, a kit dice from a seed, MY KIT saved and shared as .syx.</p></div>
+    <div style="--c: var(--cyan)"><b>Voice editing on the device</b><p>Every DX7 parameter as a list, the algorithm drawn as boxes, operators switched off to listen. The web editor has it on one page.</p></div>
+    <div style="--c: var(--blue)"><b>256 voices from your banks</b><p>Eight banks of 32 from any DX7 .syx dump, plus 20 factory voices with modern basses: DEEP SUB, 808 SUB, REESE.</p></div>
+    <div style="--c: var(--pink)"><b>SLOOP's live workflow</b><p>Layers, free takes, ratchets, chords, song mode, punch-in effects, MIDI in and clock, USB audio, full backup.</p></div>
+  </div>
+</div></section>
 
 <section id="new" class="newband"><div class="wrap">
   <p class="badge">New in 2.1 and 2.2</p>
