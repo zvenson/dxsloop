@@ -942,9 +942,11 @@ static void roll_block(uint32_t adv)
 
 /* ------------------------------------------------------------- OMNI --- */
 /* ARP MODE OMNI: the keys are a chord harp, after the Omnichord (the chord buttons as FoMni-1 has
- * them). The 11 black keys pick a chord in the track's key and play it (recorded: a chord step sets
- * the chord again on playback); the 16 white keys are strings over the chord's tones, low to high,
- * played live (not recorded). ARP MODE FLW on another track: its pattern follows the chord's root. */
+ * them). The 11 black keys pick a chord and play it (recorded: a chord step sets the chord again on
+ * playback); the 16 white keys are strings over the chord's tones, low to high, played live (not
+ * recorded). A button plays the chord it is named for, whatever the scale's ROOT (TRN moves them all).
+ * Always polyphonic, also on a MONO track. ARP MODE FLW on another track: its pattern follows the
+ * chord's root. */
 static const uint8_t OMNI_ROOT[11] = {5, 0, 7, 2, 9, 4, 7, 4, 2, 10, 9};   /* F C G  Dm Am  Em G7 E7  D7 Bb  A7 */
 static const uint8_t OMNI_TYPE[11] = {0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 2};    /* major, minor, 7th */
 static const int8_t OMNI_PAD[3][3] = {{0, 4, 7}, {0, 3, 7}, {0, 4, 10}};    /* the chord played */
@@ -956,9 +958,22 @@ static volatile uint8_t omni_ch = 0xFFu;        /* the chord now: 0..10, 0xFF no
 static volatile uint8_t omni_pc;                /* its root, a pitch class (the name) */
 static volatile uint8_t omni_new;               /* the UI says the chord (ui_draw) */
 
-static uint32_t omni_keypc(const track_t *t)    /* the track's key: ROOT + TRANS */
+static uint32_t omni_keypc(const track_t *t)    /* the chords' transposition: TRN */
 {
-    return (uint32_t)(((t->p[P_ROOT] + t->p[P_TRANS]) % 12 + 12) % 12);
+    return (uint32_t)((t->p[P_TRANS] % 12 + 12) % 12);
+}
+
+/* a note of the harp: polyphonic whatever the track's VOICE (a MONO track would play one tone of
+ * the chord); the note-off finds it as any POLY voice */
+static void omni_on(track_t *t, uint32_t note, int input)
+{
+    int16_t vm = t->p[P_VOICE];
+    t->p[P_VOICE] = V_POLY;
+    if (input)
+        input_on(t, note, 100);
+    else
+        trk_note_on(t, note, 100);
+    t->p[P_VOICE] = vm;
 }
 
 static void omni_set(const track_t *t, uint32_t c)
@@ -975,10 +990,10 @@ static void omni_name(char *b)                  /* "Am", "G7" */
     str_cpy(b + str_len(b), OMNI_SUF[OMNI_TYPE[c]], 4);
 }
 
-/* the semitones FLW moves a pattern by: the chord's root from the key's, the nearer way (-5..+6) */
+/* the semitones FLW moves a pattern (written in C) by: to the chord's root, the nearer way (-5..+6) */
 static int32_t omni_shift(void)
 {
-    int32_t r = omni_ch < 11u ? OMNI_ROOT[omni_ch] : 0;
+    int32_t r = omni_ch < 11u ? omni_pc % 12 : 0;
     return r > 6 ? r - 12 : r;
 }
 
@@ -1047,7 +1062,7 @@ static void omni_down(track_t *t, uint32_t k, uint32_t sel)
         kb_kind[k] = KS_NOTE;
         kb_n[k] = (uint8_t)omni_pad(t, c, kb_nt[k]);
         for (i = 0; i < kb_n[k]; i++) {
-            input_on(t, kb_nt[k][i], 100);
+            omni_on(t, kb_nt[k][i], 1);
             midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][i] << 16 | 100u << 24);
         }
         return;
@@ -1055,7 +1070,7 @@ static void omni_down(track_t *t, uint32_t k, uint32_t sel)
     kb_kind[k] = KS_STRUM;                              /* a string: a tone of the chord, live */
     kb_nt[k][0] = (uint8_t)omni_string(t, omni_idx(k, 0));
     kb_n[k] = 1;
-    trk_note_on(t, kb_nt[k][0], 100);
+    omni_on(t, kb_nt[k][0], 0);
     midi_out_event(0x09u | (0x90u | mc) << 8 | (uint32_t)kb_nt[k][0] << 16 | 100u << 24);
 }
 

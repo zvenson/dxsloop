@@ -88,7 +88,12 @@ static void keys_test(void)
     for (k = 0; k < 16u; k++)                           /* rising, in range */
         assert(omni_string(t, k) < 128u && (!k || omni_string(t, k) > omni_string(t, k - 1)));
 
-    t->p[P_ROOT] = 2;                                   /* in D the F button is G */
+    t->p[P_ROOT] = 5;                                   /* ROOT does not move the buttons */
+    press(BLACK[0]);
+    omni_name(nm);
+    assert(!strcmp(nm, "F") && sounding(t, 53) && sounding(t, 57) && sounding(t, 60));
+    lift(BLACK[0]);
+    t->p[P_TRANS] = 2;                                  /* TRN +2: the F button is G */
     press(BLACK[0]);
     omni_name(nm);
     assert(!strcmp(nm, "G") && sounding(t, 55) && sounding(t, 59) && sounding(t, 62));
@@ -98,7 +103,18 @@ static void keys_test(void)
     assert(sounding(t, 74) && omni_string(t, 0) == 69);   /* D5 F#5 A5 played, the strings from G4: A4 */
     lift(BLACK[1]);
     assert(gates(t) == 0);
-    puts("omni: 11 chord keys, 16 strings, chord change under held strings, key, octave, MIDI out ok");
+    song.octave = 0;                                    /* a MONO track: still the whole chord */
+    t->p[P_TRANS] = 0;
+    t->p[P_VOICE] = V_MONO;
+    press(BLACK[4]);
+    assert(gates(t) == 3 && sounding(t, 57) && sounding(t, 60) && sounding(t, 64));
+    press(6);                                           /* the 4th string (B3 key): A4, beside the chord */
+    assert(gates(t) == 4 && sounding(t, 69));
+    lift(6);
+    lift(BLACK[4]);
+    assert(gates(t) == 0);
+    t->p[P_VOICE] = V_POLY;
+    puts("omni: 11 chord keys, 16 strings, chord change under held strings, fixed buttons, TRN, octave, MONO, MIDI out ok");
 }
 
 static void record_test(void)
@@ -151,6 +167,12 @@ static void follow_test(void)
     seq_step(b, &s, 1000, 0);
     assert(sounding(b, 33));
     seq_release(b);
+    trk[0].p[P_TRANS] = 2;                              /* TRN +2: the Am button is Bm, the bass B */
+    omni_set(&trk[0], 4);
+    seq_step(b, &s, 1000, 0);
+    assert(sounding(b, 35));
+    seq_release(b);
+    trk[0].p[P_TRANS] = 0;
     trk[2].p[P_AMODE] = 0;                              /* a plain track does not follow */
     seq_step(&trk[2], &s, 1000, 0);
     assert(sounding(&trk[2], 36));
