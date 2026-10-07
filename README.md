@@ -1,6 +1,6 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-<p align="center"><b>Custom firmware that turns the M-VAVE FM-1 into a DX7: six operators, 32 algorithms, real voice editing, FM drums.</b><br>
+<p align="center"><b>Custom firmware for the M-VAVE FM-1: FM drums you program on the device, and a DX7 on top (six operators, 32 algorithms, real voice editing).</b><br>
 Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/sloop-fm1">SLOOP</a>, which is based on <a href="https://github.com/hugelton/Felucca">Felucca</a>. Not affiliated with either.</p>
 
 <p align="center">
