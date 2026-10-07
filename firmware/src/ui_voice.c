@@ -87,7 +87,6 @@ static const vrow_t VR_NAME[] = {
     {"Char 10", VK_PAR, 154, VF_CHAR},
 };
 #define VE_ROWS 6u                                       /* rows on screen */
-#define VE_ROWS_G 3u                                     /* below an envelope graph (OP, pitch env) */
 
 static struct {
     uint8_t lvl, op;             /* the list shown; op 0..5 = OP1..OP6 on VL_OP */
@@ -100,16 +99,7 @@ static struct {
     uint32_t arm_ms;
     uint8_t solo;                /* the operator soloed + 1 (0: none); mute_was: the switches before */
     uint8_t mute_was;
-    uint8_t knob;                /* the envelope knob turned last + 1 (its segment lit a moment) */
-    uint32_t knob_ms;
 } ve;
-
-/* the pages with an envelope graph above a shorter list: an operator, the pitch envelope */
-static int ve_graph_page(void) { return ve.lvl == VL_OP || ve.lvl == VL_PEG; }
-static uint32_t ve_nrows(void) { return ve_graph_page() ? VE_ROWS_G : VE_ROWS; }
-/* the envelope's parameters: rates at base + 0..3, levels at base + 4..7 (an operator's block, or the pitch env) */
-static uint32_t ve_env_base(void) { return ve.lvl == VL_OP ? (5u - ve.op) * 21u : 126u; }
-static int ve_lvl_mode(void);
 
 static int on_voice_page(void) { return !ui.home && cur_page()->scope == SC_VOICE; }
 
@@ -315,7 +305,6 @@ static void ve_go(uint32_t lvl, uint32_t op)
     ve.top = 0;
     ve.diag = 0;
     ve.arm = 0;
-    ve.knob = 0;
 }
 static int ve_armed(uint32_t kind, const char *what)      /* one tap arms, a second within 1.5 s acts */
 {
@@ -437,7 +426,7 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
     if ((s = panel_enc(EN_SELECT)) != 0) {                /* the highlight */
         ve.row = (uint8_t)clamp((int32_t)ve.row + s, 0, (int32_t)n - 1);
         if (ve.row < ve.top) ve.top = ve.row;
-        if (ve.row >= ve.top + ve_nrows()) ve.top = (uint8_t)(ve.row - ve_nrows() + 1u);
+        if (ve.row >= ve.top + VE_ROWS) ve.top = (uint8_t)(ve.row - VE_ROWS + 1u);
         ve.diag = 0;
         ve.arm = 0;
     }
@@ -487,24 +476,7 @@ static void voice_screen_input(uint32_t pressed, uint32_t home)
         ve.row0 = (uint8_t)(6u + (uint32_t)d);            /* HOME comes back to that OP row (VR_TOP: OP1 is row 6) */
         ui.force = 1;
     }
-    if (ve_graph_page()) {                                /* on an envelope: KNOB 1-4 its rates, or its levels when a
-                                                           * Level row is highlighted; the segment lights in the graph */
-        for (k = 0; k < 4u; k++) {
-            uint32_t idx = ve_env_base() + (ve_lvl_mode() ? 4u : 0u) + k;
-            int32_t v;
-            char val[8], msg[8] = {ve_lvl_mode() ? 'L' : 'R', (char)('1' + k), ' ', 0};
-            if ((s = panel_enc(EN_K1 + k)) == 0)
-                continue;
-            v = clamp((int32_t)ve_get(idx) + accel(EN_K1 + k, s, 99), 0, 99);
-            if ((uint32_t)v != ve_get(idx))
-                ve_set(idx, (uint32_t)v);
-            ve.knob = (uint8_t)(k + 1u);
-            ve.knob_ms = fm1_ms;
-            fmt_int(val, v);
-            ui_say(msg, val);
-        }
-    }
-    for (k = 0; k < 4u && !ve_graph_page(); k++) {        /* KNOB 1 CUT, 2 RESO (the filter behind the voice),
+    for (k = 0; k < 4u; k++) {                            /* KNOB 1 CUT, 2 RESO (the filter behind the voice),
                                                            * 3 / 4 as on HOME; the value in the top bar */
         int16_t *vp;
         const param_desc_t *d;
@@ -642,136 +614,6 @@ static uint16_t ve_kind_col(const vrow_t *r)              /* the colour of a row
     default: return DX_MINT;
     }
 }
-/* ---- the envelope graph: L4 -> L1 (R1) -> L2 (R2) -> L3 (R3), held while the key is down, -> L4 (R4).
- * A segment's width grows with its time (a lower rate and a longer way take longer), the levels are linear;
- * the pitch envelope is drawn around its middle (50 = no shift). The segment or level the knobs edit is red,
- * the newest note of the track runs along it as a white dot. */
-static int ve_lvl_mode(void)
-{
-    uint32_t n;
-    const vrow_t *rows = ve_rows(&n);
-    const char *nm = ve.row < n ? rows[ve.row].name : "";
-    return nm[0] == 'L' && nm[1] == 'e' && nm[2] == 'v';
-}
-static int ve_row_k(void)                                 /* the highlighted row's Rate / Level number - 1, else -1 */
-{
-    uint32_t n;
-    const vrow_t *rows = ve_rows(&n);
-    const char *nm = ve.row < n ? rows[ve.row].name : "";
-    if ((nm[0] == 'R' && nm[1] == 'a' && nm[2] == 't') || (nm[0] == 'L' && nm[1] == 'e' && nm[2] == 'v'))
-        return nm[str_len(nm) - 1u] - '1';
-    return -1;
-}
-static int32_t ve_seg_w(uint32_t rate, uint32_t from, uint32_t to)   /* relative time of a segment */
-{
-    uint32_t e = 99u - (rate > 99u ? 99u : rate), d = from > to ? from - to : to - from;
-    return (int32_t)(((16u + (e % 12u) * 16u / 12u) << (e / 12u)) / 16u * (d + 12u));
-}
-/* where the newest note of the track is on the envelope shown: the segment (0..3, 4 = held at L3) and how far
- * along it (0..1000); 0 = no note sounding */
-static int ve_live(uint32_t *seg, int32_t *frac)
-{
-    const track_t *t = TSEL;
-    uint32_t i, best = NVOICE, p = song.sel;
-    int32_t a, b, lv;
-    uint32_t ix, down;
-    const uint8_t *L;
-    if (p >= NPART)
-        return 0;
-    for (i = 0; i < NVOICE; i++)
-        if (t->v[i].active && t->v[i].stage != 4u && (best == NVOICE || t->v[i].age > t->v[best].age))
-            best = i;
-    if (best == NVOICE)
-        return 0;
-    if (ve.lvl == VL_OP) {
-        const dx_env_t *e = &DXV[p][best].env[5u - ve.op];
-        int32_t lev[4], k;
-        for (k = 0; k < 4; k++) {
-            int32_t x = ((dx_scaleoutlevel(e->levels[k]) >> 1) << 6) + e->outlevel - 4256;
-            lev[k] = (x < 16 ? 16 : x) << 4;               /* (>> 12 of the env's units: no overflow below) */
-        }
-        ix = e->ix; down = e->down; lv = e->level >> 12; L = 0;
-        if (ix > 3u) return 0;
-        a = lev[ix ? ix - 1u : 3u]; b = lev[ix];
-        (void)L;
-    } else {
-        const dx_penv_t *q = &DXV[p][best].penv;
-        ix = q->ix; down = q->down; lv = q->level >> 12;
-        if (ix > 3u) return 0;
-        a = DX_PITCH[q->levels[ix ? ix - 1u : 3u]] << 7; b = DX_PITCH[q->levels[ix]] << 7;
-    }
-    if (ix == 3u && down) {                               /* held at L3 */
-        *seg = 4;
-        *frac = 500;
-        return 1;
-    }
-    *seg = ix;
-    *frac = b == a ? 1000 : clamp((lv - a) * 1000 / (b - a), 0, 1000);
-    return 1;
-}
-static void ve_graph(int32_t h)
-{
-    uint32_t base = ve_env_base(), k, seg;
-    uint32_t R[4], L[4];
-    int32_t w[4], tot = 0, x[6], y[6], X0 = 8, W = 224, SUS = 26, top = 18, bot = h - 6, live, frac;
-    int peg = ve.lvl == VL_PEG, lm = ve_lvl_mode();
-    uint32_t hot = ve.knob && fm1_ms - ve.knob_ms < 1500u ? ve.knob : 0u;
-    char lab[24];
-    for (k = 0; k < 4u; k++) {
-        R[k] = ve_get(base + k);
-        L[k] = ve_get(base + 4u + k);
-    }
-    for (k = 0; k < 4u; k++) {
-        w[k] = ve_seg_w(R[k], k ? L[k - 1u] : L[3], L[k]);
-        tot += w[k];
-    }
-    x[0] = X0;
-    for (k = 0; k < 3u; k++)                              /* R1-R3, then the hold, then R4 */
-        x[k + 1u] = x[k] + 4 + (int32_t)((int64_t)w[k] * (W - SUS - 16) / (tot ? tot : 1));
-    x[4] = x[3] + SUS;
-    x[5] = x[4] + 4 + (int32_t)((int64_t)w[3] * (W - SUS - 16) / (tot ? tot : 1));
-    if (x[5] > X0 + W) x[5] = X0 + W;
-    {
-        static const uint8_t LV[6] = {3, 0, 1, 2, 2, 3};  /* the level at each point */
-        for (k = 0; k < 6u; k++)
-            y[k] = bot - (int32_t)L[LV[k]] * (bot - top) / 99;
-    }
-    str_cpy(lab, lm ? "KNOB 1-4: LEVEL 1-4" : "KNOB 1-4: RATE 1-4", 24);
-    cv_text(4, 0, &FONT_S, lab, DX_LABEL);
-    cv_rect(X0, bot, W, 1, DX_TRACK);
-    if (peg)
-        cv_rect(X0, bot - 50 * (bot - top) / 99, W, 1, DX_TRACK);   /* (no shift) */
-    for (k = 0; k < 5u; k++) {                            /* the segments: k 0..2 R1-R3, 3 the hold, 4 R4 */
-        uint32_t r = k < 3u ? k : k == 4u ? 3u : 9u;
-        int lit = !lm && r < 4u && (hot ? hot - 1u == r : ve_row_k() == (int)r);
-        uint16_t c = r == 9u ? DX_TRACK : lit ? DX_LED : (peg ? DX_PINK : DX_MINT);
-        int32_t xa = x[k], xb = x[k + 1u], ya = y[k], yb = y[k + 1u], j;
-        cv_line(xa, ya, xb, yb, c);
-        cv_line(xa, ya + 1, xb, yb + 1, c);
-        if (lit)
-            for (j = 2; j < 4; j++) cv_line(xa, ya + j, xb, yb + j, c);
-    }
-    for (k = 0; k < 4u; k++) {                            /* the level points L1..L4 (L4 at both ends) */
-        int32_t px = k == 3u ? x[5] : x[k + 1u], py = k == 3u ? y[5] : y[k + 1u];
-        int lit = lm && (hot ? hot == k + 1u : ve_row_k() == (int)k);
-        te_disc(px, py, lit ? 4 : 2, lit ? DX_LED : DX_LABEL);
-    }
-    if (ve_live(&seg, &frac)) {                           /* the note, where it is now */
-        int32_t px, py;
-        if (seg == 4u) { px = x[3] + SUS / 2; py = y[3]; }
-        else {
-            uint32_t a = seg < 3u ? seg : 4u;             /* (R4 runs from the hold's end) */
-            px = x[a] + (x[a + 1u] - x[a]) * frac / 1000;
-            py = y[a] + (y[a + 1u] - y[a]) * frac / 1000;
-        }
-        te_disc(px, py, 4, C_WHITE);
-        live = 1;
-    } else {
-        live = 0;
-    }
-    (void)live;
-}
-
 /* the list (or the algorithm), 240 x 180, drawn through cv_oy in two passes */
 static void ve_body(const vrow_t *rows, uint32_t n, uint16_t col)
 {
@@ -788,8 +630,8 @@ static void ve_body(const vrow_t *rows, uint32_t n, uint16_t col)
         ve_draw_alg(a, DX_ORANGE);                       /* (the feedback loop) */
         return;
     }
-    for (i = ve.top; i < ve.top + ve_nrows() && i < n; i++) {
-        int32_t y0 = (int32_t)(i - ve.top) * 30 + (ve_graph_page() ? 88 : 0), pct = ve_row_value(&rows[i], b);
+    for (i = ve.top; i < ve.top + VE_ROWS && i < n; i++) {
+        int32_t y0 = (int32_t)(i - ve.top) * 30, pct = ve_row_value(&rows[i], b);
         int hl = i == ve.row;
         uint16_t kc = ve_kind_col(&rows[i]);
         if (hl)                                           /* the highlight: a lit membrane key */
@@ -803,14 +645,11 @@ static void ve_body(const vrow_t *rows, uint32_t n, uint16_t col)
             cv_rect(10, y0 + 23, pct, 2, hl ? C_BLACK : kc);
         }
     }
-    if (n > ve_nrows()) {                                 /* the scroll bar */
-        int32_t y0 = ve_graph_page() ? 88 : 0, hh = 180 - y0;
-        int32_t h = hh * (int32_t)ve_nrows() / (int32_t)n, y = y0 + hh * (int32_t)ve.top / (int32_t)n;
-        cv_rect(237, y0, 3, hh, DX_TRACK);
+    if (n > VE_ROWS) {                                    /* the scroll bar */
+        int32_t h = 180 * (int32_t)VE_ROWS / (int32_t)n, y = 180 * (int32_t)ve.top / (int32_t)n;
+        cv_rect(237, 0, 3, 180, DX_TRACK);
         cv_rect(237, y, 3, h, DX_LABEL);
     }
-    if (ve_graph_page())
-        ve_graph(84);
 }
 
 static void voice_screen_draw(void)
@@ -845,7 +684,7 @@ static void voice_screen_draw(void)
     }
     if (ve.row >= n) ve.row = 0;
     sig = ve.lvl * 7919u + ve.op * 131u + ve.row * 31u + ve.top * 17u + ve.diag * 3u + ve.arm * 5u + ve_voice() * 104729u;
-    for (i = ve.top; i < ve.top + ve_nrows() && i < n; i++) {
+    for (i = ve.top; i < ve.top + VE_ROWS && i < n; i++) {
         int32_t pct = ve_row_value(&rows[i], b);
         sig = studio_hash(sig * 31u + (uint32_t)(pct + 1), b);
     }
@@ -854,13 +693,6 @@ static void voice_screen_draw(void)
         sig = sig * 31u + ve_get(134) * 7u + ve_get(135);
         for (k = 0; k < 6u; k++)                          /* the operators' levels and how loud they are now */
             sig = sig * 31u + ve_get(k * 21u + 16u) * 7u + (uint32_t)ve_op_live(k) / 40u + (uint32_t)ve_muted(5u - k);
-    }
-    if (ve_graph_page()) {                                /* the envelope, the knob lit, the note's dot */
-        uint32_t seg, k;
-        int32_t frac;
-        for (k = 0; k < 8u; k++) sig = sig * 31u + ve_get(ve_env_base() + k);
-        sig = sig * 7u + (ve.knob && fm1_ms - ve.knob_ms < 1500u ? ve.knob : 0u) + ve_lvl_mode() * 11u + ve.solo * 13u;
-        if (ve_live(&seg, &frac)) sig = sig * 131u + seg * 1009u + (uint32_t)frac / 25u + 1u;
     }
     if (ui.force || sig != body_sig) {
         uint32_t pass;

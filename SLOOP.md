@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 3.1
+# sloopDX 3.2
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 3.1, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 3.2, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -288,7 +288,7 @@ Tap **EDIT** on a synth track: the voice opens as a **list**, one row per settin
 | **HOME** | back to the top of the list; on the top, back to TRACKS |
 | **SAVE** | stores your bank in the FM-1's memory |
 | **PRESETS** | jumps straight to the next or previous operator (OP1 … OP6), on the same row |
-| **KNOB 1–4** | on an operator and on Pitch Env: **Rate 1–4** of its envelope, or **Level 1–4** while a Level row is highlighted (3.1); elsewhere **CUT**, **RESO** (the low-pass), **REL**, **FDBK**; the value in the message bar while you turn. Two small dials top right show CUT and RESO all the time: lit when set (CUT below 127, RESO above 0), grey when the filter is out of the way |
+| **KNOB 1–4** | **CUT**, **RESO** (the low-pass), **REL**, **FDBK**; the value in the message bar while you turn. Two small dials top right show CUT and RESO all the time: lit when set (CUT below 127, RESO above 0), grey when the filter is out of the way |
 | keys, **OCT− / OCT+**, **PLAY** | play as always, so you hear every change |
 
 The top of the list:
@@ -301,8 +301,8 @@ The top of the list:
 | **Feedback** | 0–7 |
 | **Osc Sync** | every operator starts its wave together on each note |
 | **Transpose** | ±24 semitones |
-| **OP1 › … OP6 ›** | one operator, its **envelope drawn** above the list (3.1): from Level 4 up to Level 1 at Rate 1, on to Level 2 and Level 3, held while the key is down, back to Level 4 at Rate 4; a segment is as wide as it takes, the one the knobs edit is red, and the note you play runs along it as a white dot. Rows: **On** (switch it off to hear the others; not stored, every operator is on again with another voice), **Solo** (only this operator; off again: the others as they were), Output Level, Coarse (shown as the ratio, or the fixed range), Fine, Detune ±7, Osc Mode (ratio / fixed), Rate 1–4, Level 1–4, Key Velocity, Amp Mod Sens, Break Point, Left / Right Depth, Left / Right Curve, Rate Scaling |
-| **Pitch Env ›** | its envelope drawn around the middle line (no shift), as an operator's; Rate 1–4, Level 1–4 (0 = no shift) |
+| **OP1 › … OP6 ›** | one operator: **On** (switch it off to hear the others; not stored, every operator is on again with another voice), **Solo** (only this operator; off again: the others as they were), Output Level, Coarse (shown as the ratio, or the fixed range), Fine, Detune ±7, Osc Mode (ratio / fixed), Rate 1–4, Level 1–4, Key Velocity, Amp Mod Sens, Break Point, Left / Right Depth, Left / Right Curve, Rate Scaling |
+| **Pitch Env ›** | Rate 1–4, Level 1–4 (0 = no shift) |
 | **LFO ›** | Wave, Speed, Delay, Pitch Mod Depth, Amp Mod Depth, Pitch Mod Sens, Key Sync |
 | **Name ›** | ten characters, one row each |
 | **Copy To** | copies the voice into the slot you pick with ALGORITHM, and plays it from there |
