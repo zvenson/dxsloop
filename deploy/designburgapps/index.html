@@ -32,7 +32,7 @@
          -webkit-background-clip: text; background-clip: text; color: transparent; }
   .lead { font-size: 20px; color: #d8d0c9; margin: 0; max-width: 34em; }
   main { flex: 1; padding-bottom: 80px; }
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
   .card { position: relative; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
           border-radius: 14px; padding: 30px 28px 26px; overflow: hidden; color: var(--fg);
           transition: transform 0.12s, border-color 0.15s, background 0.15s; }
@@ -51,7 +51,7 @@
               border-top: 1px solid var(--line); padding-top: 14px; }
   .card .go span:last-child { color: var(--c); font-size: 20px; transition: transform 0.12s; }
   .card:hover .go span:last-child { transform: translateX(4px); }
-  .c1 { --c: var(--beige); } .c2 { --c: var(--pink); } .c3 { --c: var(--cyan); }
+  .c1 { --c: var(--beige); } .c2 { --c: var(--pink); } .c3 { --c: var(--cyan); } .c4 { --c: #ff3424; }
   footer { border-top: 1px solid var(--line); padding: 34px 0 40px; font-size: 14.5px; color: var(--dim); }
   footer .wrap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
   footer h3 { font-size: 13px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--beige); margin: 0 0 8px; font-weight: 600; }
@@ -104,6 +104,11 @@
 </svg><span class="num">03</span></div>
     <p>Freie Firmware für das M-VAVE FM-1: Sechs-Operator-FM im Stil des DX7, Cutoff und Resonanz und FM-Drums, die du selbst baust.</p>
     <div class="go"><span>dx7.designburgapps.com</span><span>→</span></div>
+  </a>
+  <a class="card c4" href="https://zp12.designburgapps.com/">
+    <div class="top"><svg class="logo" viewBox="0 0 170 64" role="img" aria-label="zp12"><text x="2" y="50" font-family="Helvetica Neue, Arial, sans-serif" font-size="56" font-weight="900" font-style="italic" fill="#eef1f8" letter-spacing="-2">zp<tspan fill="#ff3424">12</tspan></text><rect x="0" y="58" width="168" height="2" fill="#ff3424"/><rect x="0" y="62" width="168" height="2" fill="#6f8fcf"/></svg><span class="num">04</span></div>
+    <p>Noch eine freie Firmware für das M-VAVE FM-1: ein 12-Bit-Sampling-Drumcomputer im Geist der 80er, mit Loops, Songs, Step-Sequencer, Hall und Delay.</p>
+    <div class="go"><span>zp12.designburgapps.com</span><span>→</span></div>
   </a>
 </div></main>
 
