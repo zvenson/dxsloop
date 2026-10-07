@@ -129,6 +129,8 @@ static uint8_t ukit_ok;                         /* MY KIT holds a kit (else: DX 
 static void ukit_from(uint32_t kit);
 static drum_ext_t dext;                         /* the working project's lane macros and locks */
 static uint16_t drum_lock;                       /* the lock of the step being played (seq.c drum_step), 0 = none */
+static volatile uint8_t drum_hand;               /* 0x80 | lane: a drum played by hand (a key, MIDI; seq.c drum_input),
+                                                  * not by the sequencer: the lane page follows it */
 
 /* drum d of a kit: its voice bytes and its playing data */
 static const uint8_t *drum_vbytes(uint32_t kit, uint32_t d)

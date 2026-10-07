@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 2.3
+# sloopDX 2.4
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 2.3, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 2.4, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.3
 
@@ -357,7 +357,7 @@ Five kits — **PRESETS** on the drum track, KNOB 1 on the kit page, or the edit
 
 **Noise.** Drum voices can have operators that play **noise** instead of a sine (sample and hold of a 32-bit generator, a new value twice per period of the operator's frequency: low = rumble, high = hiss; the level and the envelope as a sine's). Snares, claps, hats, cymbals and shakers use it. It is a drums-only mode: no synth voice and no .syx voice ever turns it on.
 
-**Edit a sound (the lane page).** On the kit page tap **EDIT**: the sound you last played (a key, a pad) and its macros; the top right says *lane* and the page (1/3). KNOB 1–4, three pages on **PRESETS**; the message bar shows the sound, the macro and its value while you turn (*SNARE DECAY +8*). Each macro is an offset on the kit (0 = as the kit), saved with the project and its song sections:
+**Edit a sound (the lane page).** On the kit page tap **EDIT**: the sound you last played by hand (a key, MIDI; also while the pattern plays, whose own hits never move it) and its macros; the top right says *lane* and the page (1/3). KNOB 1–4, three pages on **PRESETS**; the message bar shows the sound, the macro and its value while you turn (*SNARE DECAY +8*). Each macro is an offset on the kit (0 = as the kit), saved with the project and its song sections:
 
 | Page | KNOB 1 | KNOB 2 | KNOB 3 | KNOB 4 |
 | --- | --- | --- | --- | --- |

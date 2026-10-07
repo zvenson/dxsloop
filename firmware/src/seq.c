@@ -811,6 +811,7 @@ static void drum_input(uint32_t lane, uint32_t lvl, uint32_t rat, int rec)
     track_t *t = TDRUM;
     lane &= 15u;
     pen_lane = (uint8_t)lane;
+    drum_hand = (uint8_t)(0x80u | lane);            /* (the lane page: the sound played by hand) */
     arm_start(t);
     if (ft_on && ft_trk == TRK_DRUM)
         ft_note_on(lane, lvl);

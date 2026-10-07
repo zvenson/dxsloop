@@ -32,6 +32,10 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1f. 2.4, erledigt
+
+- [x] Lane-Seite: folgt dem von Hand gespielten Sound (Taste, MIDI; `seq.c drum_input` -> `drum_hand`) auch während der Wiedergabe; die Schläge des Sequencers verschieben sie nicht.
+
 ## 1e. 2.3, erledigt
 
 - [x] Voice-Liste: zwei Mini-Regler oben rechts (cut / res), leuchten wenn gesetzt (CUT < 127, RESO > 0), sonst grau.

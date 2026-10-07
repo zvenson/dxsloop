@@ -307,8 +307,12 @@ static void pads_tick(void)                             /* once a frame: the hit
     for (i = 0; i < DRUM_LANES; i++) {
         if ((hits >> i) & 1u) pad_lit[i] = 6;
         else if (pad_lit[i]) pad_lit[i]--;
-        if (((hits >> i) & 1u) && drum_page == 2u && song.sel == TRK_DRUM && !song.playing)
-            drum_lane = (uint8_t)i;                     /* LANE edits the sound last played (stopped: a key, a pad) */
+    }
+    if (drum_hand & 0x80u) {                            /* LANE edits the sound last played by hand (a key, MIDI),
+                                                         * also while the sequencer plays: its hits do not move it */
+        if (drum_page == 2u && song.sel == TRK_DRUM)
+            drum_lane = drum_hand & 15u;
+        drum_hand = 0;
     }
 }
 

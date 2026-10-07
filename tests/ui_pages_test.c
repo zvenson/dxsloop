@@ -446,6 +446,13 @@ int main(int argc, char **argv)
             encs[panel.enc[EN_K2]] = -4; frame();
             check(dext.m[2][DM_TUNE] == 5 && dext.m[2][DM_DECAY] == -4 && !memcmp(ui.msg, "SNARE DECAY -4", 15),
                   "LANE: KNOB 1 TUNE, KNOB 2 DECAY of the snare; SNARE DECAY -4 in the message bar");
+            transport_req = 1; frames(40);               /* playing: the pattern's kick and hat hit */
+            drum_hand = 0; drums.hits = 1u | 1u << 4; frames(3);
+            check(drum_lane == 2u && song.playing, "LANE while playing: the sequencer's hits do not move it");
+            key(key_of_lane(4)); frames(2);
+            check(drum_lane == 4u, "LANE while playing: a key played by hand selects its sound (the hat)");
+            transport_req = 2; frames(3);
+            drum_lane = 2;
             ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane");
             encs[panel.enc[EN_PRESET]] = 1; frame();
             encs[panel.enc[EN_K3]] = -20; frame();
