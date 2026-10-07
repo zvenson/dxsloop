@@ -136,7 +136,7 @@
     <p class="eyebrow">Early test build for the M-VAVE FM-1</p>
     <h1>Install <b>zp12</b></h1>
     <p class="lead">12-bit sampling drums in the spirit of the 80s: 32 sounds at 26.04 kHz, pitched without interpolation, eight channels with their filters. With the sequencer of such a machine (loops up to 32 bars, eleven of them on the black keys, a song, real-time recording, step editing, swing), the reverb and delay of sloopDX, and sampled chords, horns and bass from CC0 sources; it keeps your work in flash. Your own samples come next. Back to sloopDX any time with its installer.</p>
-      <video controls preload="none" playsinline style="width:100%;border-radius:12px;margin:8px 0 18px" src="zp12-beat.mp4?v=0.4"></video>
+      <video controls preload="none" playsinline style="width:100%;border-radius:12px;margin:8px 0 18px" src="zp12-beat.mp4?v=0.5"></video>
   </div>
   
 </div></header>
@@ -615,7 +615,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "0.4", "product": "FM-1_974", "pkg": "firmware/zp12-0.4.fwsc", "sha256": "5fc8854ba39573ba8bf8e09b8783f097f858b9a0512c0b41068538da5a5cde7f"};
+const meta = {"version": "0.5", "product": "FM-1_975", "pkg": "firmware/zp12-0.5.fwsc", "sha256": "6e025876098858ded60ef9bd5be850dff96dcd05855174c22566767e7415f53f"};
 
 let writing = false, stock = null;
 const lockAll = (on) => {
