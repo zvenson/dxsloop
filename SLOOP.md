@@ -80,10 +80,10 @@ The FM-1 restarts on the sloopDX logo. The editor is at `http://localhost:8766/w
 
 | Colour | Track | Knob |
 | --- | --- | --- |
-| **blue** | 1 · synth | KNOB 1 |
-| **green** | 2 · synth | KNOB 2 |
-| **yellow** | 3 · synth | KNOB 3 |
-| **orange** | 4 · drums | KNOB 4 |
+| **cyan** | 1 · synth | KNOB 1 |
+| **light blue** | 2 · synth | KNOB 2 |
+| **pink** | 3 · synth | KNOB 3 |
+| **beige** | 4 · drums | KNOB 4 |
 
 The four dials at the bottom of the screen show what KNOB 1–4 do now. White always means *what you are touching*. Red always means *recording*.
 

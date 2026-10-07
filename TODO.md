@@ -114,7 +114,7 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 
 ## 5. Doku und Namen
 
-- [x] `SLOOP.md`, `BUILDING.md`, `LICENSING.md`, `DEMARRAGE-RAPIDE-FR.md` auf DX7 + FM-Drums; LICENSING
+- [x] `SLOOP.md`, `BUILDING.md`, `LICENSING.md` auf DX7 + FM-Drums; LICENSING
       mit Dexed/msfa (Apache-2.0), Sample-Lizenzen raus.
 - [x] ABOUT-Seite (`ui_menu.c`): `GITHUB.COM/ZVENSON/DXSLOOP`.
 - [ ] isod89 per Issue über den Fork informieren (guter Ton, keine Pflicht).

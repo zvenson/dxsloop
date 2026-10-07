@@ -7,7 +7,6 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 <a href="https://dx7.designburgapps.com/"><b>Install from the browser</b></a> ·
 <a href="SLOOP.md">Manual</a> ·
 <a href="https://dx7.designburgapps.com/sloopdx-cheat-sheet.pdf">Cheat Sheet (2 × A4)</a> ·
-<a href="DEMARRAGE-RAPIDE-FR.md">Guide en français</a> ·
 <a href="https://dx7.designburgapps.com/webapp/editor/">Web editor</a> ·
 <a href="../../releases">Releases</a> ·
 <a href="../../issues">Report a bug</a>
@@ -168,7 +167,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 | **REC** | playing: record now / stop · stopped: arm (the REC screen) · hold: clear the track |
 | **EDIT + OCT− / OCT+** | undo / redo |
 
-Colours: **blue** track 1 and KNOB 1, **green** 2, **yellow** 3, **orange** 4 (drums). White is what you touch; red is recording.
+Colours, from the DX7's panel: **cyan** track 1 and KNOB 1, **light blue** 2, **pink** 3, **beige** 4 (drums). White is what you touch; red is recording.
 
 ## The menu: settings of the FM-1
 
@@ -290,7 +289,6 @@ Something else? [Open an issue](../../issues): what you did, what you expected, 
 ## Documentation
 
 - [SLOOP.md](SLOOP.md) — the full manual (every page, layer, voice and kit)
-- [DEMARRAGE-RAPIDE-FR.md](DEMARRAGE-RAPIDE-FR.md) — guide de démarrage en français
 - [BUILDING.md](BUILDING.md) — building, build options and tests
 - [TODO.md](TODO.md) — open work
 - [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) — the editor's SysEx protocol
