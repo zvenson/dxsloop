@@ -12,8 +12,8 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 <a href="../../issues">Report a bug</a>
 </p>
 
-<p align="center"><a href="https://www.youtube.com/watch?v=h_HqGU68_8A"><img src="https://img.youtube.com/vi/h_HqGU68_8A/maxresdefault.jpg" alt="sloopDX in one minute (YouTube)" width="640"></a><br>
-<a href="https://www.youtube.com/watch?v=h_HqGU68_8A">sloopDX in one minute</a>: FM with cutoff and resonance, 128 steps, drums you program.</p>
+<p align="center"><a href="https://www.youtube.com/watch?v=qas9XWBgpL4"><img src="https://img.youtube.com/vi/qas9XWBgpL4/maxresdefault.jpg" alt="sloopDX 2.5 in a minute (YouTube)" width="640"></a><br>
+<a href="https://www.youtube.com/watch?v=qas9XWBgpL4">sloopDX 2.5 in a minute</a>: FM with cutoff and resonance, the sounds, drums you program, 128 steps, OMNI.</p>
 
 ---
 
