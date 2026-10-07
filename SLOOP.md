@@ -468,7 +468,7 @@ USB AUDIO is a setting of the FM-1: it stays as you left it. MIDI, the web edito
 
 ## Lights
 
-Hold **HOME** for the menu: **LIGHTS**, **KEYS** and **NOTES** are together there (with **USB AUDIO**, the level of the USB audio input: see [USB audio](#usb-audio-record-on-a-computer)). PRESETS moves, **KNOB 1** sets, OCT+ steps round, OCT− closes. They are saved with the settings of the FM-1, not with a project: loading a project or NEW PROJECT does not change them.
+Hold **HOME** for the menu: **LIGHTS**, **KEYS** and **NOTES** are together there (with **USB AUDIO**, the level of the USB audio input: see [USB audio](#usb-audio-record-on-a-computer)). PRESETS moves, **KNOB 1** sets, OCT+ steps round, OCT− closes. They are saved with the settings of the FM-1, not with a project: loading a project or NEW PROJECT does not change them. The last item, **FACTORY RESET** (OCT+ twice, stopped), erases everything on the FM-1 — projects, presets, the 8 DX7 banks, MY KIT, the settings — and restarts it as freshly installed; the backup in the editor keeps a copy if you want one.
 
 - **LIGHTS** — OFF, LOW, MID, HIGH: every button glows at that level, so its label can be read in the dark (on a black FM-1 the labels are unreadable unlit). What is on — the page, PLAY, REC, an octave — stays at full light and still blinks as before.
 - **KEYS** — OFF, C KEYS, WHITE KEYS: the Cs, or every white key, glow at the LIGHTS level too (KEYS turns LIGHTS on at LOW if it was off). Played keys and the layer landmarks keep their own light.

@@ -163,3 +163,16 @@ static int st_save(uint32_t obj, const void *src, uint32_t len)
     }
     return 0;
 }
+
+/* FACTORY RESET (ui_menu.c): both copies of every object erased, so the next boot finds nothing and starts as new.
+ * Stopped only (an erase stalls the audio). rc: the first erase that failed, else 0 */
+static int st_wipe_all(void)
+{
+    uint32_t obj, copy;
+    int rc = 0, r;
+    for (obj = 0; obj < OBJ_COUNT; obj++)
+        for (copy = 0; copy < 2u; copy++)
+            if ((r = st_erase(st_sector(obj, copy))) != 0 && !rc)
+                rc = r;
+    return rc;
+}

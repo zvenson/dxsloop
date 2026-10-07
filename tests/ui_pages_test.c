@@ -618,6 +618,21 @@ int main(int argc, char **argv)
         ui.menu = 1; ui.menu_sel = MI_NOTES; ui.force = 1; frame();
         tap(B_OCTUP);
         check(lights_notes == 0u && ui.menu == 1, "menu NOTES: OCT+ toggles it off");
+        ui.menu_sel = MI_RESET; ui.force = 1; frame(); ppm("menu-reset");
+        song.playing = 1;
+        tap(B_OCTUP);
+        check(ui.menu_arm == 0u && host_factory_resets == 0u, "menu FACTORY RESET: refused while playing");
+        song.playing = 0;
+        tap(B_OCTUP);
+        check(ui.menu_arm > 0u && host_factory_resets == 0u && ui.menu == 1, "menu FACTORY RESET: the first OCT+ only arms");
+        encs[panel.enc[EN_PRESET]] = 1; frame();
+        check(ui.menu_arm == 0u && host_factory_resets == 0u, "menu FACTORY RESET: moving the cursor disarms");
+        ui.menu_sel = MI_RESET;
+        tap(B_OCTUP);
+        for (i = 0; i < 100u; i++) frame();
+        check(ui.menu_arm == 0u && host_factory_resets == 0u, "menu FACTORY RESET: the arming expires after 90 frames");
+        tap(B_OCTUP); frame(); tap(B_OCTUP);
+        check(host_factory_resets == 1u, "menu FACTORY RESET: OCT+ twice erases everything (on the host: counted)");
         ui.menu = 0; ui.force = 1; go_home(); frame();
     }
 

@@ -1,19 +1,37 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, LIGHTS, KEYS, NOTES, USB AUDIO, HARDWARE CALIBRATION, ABOUT. */
+/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, LIGHTS, KEYS, NOTES, USB AUDIO, HARDWARE CALIBRATION, ABOUT, FACTORY RESET. */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_PANEL, MI_ABOUT, MI_BACK, MI_COUNT };
+enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_PANEL, MI_ABOUT, MI_RESET, MI_BACK, MI_COUNT };
 static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
-                                              "HARDWARE CALIBRATION", "ABOUT", "BACK"};
+                                              "HARDWARE CALIBRATION", "ABOUT", "FACTORY RESET", "BACK"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};   /* every button lit, the labels readable */
 static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};      /* keys lit too, at the LIGHTS level */
-#define MI_DY 18                                   /* rows between two menu lines */
+#define MI_DY 16                                   /* rows between two menu lines */
+
+/* FACTORY RESET: every object in flash erased (the projects, the working project, the user presets, the 8 DX7
+ * banks, MY KIT, the settings with the panel table), then a reboot: the FM-1 starts as freshly installed.
+ * OCT+ twice within 90 frames, stopped only. On the host: counted, nothing erased */
+#if FELUCCA_FLASH
+static void menu_factory_reset(void)
+{
+    lcd_fill(0, H_HEAD + 1, 240, 240 - H_HEAD - 1, C_BLACK);
+    cv_begin(240, 20, C_BLACK);
+    cv_text(4, 2, &FONT_S, "ERASING...", C_HI);
+    cv_blit(0, 100);
+    st_wipe_all();
+    fm1_reboot();
+}
+#else
+static uint32_t host_factory_resets;
+static void menu_factory_reset(void) { host_factory_resets++; }
+#endif
 
 static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
                             settings.zoom * 104729u + lights_lvl * 1299709u + lights_keys * 15485863u +
-                            lights_notes * 32452843u + usb_full * 49979687u;
+                            lights_notes * 32452843u + usb_full * 49979687u + ui.menu_arm * 97u;
     if (!ui.force && sig == ui.menu_sig)
         return;
     ui.menu_sig = sig;
@@ -63,6 +81,8 @@ static void draw_menu(void)
                     cv_text(100, y, &FONT_S, usb_full ? "FULL" : "MASTER", C_HI);
                 if (i == MI_KEYS)
                     cv_text(100, y, &FONT_S, KEYS_NAME[lights_keys % KEYS_N], lights_lvl ? C_HI : C_DIM);   /* (needs LIGHTS) */
+                if (i == MI_RESET)                     /* armed: the second OCT+ erases */
+                    cv_text(130, y, &FONT_S, ui.menu_arm ? "OCT+ AGAIN!" : "OCT+ 2X", ui.menu_arm ? C_AMB : C_DIM);
                 if (i == MI_COLOR) {
                     uint32_t k;
                     cv_text(100, y, &FONT_S, PALETTES[settings.palette].name, C_HI);
@@ -92,6 +112,7 @@ static void menu_close(void)
     else
         settings_save();                               /* palette / panel table, if changed */
     ui.menu = 0;
+    ui.menu_arm = 0;
     ui.force = 1;
     go_home();
 }
@@ -101,6 +122,8 @@ static void menu_input(uint32_t pressed)
 {
     int32_t s;
     uint32_t ok = (pressed >> panel.btn[B_OCTUP]) & 1u, back = (pressed >> panel.btn[B_OCTDN]) & 1u;
+    if (ui.menu_arm && (--ui.menu_arm == 0u || (s = panel_enc(EN_PRESET)) != 0))
+        ui.menu_arm = 0;                               /* (the moment passes, or the cursor moves: disarmed) */
     if (back) {
         if (ui.menu == 2)
             ui.menu = 1, ui.force = 1;
@@ -157,6 +180,17 @@ static void menu_input(uint32_t pressed)
         case MI_ABOUT:
             ui.menu = 2;
             ui.force = 1;
+            break;
+        case MI_RESET:
+            if (song.playing || transport_req) {
+                ui_message("STOP FIRST");
+            } else if (!ui.menu_arm) {
+                ui.menu_arm = 90;
+                ui_message("OCT+ AGAIN: ERASE ALL");
+            } else {
+                ui.menu_arm = 0;
+                menu_factory_reset();
+            }
             break;
         default:
             menu_close();

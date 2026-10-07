@@ -34,6 +34,8 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 
 ## 1m. 3.1 / 3.2, erledigt
 
+- [x] FACTORY RESET im HOME-Menü (OCT+ zweimal, nur im Stand): alle Flash-Objekte gelöscht, Neustart (3.2).
+
 - [x] Synth statt Groovebox (Nutzer-Feedback „clear visual envelopes like Dexed or Serum“): Operator-Solo; im
       Algorithmusbild Output Level und Live-Pegel je Operator. Web-Editor: Hüllkurven zum Ziehen (↔ Rate, ↕ Level).
       3.1 hatte die Hüllkurve auch als Grafik auf dem FM-1 (KNOB 1–4 = Rate/Level, Live-Punkt): für den Nutzer

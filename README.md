@@ -190,6 +190,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
 | **ABOUT** | | the version (*sloopDX 3.2*) and its build date, the credits |
+| **FACTORY RESET** | OCT+ twice | erases everything on the FM-1: the projects, the working project, the user presets, the 8 DX7 banks, MY KIT and the settings, then restarts as freshly installed. Stopped only; save a backup first (editor → Projects) if you want any of it back |
 
 Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
 
