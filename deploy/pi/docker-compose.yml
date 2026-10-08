@@ -1,4 +1,4 @@
-# sloopDX site (dx7.designburgapps.com), the entry page (designburgapps.com) and zp12 (zp12.designburgapps.com): nginx serves repo/docs,
+# sloopDX site (dx7.designburgapps.com), the entry page (designburgapps.com), zp12 (zp12.designburgapps.com) and the FM-1 switcher (fm1.): nginx serves repo/docs,
 # repo/deploy/designburgapps and zp12repo/docs, its own
 # cloudflared tunnel "sloopdx-site" (a12c4308-c70e-4908-9a2e-47c578d83948) reaches it on the compose network.
 #   update: ./update.sh (git pull; the folder is a bind mount)
@@ -11,6 +11,8 @@ services:
       - ./repo/docs:/usr/share/nginx/html:ro
       - ./repo/deploy/designburgapps:/usr/share/nginx/apex:ro
       - ./zp12repo/docs:/usr/share/nginx/zp12:ro
+      - ./zp12repo/fm1:/usr/share/nginx/fm1:ro
+      - ./fm1src:/usr/share/nginx/fm1src:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
   cloudflared:
     image: cloudflare/cloudflared:latest

@@ -10,4 +10,6 @@ ingress:
     service: http://web:80
   - hostname: zp12.designburgapps.com
     service: http://web:80
+  - hostname: fm1.designburgapps.com
+    service: http://web:80
   - service: http_status:404

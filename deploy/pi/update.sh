@@ -3,3 +3,5 @@
 set -e
 cd "$(dirname "$0")/repo" && git pull -q --ff-only origin main && echo "site: $(git log --oneline -1)"
 cd ../zp12repo && git pull -q --ff-only origin main && echo "zp12: $(git log --oneline -1)"
+# then Cloudflare: the two sites out of its edge, so nobody gets the old pages (zp12repo/tools/cf_cache.py; token in ~/.config/designburg)
+cd ../zp12repo && python3 tools/cf_cache.py purge
