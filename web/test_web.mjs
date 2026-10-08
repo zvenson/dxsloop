@@ -37,6 +37,19 @@ const E = vm.runInNewContext(proto + `
    UKIT, kitIsSyx, kitImgFromSyx, kitSyxFromImg, kitSeedOf, bkPutObject, bkGetObject })`,
 { setTimeout, clearTimeout, setInterval, clearInterval, console, TextEncoder });
 
+/* every dxbank.x / dxvoice.x the page calls is a method of that object (a call to the wrong one, as
+   dxbank.select in 3.0-3.3's Library bank selector, only fails when someone clicks it) */
+{
+  const objs = {};
+  for (const name of ["dxbank", "dxvoice"]) {
+    const i = html.indexOf(`const ${name} = {`), body = html.slice(i, html.indexOf("\n};", i));
+    objs[name] = new Set([...body.matchAll(/^\s+(?:async\s+)?(\w+)\s*\(/gm)].map((m) => m[1]));
+  }
+  const bad = [...html.matchAll(/\b(dxbank|dxvoice)\.(\w+)\(/g)].filter((m) => !objs[m[1]].has(m[2])).map((m) => m[0]);
+  ok(objs.dxbank.size > 3 && objs.dxvoice.size > 3 && bad.length === 0,
+    "editor: every dxbank / dxvoice call names a method of it" + (bad.length ? " (" + [...new Set(bad)].join(" ") + ")" : ""));
+}
+
 async function editorMock() {
   const m = E.makeMockDevice();
   const inp = [...m.access.inputs.values()][0], out = [...m.access.outputs.values()][0];

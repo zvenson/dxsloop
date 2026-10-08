@@ -7,10 +7,12 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>body{font:15px/1.5 system-ui,sans-serif;background:#111;color:#eee;margin:0;padding:16px;max-width:720px}
-pre{background:#000;color:#9f9;padding:12px;border-radius:6px;white-space:pre-wrap}button{font:inherit;padding:8px 16px;background:#42f5f5;color:#111;border:0;border-radius:6px}</style><!-- Matomo (self-hosted, matomo.designburgapps.com): no cookies, IPs anonymised on the server, Do Not Track respected -->
+pre{background:#000;color:#9f9;padding:12px;border-radius:6px;white-space:pre-wrap}button{font:inherit;padding:8px 16px;background:#42f5f5;color:#111;border:0;border-radius:6px}</style><!-- Matomo (self-hosted, matomo.designburgapps.com): one count for designburgapps.com, dx7. and zp12., the page
+     title with its host; no cookies, IPs anonymised on the server, Do Not Track respected -->
 <script>
   var _paq = window._paq = window._paq || [];
-  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['setDocumentTitle', location.hostname + ' / ' + document.title]);
+  _paq.push(['setDomains', ['designburgapps.com', '*.designburgapps.com']]);
   _paq.push(['disableCookies']);
   _paq.push(['setDoNotTrack', true]);
   _paq.push(['trackPageView']);

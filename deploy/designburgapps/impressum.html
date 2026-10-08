@@ -58,8 +58,27 @@
 
   <section class="wide">
     <h2>Datenschutz in Kürze</h2>
-    <p>Diese Einstiegsseite setzt keine Cookies, verwendet keine Statistik und lädt keine Inhalte von Dritten. Beim Abruf verarbeitet der Netzwerkdienst (Cloudflare) technisch notwendige Verbindungsdaten wie die IP-Adresse, um die Seite auszuliefern und abzusichern (Art. 6 Abs. 1 lit. f DSGVO). Die verlinkten Projekte haben eigene Datenschutzhinweise. Fragen zum Datenschutz: <a href="mailto:sven@designburg.net">sven@designburg.net</a>.</p>
+    <p>Für eine einfache Nutzungsstatistik verwende ich <b>Matomo</b>, selbst betrieben auf matomo.designburgapps.com, <b>ohne Cookies</b>, gemeinsam für designburgapps.com, dx7.designburgapps.com und zp12.designburgapps.com. Erfasst werden nur Seitenaufrufe, Verweisquelle sowie Browser- und Gerätetyp. IP-Adressen werden sofort anonymisiert (die letzten zwei Bytes werden entfernt) und nicht gespeichert; es gibt kein Besucherprotokoll und keine Besucherprofile, „Do Not Track“ wird respektiert, Rohdaten werden nach 180 Tagen gelöscht (berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO). Die Daten werden nicht an Dritte weitergegeben. Werbung oder Profilbildung gibt es nicht. Die Seite setzt keine Cookies und lädt keine Inhalte von Dritten. Beim Abruf verarbeitet der Netzwerkdienst (Cloudflare) technisch notwendige Verbindungsdaten wie die IP-Adresse, um die Seite auszuliefern und abzusichern (Art. 6 Abs. 1 lit. f DSGVO). Die verlinkten Projekte haben eigene Datenschutzhinweise. Widerspruch gegen die Statistik und Fragen zum Datenschutz: <a href="mailto:sven@designburg.net">sven@designburg.net</a>.</p>
   </section>
 </main>
+<!-- Matomo (self-hosted, matomo.designburgapps.com): one count for designburgapps.com, dx7. and zp12., the page
+     title with its host; no cookies, IPs anonymised on the server, Do Not Track respected -->
+<script>
+  var _paq = window._paq = window._paq || [];
+  _paq.push(['setDocumentTitle', location.hostname + ' / ' + document.title]);
+  _paq.push(['setDomains', ['designburgapps.com', '*.designburgapps.com']]);
+  _paq.push(['disableCookies']);
+  _paq.push(['setDoNotTrack', true]);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="https://matomo.designburgapps.com/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '1']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
 </body>
 </html>

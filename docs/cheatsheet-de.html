@@ -47,10 +47,12 @@
   footer { margin-top: 4px; border-top: 0.5px solid var(--line); padding-top: 3px; color: var(--dim); font-size: 7.2pt;
            display: flex; justify-content: space-between; }
 </style>
-<!-- Matomo (self-hosted, matomo.designburgapps.com): no cookies, IPs anonymised on the server, Do Not Track respected -->
+<!-- Matomo (self-hosted, matomo.designburgapps.com): one count for designburgapps.com, dx7. and zp12., the page
+     title with its host; no cookies, IPs anonymised on the server, Do Not Track respected -->
 <script>
   var _paq = window._paq = window._paq || [];
-  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  _paq.push(['setDocumentTitle', location.hostname + ' / ' + document.title]);
+  _paq.push(['setDomains', ['designburgapps.com', '*.designburgapps.com']]);
   _paq.push(['disableCookies']);
   _paq.push(['setDoNotTrack', true]);
   _paq.push(['trackPageView']);

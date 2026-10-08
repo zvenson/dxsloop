@@ -76,7 +76,7 @@ def main(pkg, version, out):
     shutil.copy(pkg, fw / name)
     shutil.copy(HERE / "editor.html", ed / "index.html")
     for f in ("cheatsheet.html", "cheatsheet-de.html", "sloopdx-cheat-sheet.pdf", "sloopdx-cheat-sheet-de.pdf", "sloopdx-cheat-sheet.png", "sloopdx-cheat-sheet-2.png",
-              "midi.html", "impressum.html", "robots.txt", "sitemap.xml", "og-image.png", "sloopdx-demo.mp4", "sloopdx-demo.jpg", "sloopdx-omni.mp4", "sloopdx-omni.jpg", "sloopdx-drop.mp4", "sloopdx-drop.jpg", "new-drum-lane.png", "new-drum-lane-2.png", "new-drum-dice.png", "new-layer-steps-lock.png", "favicon.svg", "favicon.ico", "favicon-16.png", "favicon-32.png", "apple-touch-icon.png"):   # cheat sheets, MIDI check, icons
+              "midi.html", "impressum.html", "robots.txt", "sitemap.xml", "og-image.png", "sloopdx-demo.mp4", "sloopdx-demo.jpg", "sloopdx-omni.mp4", "sloopdx-omni.jpg", "new-drum-lane.png", "new-drum-lane-2.png", "new-drum-dice.png", "new-layer-steps-lock.png", "favicon.svg", "favicon.ico", "favicon-16.png", "favicon-32.png", "apple-touch-icon.png"):   # cheat sheets, MIDI check, icons
         if (HERE / f).exists():
             shutil.copy(HERE / f, out / f)
     for f in ("fukiai.ttf", "FUKIAI-LICENSE.txt"):
