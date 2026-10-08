@@ -70,6 +70,11 @@
               padding: 20px 0; width: 100%; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
               box-shadow: 0 10px 34px rgba(66, 245, 245, 0.28); transition: filter 0.15s, transform 0.08s; }
   button#go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  /* the coffee: as big as INSTALL, right under it, always there (a plain link: no script, no cookie) */
+  a#coffee { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 20px 0; text-align: center;
+             font-family: inherit; font-size: 19px; font-weight: 750; line-height: 1; background: var(--panel2);
+             color: var(--fg); border-radius: 10px; text-decoration: none; }
+  a#coffee:hover { filter: brightness(1.15); transform: translateY(-1px); }
   button#go:disabled { background: var(--panel2); color: var(--dim); cursor: default; box-shadow: none; }
   progress { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; margin-top: 18px; border: 0; border-radius: 4px;
              background: var(--panel2); overflow: hidden; }
@@ -176,6 +181,7 @@
         </ol>
         <p class="risk"><b>Use at your own risk.</b> Unofficial custom firmware, free and without any warranty. Back up your projects and banks first; do not unplug while it writes. No liability for damage or data loss. <a href="../../impressum.html">Disclaimer</a></p>
         <button id="go" disabled data-t="install"></button>
+        <a id="coffee" href="https://paypal.me/zvenson" rel="noopener">☕ Buy me a coffee · sloopDX is free and stays free</a>
         <progress id="bar" max="100" value="0"></progress>
         <p id="status"></p>
         <pre id="log"></pre>
