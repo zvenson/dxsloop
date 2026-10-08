@@ -4,6 +4,10 @@
 static const char *const N_LWAVE[] = {"SIN", "TRI", "SAW", "SQR", "S&H"};
 static const char *const N_AMODE[] = {"OFF", "UP", "DN", "UPDN", "RND", "ORD", "OMNI", "FLW"};   /* (core.h AM_*) */
 static const char *const N_DIV[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T"};
+static const char *const N_SDIV[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/2", "1BAR", "2BAR"};   /* core.h div_units */
+static const char *const N_MOUT[] = {"KEYS", "SEQ"};     /* G_MIDI: what goes to MIDI OUT (seq.c seq_out_on; SLOOP 2.4) */
+static const char *const N_MIN[] = {"NOTES", "CLOCK"};   /* G_ROUTE: MIDI in, notes and clock, or the clock only (seq.c) */
+static const char *const N_DLY[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8D", "1/16D"};          /* core.h dly_units */
 static const char *const N_SCALE[] = {"CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM",
                                     "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"};
 static const char *const N_ONOFF[] = {"OFF", "ON"};
@@ -59,7 +63,7 @@ static const param_desc_t TP[P_COUNT] = {
     [P_QUANT] = PE("QNT", N_QUANT, 0),
     [P_TRANS] = PD("TRN", F_SEMI, -24, 24, 0),
     [P_SLEN] = PD("LEN", F_STEPS, 1, NSTEP, 16),
-    [P_SDIV] = PE("DIV", N_DIV, 2),
+    [P_SDIV] = PE("DIV", N_SDIV, 2),
     [P_SSWING] = PD("SWG", F_SWING, 0, 100, 0),
     [P_SGATE] = PD("GATE", F_PCT, 1, 127, 64),
     [P_DIST] = PD("DRIVE", F_PCT, 0, 127, 0),
@@ -100,7 +104,7 @@ static const param_desc_t GP[G_COUNT] = {
     [G_SWING] = PD("SWING", F_SWING, 0, 100, 0),
     [G_CLOCK] = PE("CLICK", N_CLICK, 0),            /* (the old CLK slot: projects keep their format) */
     [G_TUNE] = PD("TUNE", F_INT, -50, 50, 0),
-    [G_DTIME] = PE("TIME", N_DIV, 1),
+    [G_DTIME] = PE("TIME", N_DLY, 1),
     [G_DFDBK] = PD("FDBK", F_PCT, 0, 120, 60),
     [G_DCOLOR] = PD("COLR", F_PCT, 0, 127, 70),
     [G_DMIX] = PD("MIX", F_PCT, 0, 127, 90),
@@ -108,9 +112,9 @@ static const param_desc_t GP[G_COUNT] = {
     [G_RDAMP] = PD("DAMP", F_PCT, 0, 127, 60),
     [G_CRATE] = PD("RATE", F_LFOHZ, 0, 127, 40),
     [G_CDEPTH] = PD("DEPTH", F_PCT, 0, 127, 60),
-    [G_MIDI] = PE("MIDI", N_DASH, 0),
+    [G_MIDI] = PE("MIDI", N_MOUT, 0),           /* MIDI OUT: the keys, or the sequencer too (a setting of the FM-1) */
     [G_SYNC] = PE("SYNC", N_SYNC, 0),           /* a setting of the FM-1, not of a project (panel.c lights_sync) */
-    [G_ROUTE] = PE("ROUT", N_DASH, 0),
+    [G_ROUTE] = PE("IN", N_MIN, 0),             /* MIDI IN: NOTES (and the clock) or CLOCK only (a setting of the FM-1) */
     [G_INFO] = PD("CPU", F_INT, 0, 0, 0),
     [G_SLOT] = PD("SLOT", F_INT, 1, 4, 1),
     [G_NAME] = PE("NAME", N_DASH, 0),
@@ -206,8 +210,11 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         if (h < 1000u) {
             fmt_int(val, (int32_t)h);
             *unit = "Hz";
-        } else {
+        } else if (h < 10000u) {
             fmt_fix(val, (int32_t)(h / 100u), 1);
+            *unit = "kHz";
+        } else {
+            fmt_int(val, (int32_t)((h + 500u) / 1000u));   /* "12 kHz": "12.5" would leave no room for the unit (SLOOP 2.4) */
             *unit = "kHz";
         }
         break;
@@ -215,8 +222,11 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
     case F_DB:
         if (v <= 0) {
             str_cpy(val, "OFF", 6);
-        } else {
+        } else if (LEVEL_DB_X10[v] > -100) {
             fmt_fix(val, LEVEL_DB_X10[v], 1);
+            *unit = "dB";
+        } else {
+            fmt_int(val, (LEVEL_DB_X10[v] - 5) / 10);   /* "-12 dB": five characters leave no room for the unit (SLOOP 2.4) */
             *unit = "dB";
         }
         break;

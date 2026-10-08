@@ -1,12 +1,22 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 3.2
+# sloopDX 3.3
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 3.2, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 3.3, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+
+### From SLOOP 2.4 (3.3)
+
+sloopDX 3.3 takes SLOOP 2.4's fixes and the small additions that fit (none of it tried on a device in sloopDX yet):
+
+- **The sequencer to MIDI OUT.** GLO → SYSTEM → **MIDI** = **SEQ**: the steps, the arp, the rolls and the OMNI chords (and FLW) go out on USB MIDI on each track's channel (drums on 10). KEYS, the default: what you play, as before. GLO → SYSTEM → **IN** = **CLOCK**: notes coming in are ignored, the clock is kept. Both are settings of the FM-1, kept when a project loads.
+- **Longer steps and dotted delays.** DIV (PATTERN page, SEQ layer) goes on to **1/2**, **1BAR**, **2BAR**; the delay's TIME has **1/8D** and **1/16D**.
+- **Quick chain.** SAVE held, tap A B B C (keys 1–4) while it plays: let go and the sections play in turn, each for its longest pattern's bars, looped; the song layer says *chain A B B C* and frames the next one. One section tapped alone ends it, as STOP does.
+- **USB SERIAL** in the HOME menu, OFF by default: without the serial console macOS 13–15 show the USB audio input. ON takes effect at the next start.
+- **Fixes.** A MIDI START during the count-in records at once (the master counts); swing leaves the triplet grids and whole-beat steps alone; DIV or the arp's RATE turned just after PLAY no longer skip a step; a knob still turning as a layer button comes up no longer changes the page under it (250 ms); the web editor never writes flash while the song plays (user presets, the DX7 bank, MY KIT, a restore: *stop it first*); NOTES lights the key of a short sequencer note too; *12 kHz* and *−12 dB* read in full; the divide-by-zero trap is off (a compiler quirk could set it off with a guarded divide), and the host tests check for real divides by zero.
 
 ### From SLOOP 2.3
 
@@ -104,7 +114,7 @@ The tiles are four rows of four, keys 1–4, 5–8, 9–12, 13–16. To find the
 | **SEQ** — *steps* | steps 1–16 of the page | SOUND / NOTE · DIV · SWING · LENGTH | SEQ pages (drums: grid / kit) |
 | **SCL** — *key* | the key of the song | CHORD · SCALE · KEYS · TRANSPOSE | SCL pages |
 | **GLO** — *mix* | 1–4 mute · 5–8 solo · 16 tap tempo | level of tracks 1 · 2 · 3 · 4 | GLO pages |
-| **SAVE** — *song* | 1–4 play section A–D (next bar) · 5–8 save the loop into A–D · 13 loop / song · 14 SONG REC · 16 the chain | — | TRACKS: the SONG screen · else the SAVE pages |
+| **SAVE** — *song* | 1–4 play section A–D (next bar; several tapped while held: a quick chain) · 5–8 save the loop into A–D · 13 loop / song · 14 SONG REC · 16 the chain | — | TRACKS: the SONG screen · else the SAVE pages |
 
 Other controls:
 
@@ -191,7 +201,7 @@ The 16 white keys are the 16 steps of the page; the lit ones play. **OCT− / OC
 - **An empty step:** press its key — it is set at once. Drums: with the sound shown (KNOB 1 picks it, or the last pad you hit); synths: with the note or chord you played last.
 - **A set step:** press and let go — it is cleared. Hold it and turn a knob instead — it is edited, and kept: **KNOB 1** sound (drums) / note (synths), **KNOB 2 LEVEL** (ghost, soft, norm, hard), **KNOB 3 RATCHET** (x1–x4). Hold several step keys to edit them together.
 - **Drum locks (2.1):** with a drum step held, **KNOB 4** locks the sound's **TUNE** (−16…+15 semitones) and **PRESETS** its **DECAY** for that hit only; the fourth dial shows *tune / decay*, the step a ★. One sound per step can be locked; clearing the hit clears its lock.
-- **No step held:** KNOB 1 the sound / note to set · KNOB 2 **DIV** (1/4 … 1/32, triplets) · KNOB 3 **SWING** of the track · KNOB 4 **LENGTH** (1–128 steps; each track loops on its own length, polymeters stay in phase). The four tracks share **256 steps**: a track can have up to 128, and the others what is left (turn further and the screen says *STEPS FULL*). Only the steps inside a track's LENGTH are saved with the project.
+- **No step held:** KNOB 1 the sound / note to set · KNOB 2 **DIV** (1/4 … 1/32, triplets, 1/2, 1BAR, 2BAR) · KNOB 3 **SWING** of the track · KNOB 4 **LENGTH** (1–128 steps; each track loops on its own length, polymeters stay in phase). The four tracks share **256 steps**: a track can have up to 128, and the others what is left (turn further and the screen says *STEPS FULL*). Only the steps inside a track's LENGTH are saved with the project.
 
 ### SCL — key and chords
 
@@ -226,7 +236,7 @@ Tap **FX** to step through the effect pages. The first, **SENDS** (3.0), shows t
 | **SENDS** | DIST (its drive) | CHO send | DLY send | REV send |
 | **DIST** (on the track) | **DRIVE** (0 = off) | **TONE** (centre: closes with the drive; left darker, right brighter) | **TYPE**: SOFT · HARD · FUZZ · CRUSH | **MIX** dry ↔ distorted |
 | **CHORUS** | **SEND** | **RATE** | **DEPTH** | **MIX** (the chorus' level) |
-| **DELAY** | **SEND** | **TIME** (1/4 … 16T, in tempo) | **FDBK** | **MIX** |
+| **DELAY** | **SEND** | **TIME** (1/4 … 16T, 1/8D, 1/16D, in tempo) | **FDBK** | **MIX** |
 | **REVERB** | **SEND** | **SIZE** | **DAMP** | **PRE** 0–90 ms (pre-delay) |
 | **SLICER** | mode | pattern | rate | depth |
 
@@ -465,6 +475,7 @@ USB AUDIO is a setting of the FM-1: it stays as you left it. MIDI, the web edito
 
 - The first time, the computer sees the FM-1 as a slightly different device (MIDI + audio) and sets it up again; the MIDI port keeps its name.
 - The audio input comes from Felucca 1.0 (Leo Kuroshita): the same code, adapted to SLOOP 2.3 and carried into sloopDX.
+- **macOS 13–15** and no audio input: HOME menu → **USB SERIAL** = **OFF** (the default since 3.3) and restart the FM-1. With the serial console on, these versions give the FM-1 to their serial driver and the audio input never appears.
 
 ## Lights
 

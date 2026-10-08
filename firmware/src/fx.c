@@ -191,7 +191,7 @@ static inline void master_out(int32_t *l, int32_t *r)
 
 static uint32_t delay_samples(void)
 {
-    uint32_t s = div_samples((uint32_t)song.g[G_DTIME]);
+    uint32_t s = dly_samples((uint32_t)song.g[G_DTIME]);
     return s < 16u ? 16u : s >= DLY_LEN ? DLY_LEN - 1u : s;
 }
 

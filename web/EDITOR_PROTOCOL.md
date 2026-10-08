@@ -21,6 +21,12 @@ answer with the value that was taken. SLOOP 2.3's backup (`BK_LIST` / `BK_GET` /
 v6) works as there, with object 8 = the DX7 user bank (4096 voice bytes, length 0 = none) in place of the
 sample slots 32..34.
 
+**rc 3 (sloopDX 3.3, after SLOOP 2.4): the song is playing.** A flash write silences the audio for ~50 ms and stalls
+USB, so every command that writes flash refuses while the FM-1 plays and answers rc 3, changing nothing in flash:
+UP_PUT, UP_STORE, UP_ERASE, BANK_END (the bank is taken into RAM and plays, not stored), BANK_ERASE, BANK_SAVE,
+BK_PUT of the user preset banks, the DX7 bank and MY KIT; BANK_SELECT keeps the bank in use (the reply says which).
+The protocol version is unchanged (11).
+
 **v3 (four tracks):** the device has four tracks: 1..3 are synth parts, 4 is the drum track. One
 of them is *selected* (the TRACKS page on the device, or `TRACK`). Every v1 / v2 command acts on the
 selected track (its parameters, engine, preset, steps, the user presets it stores or loads); `TRACK`,
@@ -83,7 +89,7 @@ An absent status byte retains the original reply format.
 | 15 SMP_INFO | — | 0, 0 (no slots) |
 | 16 UP_LIST | start, count (1..16) | start, count, total slots, then per slot: used (0/1), engine, name string ("" if unused) |
 | 17 UP_GET | slot | slot, used, engine, name, P_COUNT × v14, 16 × (note, flags) |
-| 18 UP_PUT | slot, engine, name, P_COUNT × v14, 16 × (note, flags) | slot, rc (0 ok, 1 args, 2 flash). Writes flash: allow 1 s |
+| 18 UP_PUT | slot, engine, name, P_COUNT × v14, 16 × (note, flags) | slot, rc (0 ok, 1 args, 2 flash, 3 playing: stop first). Writes flash: allow 1 s |
 | 19 UP_STORE | slot, name | slot, rc. Stores the current sound: engine, parameters, the first 16 sequencer steps as the pattern (TIE steps → flag 4) |
 | 20 UP_LOAD | slot | slot, rc (0 ok, 1 empty/invalid). Applies it |
 | 21 UP_ERASE | slot | slot, rc |

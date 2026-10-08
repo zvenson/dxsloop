@@ -387,6 +387,9 @@ static const uint8_t *ed_bk_obj(uint32_t id, uint32_t *len)   /* 0 = no such obj
 }
 static const uint8_t ED_BK_IDS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
+/* a flash erase silences the audio for ~50 ms and stalls USB: only while stopped, as the panel (SLOOP 2.4); rc 3 */
+static uint32_t ed_flash_busy(void) { return song.playing || transport_req; }
+
 static uint32_t ed_bk_commit(void)
 {
     uint8_t *raw = ED_BK_RAW;
@@ -399,6 +402,8 @@ static uint32_t ed_bk_commit(void)
         return project_restore(id == 0u ? 4u : id - 2u, raw, n);
     if (id == 6u || id == 7u) {                           /* a user preset bank (n 0: empty) */
         const up_bank_t *b = (const up_bank_t *)raw;
+        if (ed_flash_busy())
+            return 3;
         if (n && (n != sizeof *b || b->magic != UP_BANK_MAGIC || b->rsize != sizeof(up_rec_t) || b->nslot != UP_PER_BANK))
             return 2;
         if (!flash_ok || st_save(OBJ_UPRESET0 + id - 6u, raw, n))
@@ -411,6 +416,8 @@ static uint32_t ed_bk_commit(void)
         return 0;
     }
     if (id == 8u) {                                       /* the DX7 user bank (n 0: none) */
+        if (ed_flash_busy())
+            return 3;
         if (n && n != sizeof dx_user)
             return 2;
         if (!n)
@@ -422,6 +429,8 @@ static uint32_t ed_bk_commit(void)
         return dx_bank_store() ? 4u : 0u;
     }
     if (id == 9u) {                                       /* MY KIT: checked, played at once, kept in flash */
+        if (ed_flash_busy())
+            return 3;
         if (n != sizeof(ukit_img_t) || ((const ukit_img_t *)raw)->magic != UKIT_MAGIC)
             return 2;
         fm1_irq_off();
@@ -728,7 +737,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
             up_values(&r, v);                              /* each value inside its range */
             for (i = 0; i < P_COUNT; i++)
                 r.p[i] = v[i];
-            rc = up_put(slot, &r) ? 2u : 0u;
+            rc = ed_flash_busy() ? 3u : up_put(slot, &r) ? 2u : 0u;
         }
         ed_b(a[0]);
         ed_b(rc);
@@ -744,8 +753,8 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         if (a[0] < UP_SLOTS && (!n0 || up_name_ok(a + 1, n0))) {   /* "" = automatic name */
             for (i = 0; i < n0; i++)
                 nm[i] = (char)a[1 + i];
-            int r = up_store(a[0], nm);
-            rc = r == 1 ? 1u : r ? 2u : 0u;               /* 1: the drum track is selected */
+            int r = ed_flash_busy() ? -3 : up_store(a[0], nm);
+            rc = r == -3 ? 3u : r == 1 ? 1u : r ? 2u : 0u;   /* 1: the drum track is selected; 3: stop first */
         }
         ed_b(a[0]);
         ed_b(rc);
@@ -761,7 +770,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         if (na < 1u)
             return;
         ed_b(a[0]);
-        ed_b(a[0] >= UP_SLOTS ? 1u : up_put(a[0], 0) ? 2u : 0u);
+        ed_b(a[0] >= UP_SLOTS ? 1u : ed_flash_busy() ? 3u : up_put(a[0], 0) ? 2u : 0u);
         break;
     case ED_WATCH:                                         /* on -> on */
         if (na < 1u)
@@ -888,13 +897,14 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(dx_bank_write(off, a + 2, na - 2u));
         break;
     }
-    case ED_BANK_END: {                                    /* checksum -> rc (0 ok, 1 checksum, 2 flash) */
+    case ED_BANK_END: {                                    /* checksum -> rc (0 ok, 1 checksum, 2 flash, 3 playing: in RAM,
+                                                            * not stored) */
         uint32_t rc;
         if (na < 1u)
             return;
         rc = (uint32_t)dx_bank_end(a[0]);
         if (!rc)
-            rc = (uint32_t)dx_bank_store();
+            rc = ed_flash_busy() ? 3u : (uint32_t)dx_bank_store();
         ui.force = 1;
         ed_b(rc);
         break;
@@ -907,7 +917,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         ed_b(DX_NBANKS);
         break;
     case ED_BANK_SELECT:                                   /* [bank 0..7] -> bank in use, banks, ok (a bank there) */
-        if (na >= 1u) {
+        if (na >= 1u && !ed_flash_busy()) {               /* (playing: the bank stays; the reply says which) */
             if (dx_bank_select(a[0]))
                 return;
             ui.force = 1;
@@ -918,7 +928,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         break;
     case ED_BANK_ERASE:                                    /* -> rc */
         ui.force = 1;
-        ed_b(dx_bank_erase());
+        ed_b(ed_flash_busy() ? 3u : (uint32_t)dx_bank_erase());
         break;
     case ED_VOICE_GET: {                                   /* index 0..48 (VOICE) -> index, 128 packed bytes */
         uint8_t b[128];
@@ -973,7 +983,7 @@ static void ed_handle(const uint8_t *f, uint32_t n)   /* f: the bytes between F0
         break;
     }
     case ED_BANK_SAVE:                                     /* -> rc (0 ok, 1 no bank, 2 flash) */
-        ed_b(!dx_user_ok ? 1u : (uint32_t)dx_bank_store());
+        ed_b(!dx_user_ok ? 1u : ed_flash_busy() ? 3u : (uint32_t)dx_bank_store());
         break;
     case ED_TRACK_PARAM: {                                 /* track, id [, v14] -> track, id, v14 */
         track_t *t;

@@ -419,7 +419,7 @@ static void proj_apply(const project_t *p, int all)
 {
     uint32_t i, k;
     for (i = 0; i < G_COUNT; i++)
-        if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE && i != G_SYNC : i == G_DRLVL || i == G_DRREV)
+        if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE && i != G_SYNC && i != G_MIDI && i != G_ROUTE : i == G_DRLVL || i == G_DRREV)
             song.g[i] = (int16_t)clamp(p->g[i], GP[i].min, GP[i].max);
     for (k = 0; k < DRUM_LANES; k++)                    /* the drum lanes' macros, each inside its range; the locks */
         for (i = 0; i < DM_N; i++)
@@ -867,6 +867,8 @@ static uint32_t settings_restore(const void *raw, uint32_t n)
 #endif
     lights_from_word(p.lights);
     song.g[G_SYNC] = (int16_t)lights_sync;
+    song.g[G_MIDI] = (int16_t)lights_mout;
+    song.g[G_ROUTE] = (int16_t)lights_min;
     palette_set(settings.palette);
     fx_lowcut = (uint8_t)(settings.lowcut != 0);
     ui.force = 1;
@@ -976,6 +978,14 @@ static void sections_flush(void)                        /* main loop */
     }
     if ((uint32_t)song.g[G_SYNC] != lights_sync) {      /* GLO > SYSTEM > SYNC: kept with the settings */
         lights_sync = (uint8_t)song.g[G_SYNC];
+        settings_later = 1;
+    }
+    if ((uint32_t)(song.g[G_MIDI] != 0) != lights_mout) {   /* GLO > SYSTEM > MIDI: the same (SLOOP 2.4) */
+        lights_mout = (uint8_t)(song.g[G_MIDI] != 0);
+        settings_later = 1;
+    }
+    if ((uint32_t)(song.g[G_ROUTE] != 0) != lights_min) {   /* GLO > SYSTEM > IN: the same */
+        lights_min = (uint8_t)(song.g[G_ROUTE] != 0);
         settings_later = 1;
     }
     if (settings_later) {                               /* the menu closed while playing */

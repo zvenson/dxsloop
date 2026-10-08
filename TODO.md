@@ -32,6 +32,19 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] Drei moderne Bässe: DEEP SUB, 808 SUB, REESE (vor INIT VOICE; Werk 01–20, Bank 21–52). Alte Spielstände werden
       beim Laden umnummeriert (`core.h DX_VOICE_FROM_V1`). Am Gerät nachhören (808-Pitch-Drop, Reese-Schwebung).
 
+## 1n. 3.3, erledigt: aus SLOOP 2.4 übernommen
+
+- [x] Fixes: div0-Trap aus (+ UBSan-Lauf in den Tests), USB SERIAL (Menü, Standard OFF: macOS-USB-Audio), MIDI START
+      im Count-in, kein Swing auf Triolen / ganzen Schlägen, DIV/RATE-Wechsel ohne Step-Verlust, Knopf beim Loslassen
+      eines Layers (250 ms), Editor schreibt kein Flash beim Spielen (rc 3, auch unsere Bank/Kit/Backup-Befehle),
+      NOTES für kurze Noten, „12 kHz“ / „−12 dB“.
+- [x] Features: Sequencer → MIDI OUT (GLO › SYSTEM › MIDI = SEQ, auch OMNI/FLW), IN = CLOCK, DIV 1/2 · 1BAR · 2BAR,
+      Delay 1/8D · 1/16D, Quick Chain (SAVE halten + Sektionen).
+- [ ] Nicht übernommen (eigener Entwurf nötig): Parameter-Locks / Micro-Timing / Fills (Projektformat hat ~119 B
+      Luft, Kollision mit unseren Drum-Locks und Editor-Befehlen 37–42), Track-Filter, CHORD+/STRUM, Visualiser
+      (4,9 KB .bss wie gebaut), neues Menü, Drum-Grid über die Tasten, FM6, eigene Sample-Kits, neuer Editor
+      (nur der tolerante .syx-Import wäre einzeln lohnend).
+
 ## 1m. 3.1 / 3.2, erledigt
 
 - [x] FACTORY RESET im HOME-Menü (OCT+ zweimal, nur im Stand): alle Flash-Objekte gelöscht, Neustart (3.2).

@@ -117,6 +117,8 @@ static void felucca_init(void)
     song.master_q12 = 2048;
     autosave_resume();                        /* the project as it was left (project.c) */
     song.g[G_SYNC] = (int16_t)lights_sync;    /* a setting of the FM-1 (panel.c) */
+    song.g[G_MIDI] = (int16_t)lights_mout;
+    song.g[G_ROUTE] = (int16_t)lights_min;
     layers_init();                            /* the panel's layer buttons for the keys (ui_layers.c) */
     go_home();
     ui.force = 1;
@@ -152,6 +154,9 @@ static void fm1_main(void)
     panel_init();
     felucca_init();
     audio_init();
+#if FELUCCA_CDC
+    usb_cdc_on = usb_serial;                            /* menu USB SERIAL (the settings are read): before USB starts */
+#endif
     usb_start();
 #if FELUCCA_UART
     uart_midi_init();

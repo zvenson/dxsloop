@@ -55,6 +55,7 @@ static void project_load(uint32_t i) { (void)i; loads++; }
 static void arrangement_save(void) {}
 static uint32_t arrangement_ready(void) { return 3; }
 static void arrangement_apply(uint32_t s) { (void)s; }
+static uint32_t section_bars(uint32_t s) { (void)s; return 1; }
 static void song_backup(void) {}
 static void song_restore(void) {}
 static uint32_t sec_stores, sec_loads;
@@ -423,6 +424,12 @@ int main(int argc, char **argv)
     key(key_of_white(3)); check(sec_loads == 1, "an empty D: not played");
     song.playing = 1; clk_beat = 1; clk_pos = 0;
     key(key_of_white(0)); check(live_req == 0, "playing: A asked for the next bar");
+    key(key_of_white(1)); check(chain_taps == 2u && live_req == 0, "playing, SAVE still held: B tapped too, a chain A B builds");
+    ui.force = 1; frame(); ppm("layer-song-chain");
+    release(B_SAVE);
+    check(chain_n == 2u && chain_sec[0] == 0u && chain_sec[1] == 1u && !chain_taps, "SAVE let go: the chain A B plays (quick chain, 2.4)");
+    press(B_SAVE); frames(15);
+    key(key_of_white(1)); check(chain_n == 0u && live_req == 1, "a section tapped alone: the chain stops, B next");
     live_req = -1; song.playing = 0;
     key(key_of_white(13)); check(srec == 1u && !arrangement_enabled, "SONG REC armed (loop mode)");
     ui.force = 1; frame(); ppm("layer-song");
@@ -437,6 +444,9 @@ int main(int argc, char **argv)
     /* ---- the drum screen */
     song.sel = TRK_DRUM; studio_open(SC_DRUM); ui.force = 1; frame();
     check(on_drum_page(), "the drum screen");
+    encs[panel.enc[EN_K3]] = 1; frame();
+    check(!dstep_has(&TDRUM->dstep[0], 0), "a knob turned as a layer lets go: dropped for 250 ms (SLOOP 2.4)");
+    frames(16);                                         /* (SAVE let go above: the knobs are quiet 250 ms, SLOOP 2.4) */
     encs[panel.enc[EN_K3]] = 1; frame(); check(dstep_has(&TDRUM->dstep[0], 0), "DRUMS: KNOB 3 adds the kick on step 1");
     encs[panel.enc[EN_K4]] = -1; frame(); check(dstep_lvl(&TDRUM->dstep[0], 0) == LV_SOFT, "DRUMS: KNOB 4 softer");
     encs[panel.enc[EN_K1]] = 100; encs[panel.enc[EN_K2]] = 100; frame();
@@ -486,6 +496,7 @@ int main(int argc, char **argv)
             frames(4); tap(B_EDIT); tap(B_EDIT); frames(12);
             check(drum_page == 2u && drum_kit() != KIT_USER, "KIT + EDIT twice quickly (a bounce): the lane page, no dice");
             encs[panel.enc[EN_PRESET]] = 2; frame();
+            frames(16);                                 /* (EDIT let go: the knobs are quiet 250 ms) */
             ui.force = 1; ui.msg_t = 0; frame(); ppm("drum-lane-3");
             encs[panel.enc[EN_K3]] = 1; frame();
             check(dm_pg == 2u && drum_kit() != KIT_USER && ui.msg[0] == 'A', "LANE page 3, KNOB 3 once: AGAIN: DICE THE KIT, nothing rolled");
@@ -614,6 +625,12 @@ int main(int argc, char **argv)
         check(usb_full == 1u && (lights_word() >> 11 & 1u) == 1u, "menu USB AUDIO: KNOB 1 -> FULL, saved with the settings");
         tap(B_OCTUP);
         check(usb_full == 0u && ui.menu == 1, "menu USB AUDIO: OCT+ toggles back to MASTER");
+        ui.menu_sel = MI_SERIAL; usb_serial = 0; ui.force = 1; frame(); ppm("menu-serial");
+        encs[panel.enc[EN_K1]] = 1; frame();
+        check(usb_serial == 1u && (lights_word() >> 16 & 1u) == 1u, "menu USB SERIAL: KNOB 1 -> ON, saved with the settings");
+        tap(B_OCTUP);
+        check(usb_serial == 0u && ui.menu == 1, "menu USB SERIAL: OCT+ toggles back to OFF (the default)");
+        ui.menu_sel = MI_USB;
         ui.menu = 0; ui.force = 1; go_home(); frame();
         ui.menu = 1; ui.menu_sel = MI_NOTES; ui.force = 1; frame();
         tap(B_OCTUP);

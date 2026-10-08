@@ -212,6 +212,8 @@ typedef struct track {
     };
     uint32_t seq_abs;            /* the step of the transport grid last played (seq.c trk_grid), SEQ_NONE */
     uint16_t seq_idx;            /* its index in the pattern */
+    uint8_t seq_den;             /* the DIV it was played on (a DIV change waits for the next step; SLOOP 2.4) */
+    uint8_t arp_den;             /* the same for the arp's RATE */
     uint8_t seq_notes[4];        /* sounding seq notes */
     uint8_t seq_n;
     uint8_t seq_hold;            /* last step slides: keep the notes until the next step */
@@ -319,13 +321,25 @@ static void slen_fit_all(void)
 #endif
 #define BEAT_U ((uint32_t)FS * 60u)
 static volatile uint32_t clk_beat, clk_pos;
-static const uint8_t DIV_DEN[6] = {1, 2, 4, 8, 3, 6};    /* N_DIV: beats = 1 / DEN */
-static uint32_t div_units(uint32_t div) { return BEAT_U / DIV_DEN[div % 6u]; }
-/* length of one division (N_DIV order) in samples at the song tempo (rounded down) */
-static uint32_t div_samples(uint32_t div)
+static const uint8_t DIV_DEN[6] = {1, 2, 4, 8, 3, 6};    /* N_DIV 0..5: beats = 1 / DEN */
+#define NDIV_SHORT 6u            /* the divisions inside a beat (N_DIV, the arp's RATE) */
+#define NDIV_STEP 9u             /* N_SDIV (SLOOP 2.4): + 1/2 note, a bar, two bars (whole beats: DIV_BEATS) */
+#define NDIV_DLY 8u              /* N_DLY (SLOOP 2.4): + 1/8 and 1/16 dotted */
+static const uint8_t DIV_BEATS[3] = {2, 4, 8};
+/* a step's length in clock units (N_SDIV order; the arp's RATE uses 0..5) */
+static uint32_t div_units(uint32_t div)
 {
-    return div_units(div) / (uint32_t)song.g[G_BPM];
+    return div < NDIV_SHORT ? BEAT_U / DIV_DEN[div] : BEAT_U * DIV_BEATS[(div - NDIV_SHORT) % 3u];
 }
+/* the delay's TIME in clock units (N_DLY order) */
+static uint32_t dly_units(uint32_t d)
+{
+    return d < NDIV_SHORT ? BEAT_U / DIV_DEN[d] : d == NDIV_SHORT ? BEAT_U * 3u / 4u : BEAT_U * 3u / 8u;
+}
+/* length of one step (N_SDIV order) in samples at the song tempo (rounded down) */
+static uint32_t div_samples(uint32_t div) { return div_units(div) / (uint32_t)song.g[G_BPM]; }
+/* length of the delay's TIME (N_DLY order) in samples at the song tempo (rounded down) */
+static uint32_t dly_samples(uint32_t d) { return dly_units(d) / (uint32_t)song.g[G_BPM]; }
 #define TSEL (&trk[song.sel])    /* the selected track */
 #define TDRUM (&trk[TRK_DRUM])
 static int is_drum(const track_t *t) { return t == TDRUM; }

@@ -70,6 +70,10 @@ static uint32_t keys_sounding(const track_t *t)
                     m |= 1u << k;
         }
     }
+    if (t == TSEL)                                 /* + the notes just started, a few frames (pads_tick) */
+        for (i = 0; i < 27u; i++)
+            if (key_lit[i])
+                m |= 1u << i;
     return m;
 }
 
@@ -569,6 +573,16 @@ static void layer_unlock(void)
     }
 }
 
+/* Felucca #39 (SLOOP 2.4): a layer that showed lets go; KNOB 1..4 belong to no page for LY_QUIET_MS after (the knob
+ * still turning as the button comes up is the layer's, not the page's under it). fm1_ms | 1, 0 = none */
+#define LY_QUIET_MS 250u
+static uint32_t ly_quiet_t;
+static int ly_quiet(void)
+{
+    if (ly_quiet_t && fm1_ms - (ly_quiet_t & ~1u) >= LY_QUIET_MS)
+        ly_quiet_t = 0;
+    return ly_quiet_t != 0;
+}
 /* the layers, once a frame: which one is held (or locked), the taps on release, its keys and knobs.
  * Returns 1 while one is held or locked (the page does not take the knobs then) */
 static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
@@ -599,6 +613,8 @@ static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
             used[l] = 1;                                  /* a key while held: not a tap */
         if (!d && down[l] && !used[l] && now - t0[l] < TAP_MS && !ui.menu && !ui.confirm)
             layer_tap(l);
+        if (!d && down[l] && l == LY_SONG)
+            chain_release();                              /* SAVE let go: the section taps of the hold (ui_layers.c) */
         down[l] = (uint8_t)d;
         if (d && held == LY_PLAY)
             held = l;
@@ -624,6 +640,7 @@ static int layers_input(uint32_t note_edges, uint32_t *pressed, uint32_t home)
                 layer_key(e >> 8, e & 31u, 0);
         }
         if (ui.layer != LY_PLAY) {
+            ly_quiet_t = fm1_ms | 1u;                     /* a layer shown lets go: KNOB 1..4 quiet a while (#39) */
             ui.layer = LY_PLAY;
             ui.step_held = 0;
             ui.force = 1;                                 /* the page comes back */
@@ -765,6 +782,7 @@ static void ui_input(void)
     uint32_t home = btn_hold(&ui.home_t0, B_HOME, now, 1);
     int32_t s;
     int layered;
+    enc_hold = 0;                                       /* (panel.c: every knob readable again this pass) */
     if (pressed || notes)
         ui_input_ms = fm1_ms;
     if (home == BT_HOLD) {                              /* HOME held: open the menu, or leave it */
@@ -809,6 +827,12 @@ static void ui_input(void)
         if (!(pressed & (1u << panel.btn[B_PLAY])))
             return;
         pressed &= 1u << panel.btn[B_PLAY];             /* PLAY still plays */
+        enc_hold = (1u << NE) - 1u;                     /* #102: the knobs the layer took are not read again this
+                                                         * pass (a detent counted since went to the page too) */
+    } else if (ly_quiet()) {                            /* #39: the turns as a layer lets go are dropped */
+        for (k = 0; k < 4u; k++)
+            panel_enc(EN_K1 + k);
+        enc_hold |= 15u << EN_K1;
     }
     if (rec_wait && !ft_on && !ci_on) {                 /* the REC screen, armed: how it records */
         rec_knobs();                                    /* (tempo and sound still work; the track too: */

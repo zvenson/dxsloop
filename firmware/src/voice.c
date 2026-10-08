@@ -336,6 +336,11 @@ static void mono_remove(track_t *t, uint32_t note)
     t->nmono = (uint8_t)k;
 }
 
+/* the notes each synth part started since the UI last looked (menu NOTES: a short note lights its key for a few
+ * frames, as a drum hit does; ui_studio.c pads_tick; SLOOP 2.4). Set here (mostly the audio ISR), taken by the UI
+ * with the IRQ off */
+static volatile uint32_t note_hits[NPART][4];
+
 static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
 {
     uint32_t any = 0, i, mode = (uint32_t)t->p[P_VOICE];
@@ -345,6 +350,8 @@ static void trk_note_on(track_t *t, uint32_t note, uint32_t vel)
         drum_on(note, vel);
         return;
     }
+    if ((uint32_t)(t - trk) < NPART && note < 128u)
+        note_hits[t - trk][note >> 5] |= 1u << (note & 31u);
     if (t->xf_on || t->eng_req != t->engine) {          /* engine switch under way: after the fade */
         for (i = 0; i < t->xp_n && t->xp_note[i] != note; i++)
             ;

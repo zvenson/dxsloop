@@ -1546,6 +1546,7 @@ const mixer = {
          watchMs: how long WATCH lasts after the last request (3000), slots: user bank size (32)} */
 function makeMockDevice(opt = {}) {
   const NONOFF = ["OFF", "ON"], NDIV = ["1/4", "1/8", "1/16", "1/32", "8T", "16T"], NGO = ["--", "GO"], NDASH = ["--"];
+  const NSDIV = [...NDIV, "1/2", "1BAR", "2BAR"], NDLY = [...NDIV, "1/8D", "1/16D"];   /* (sloopDX 3.3, from SLOOP 2.4) */
   const D = (label, fmt, min, max, def, names = null, unit = "") => ({ label, fmt, min, max, def, names, unit });
   const E = (label, names, def) => D(label, F.ENUM, 0, names.length - 1, def, names);
   const TP = [
@@ -1557,7 +1558,7 @@ function makeMockDevice(opt = {}) {
     E("MODE", ["OFF", "UP", "DN", "UPDN", "RND", "ORD", "OMNI", "FLW"], 0), E("RATE", NDIV, 2), D("OCT", F.INT, 1, 4, 1), D("GATE", F.PCT, 1, 127, 64),
     D("SWG", F.SWING, 0, 100, 0), D("PROB", F.PCT, 0, 127, 127), E("HOLD", NONOFF, 0), E("ORD", ["NOTE", "PLAY"], 0),
     D("ROOT", F.NOTE, 0, 11, 0), E("SCL", ["CHR", "MAJ", "MIN", "DOR", "MIX", "PEN", "MPEN", "HARM", "PHRY", "LYD", "LOC", "MEL", "BLUES", "WHOLE", "DIMHW", "DIMWH"], 0), E("QNT", ["OFF", "SNAP", "WHITE"], 0), D("TRN", F.SEMI, -24, 24, 0),
-    D("LEN", F.STEPS, 1, 128, 16), E("DIV", NDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
+    D("LEN", F.STEPS, 1, 128, 16), E("DIV", NSDIV, 2), D("SWG", F.SWING, 0, 100, 0), D("GATE", F.PCT, 1, 127, 64),
     D("DRIVE", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0), D("SEND", F.PCT, 0, 127, 0),
     E("VCE", ["POLY", "MONO", "LEG", "UNI"], 0), D("GLD", F.TIME, 0, 127, 0), D("PAN", F.BIPCT, -64, 63, 0), E("MUTE", NONOFF, 0),
     E("GLMOD", ["RATE", "TIME"], 0), E("PRIO", ["LAST", "LOW", "HIGH"], 0), E("ALLOC", ["ROT", "REUSE"], 0), D("DTUNE", F.INT, 0, 127, 40),
@@ -1567,9 +1568,9 @@ function makeMockDevice(opt = {}) {
   ];
   const GP = [
     D("BPM", F.BPM, 40, 240, 90), D("SWING", F.SWING, 0, 100, 0), E("CLICK", ["OFF", "REC", "ON"], 0), D("TUNE", F.INT, -50, 50, 0),
-    E("TIME", NDIV, 1), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
+    E("TIME", NDLY, 1), D("FDBK", F.PCT, 0, 120, 60), D("COLR", F.PCT, 0, 127, 70), D("MIX", F.PCT, 0, 127, 90),
     D("SIZE", F.PCT, 0, 127, 90), D("DAMP", F.PCT, 0, 127, 60), D("RATE", F.LFOHZ, 0, 127, 40), D("DEPTH", F.PCT, 0, 127, 60),
-    E("MIDI", NDASH, 0), E("SYNC", ["INT", "USB", "TRS"], 0), E("ROUT", NDASH, 0), D("CPU", F.INT, 0, 0, 0),
+    E("MIDI", ["KEYS", "SEQ"], 0), E("SYNC", ["INT", "USB", "TRS"], 0), E("IN", ["NOTES", "CLOCK"], 0), D("CPU", F.INT, 0, 0, 0),
     D("SLOT", F.INT, 1, 4, 1), E("NAME", NDASH, 0), E("LOAD", NGO, 0), E("SAVE", NGO, 0),
     E("ENG", ["DX7"], 0), E("SET", NGO, 0),
     E("CLRSQ", NGO, 0), E("INIT", NGO, 0),
@@ -1825,7 +1826,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 3.2 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 3.3 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */
@@ -2254,7 +2255,7 @@ const TEXT = {
     tabVoice: "ボイス", vSlot: "スロット", vName: "名前", vPlay: "トラックで鳴らす", vStore: "バンクを保存", vFromTrack: "トラックのボイスを読む",
     vFactory: "ファクトリーからコピー", vInit: "初期化", vImport: ".syx を読む", vExport: ".syx に書き出す", vAlgorithm: "アルゴリズム", vPitchEnv: "ピッチ EG",
     vNoProto: "このファームウェアはボイス編集に対応していません（sloopDX 1.1 以降）。", vDrum: "ドラムトラックにはボイス編集はありません。トラック 1〜3 を選んでください。",
-    vEditing: "編集中: ", vNotInSlot: "（まだスロットにありません。最初の変更で書き込みます）", vStored: "バンクを保存しました", vStoreFail: "保存できません: rc ",
+    vEditing: "編集中: ", vNotInSlot: "（まだスロットにありません。最初の変更で書き込みます）", vStored: "バンクを保存しました", vStoreFail: "保存できません: rc ", stopFirst: "FM-1 が再生中です。PLAY で止めてから、もう一度どうぞ。",
     vLoaded: "ボイスを読み込みました: ", vCarrier: "キャリア", vDrag: "点をドラッグ: ↔ レート ↕ レベル", vModulator: "モジュレーター", vBadSyx: ".syx を読めません: ", vWhich: "バンクのどのボイス（1〜32）？",
     vConfirmInit: "このスロットを INIT VOICE にしますか？",
     track: "トラック", drum: "ドラム",
@@ -2336,7 +2337,7 @@ const TEXT = {
     tabVoice: "Voice", vSlot: "Slot", vName: "Name", vPlay: "Play on track", vStore: "Store bank", vFromTrack: "Load the track's voice",
     vFactory: "Copy a factory voice", vInit: "Init voice", vImport: "Import .syx", vExport: "Export .syx", vAlgorithm: "Algorithm", vPitchEnv: "Pitch envelope",
     vNoProto: "This firmware has no voice editing (sloopDX 1.1 or later).", vDrum: "The drum track has no voice to edit: select track 1, 2 or 3.",
-    vEditing: "Editing ", vNotInSlot: " (not in the slot yet: the first change writes it)", vStored: "Bank stored", vStoreFail: "Could not store: rc ",
+    vEditing: "Editing ", vNotInSlot: " (not in the slot yet: the first change writes it)", vStored: "Bank stored", vStoreFail: "Could not store: rc ", stopFirst: "The FM-1 is playing: stop it (PLAY), then try again.",
     vLoaded: "Voice loaded: ", vCarrier: "carrier", vDrag: "drag a point: ↔ rate  ↕ level", vModulator: "modulator", vBadSyx: "Cannot read the .syx: ", vWhich: "Which voice of the bank (1-32)?",
     vConfirmInit: "Make this slot an INIT VOICE?",
     track: "Track", drum: "Drums",
@@ -3823,7 +3824,7 @@ async function libOp(fn) {
   try { await fn(); } catch (err) { report(err); } finally { busy--; libBusy = false; renderLib(); renderBank(); renderDxBank(); renderKit(); }
 }
 const rqf = (r, o) => rq(r, o);
-const checkRc = (rc) => { if (rc) throw new Error(t("flashFail").replace("{rc}", rc)); };
+const checkRc = (rc) => { if (rc === 3) throw new Error(t("stopFirst")); if (rc) throw new Error(t("flashFail").replace("{rc}", rc)); };
 async function refreshSlot(slot) {
   const r = parse[CMD.UP_LIST](await rq(req.upList(slot, 1)));
   if (dev && dev.bank && r.slots[0]) dev.bank.slots[slot] = r.slots[0];
@@ -4459,7 +4460,7 @@ $("vname").addEventListener("change", () => op(async () => {
 $("vstore").addEventListener("click", () => op(async () => {
   await vSendChain;
   const rc = await dxvoice.save(vRq);
-  if (rc) sayK("vStoreFail", rc); else sayK("vStored");
+  if (rc === 3) sayK("stopFirst"); else if (rc) sayK("vStoreFail", rc); else sayK("vStored");
 }));
 $("vexport").addEventListener("click", () => {
   if (!VX.u) return;

@@ -21,6 +21,8 @@ static void section_store(uint32_t s);                  /* project.c */
 static void section_load(uint32_t s);
 static uint8_t sec_armed;                               /* store over a used section: the key again within 3 s */
 static uint32_t sec_armed_ms;
+static uint8_t chain_tap[CHAIN_MAX], chain_taps;        /* the section keys tapped in this SAVE hold (the first is asked
+                                                         * for at once; two or more: a chain on release; SLOOP 2.4) */
 #define TAP_MS 450u                                     /* a press shorter than this, untouched: a tap */
 #define SHOW_MS 140u                                    /* the layer shows after this (a tap does not flash it) */
 
@@ -292,8 +294,17 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down)
             } else if (!((arrangement_ready() >> w) & 1u)) {
                 ui_say("EMPTY ", b);
             } else if (song.playing) {
-                live_req = (int8_t)w;
-                ui_say("NEXT: ", b);
+                if (!chain_taps) {                          /* the first tap: as ever, and any chain stops */
+                    fm1_irq_off();
+                    chain_n = 0;
+                    live_req = (int8_t)w;
+                    fm1_irq_on();
+                    ui_say("NEXT: ", b);
+                } else {
+                    ui.msg_t = 0;                           /* (the sub line shows the chain) */
+                }
+                if (chain_taps < CHAIN_MAX && (fm1_in.buttons & ly_bit[LY_SONG]))
+                    chain_tap[chain_taps++] = (uint8_t)w;   /* (SAVE held: more taps make a chain) */
             } else {
                 section_load((uint32_t)w);
                 ui_say("LOADED ", b);
@@ -345,6 +356,34 @@ static void layer_key(uint32_t layer, uint32_t k, uint32_t down)
     default:
         return;
     }
+}
+
+/* SAVE let go (ui_input.c): two or more section taps while it was held play as a chain, from the one already asked
+ * for (the first), each for the bars of its pattern, looped; one tap was a plain jump */
+static void chain_release(void)
+{
+    uint32_t i;
+    if (chain_taps >= 2u && song.playing && !arrangement_clock.running) {
+        fm1_irq_off();
+        for (i = 0; i < chain_taps && i < CHAIN_MAX; i++)
+            chain_sec[i] = chain_tap[i];
+        chain_i = 0;
+        chain_bars = (uint8_t)section_bars(chain_tap[0]);   /* (the first plays already, or is asked for) */
+        chain_n = (uint8_t)(chain_taps < CHAIN_MAX ? chain_taps : CHAIN_MAX);
+        fm1_irq_on();
+    }
+    chain_taps = 0;
+}
+/* "chain A B B C": the chain being built (SAVE held) or playing */
+static void chain_sub(char *sub, uint32_t n)
+{
+    uint32_t i, m = chain_taps >= 2u ? chain_taps : chain_n, k = 5;
+    str_cpy(sub, "chain", n);
+    for (i = 0; i < m && i < CHAIN_MAX && k + 2u < n; i++) {
+        sub[k++] = ' ';
+        sub[k++] = (char)('A' + ((chain_taps >= 2u ? chain_tap[i] : chain_sec[i]) & 3u));
+    }
+    sub[k] = 0;
 }
 
 /* KNOB 1..4 while a layer is held: what the layer gives them (the page does not see them) */
@@ -402,7 +441,7 @@ static void layer_knobs(uint32_t layer)
                     pen_n = 1;
                 }
             } else if (k == 1u) {
-                t->p[P_SDIV] = (int16_t)clamp(t->p[P_SDIV] + s, 0, 5);
+                t->p[P_SDIV] = (int16_t)clamp(t->p[P_SDIV] + s, 0, (int32_t)NDIV_STEP - 1);   /* (up to 2BAR) */
             } else if (k == 2u) {
                 t->p[P_SSWING] = (int16_t)clamp(t->p[P_SSWING] + accel(EN_K3, s, 100), 0, 100);
             } else {
@@ -659,10 +698,10 @@ static void layer_screen_draw(void)
             }
         } else {
             lab[1] = "div", lab[2] = "swing", lab[3] = "steps";
-            str_cpy(v[1], N_DIV[t->p[P_SDIV] % 6], 8);
+            str_cpy(v[1], N_SDIV[t->p[P_SDIV] % NDIV_STEP], 8);
             swing_str(v[2], t->p[P_SSWING]);
             fmt_int(v[3], t->p[P_SLEN]);
-            ratio[1] = t->p[P_SDIV] * 200;
+            ratio[1] = t->p[P_SDIV] * 1000 / (NDIV_STEP - 1);
             ratio[2] = t->p[P_SSWING] * 10;
             ratio[3] = (t->p[P_SLEN] - 1) * 1000 / (NSTEP - 1);
         }
@@ -749,15 +788,19 @@ static void layer_screen_draw(void)
             str_cpy(sub + str_len(sub), " bar ", 6);
             fmt_int(b, srec_n ? srec_e[srec_n - 1u].bars + 1 : 1);
             str_cpy(sub + str_len(sub), b, 6);
+        } else if (chain_taps >= 2u || chain_n) {
+            chain_sub(sub, sizeof sub);                 /* "chain A B B C" */
         } else {
             str_cpy(sub, arrangement_enabled ? "song mode" : srec ? "rec armed" : "play  store", sizeof sub);
         }
-        for (i = 0; i < 4u; i++) {
+        for (i = 0; i < 4u; i++) {                      /* (the chain's next entry framed as the one asked for) */
             int used = (ready >> i) & 1u, playing = live_sec == (int8_t)i && !arrangement_clock.running;
+            int next = live_req == (int8_t)i ||
+                       (chain_n && live_req < 0 && (chain_sec[((chain_i + 1u) % chain_n) % CHAIN_MAX] & 3u) == i);
             str_cpy(tl[i].lab, SL[i], 8);
             tl[i].bg = used ? (playing ? TE_COL[i] : TE_DIM[i]) : TE_G1;
             tl[i].fg = used ? C_BLACK : TE_G3;
-            tl[i].top = live_req == (int8_t)i ? C_WHITE : 0;
+            tl[i].top = next ? C_WHITE : 0;
             str_cpy(tl[4 + i].lab, "save A", 8);
             tl[4 + i].lab[5] = (char)('A' + i);
             tl[4 + i].bg = sec_armed == i + 1u ? TE_RED : TE_G1;

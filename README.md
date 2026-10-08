@@ -21,7 +21,7 @@ sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is
 
 **New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
 
-> **Status: 3.2, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status: 3.3, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Why sloopDX
 
@@ -32,6 +32,7 @@ sloopDX is my approach to combine both: **SLOOP's live workflow, with a DX7 insi
 ## Contents
 
 1. [Why sloopDX](#why-sloopdx)
+1. [From SLOOP 2.4 (new in 3.3)](#from-sloop-24-new-in-33)
 1. [From SLOOP 2.3](#from-sloop-23)
 2. [Screens](#screens)
 3. [What it does](#what-it-does)
@@ -52,6 +53,21 @@ sloopDX is my approach to combine both: **SLOOP's live workflow, with a DX7 insi
 18. [Licence](#licence)
 
 ---
+
+## From SLOOP 2.4 (new in 3.3)
+
+sloopDX 3.3 takes from SLOOP 2.4 the fixes and the small additions that fit next to its DX7 and its drums. None of it has been tried on a device in sloopDX yet.
+
+| | |
+| --- | --- |
+| **Sequencer to MIDI OUT** | GLO → SYSTEM → **MIDI** = **SEQ**: the steps, the arp, the rolls and the OMNI chords go out on USB MIDI, each track on its keys' channel (drums on 10). Drive another synth, or record the notes in a DAW. KEYS (the default): only what you play. |
+| **Clock only** | GLO → SYSTEM → **IN** = **CLOCK**: follow a DAW's clock and ignore its notes. |
+| **Longer steps, dotted delays** | DIV goes to **1/2**, **1BAR** and **2BAR**; the delay's TIME has **1/8D** and **1/16D**. |
+| **Quick chain** | Hold SAVE and tap A B B C…: let go and the sections play in turn, each for its pattern's length, looped. One section tapped alone stops it. |
+| **USB SERIAL** | HOME menu → **USB SERIAL**, OFF by default: without the serial console, macOS 13–15 show the USB audio input again. ON (at the next start) for developers. |
+| **Fixes** | A MIDI START during the REC count-in records at once; swing leaves triplets and whole-beat steps alone; DIV or RATE turned right after PLAY no longer skips a step; a knob still turning as you let go of a layer no longer changes the page; the editor never writes flash while the song plays (*stop it first*); NOTES lights short sequencer notes too; *12 kHz* and *−12 dB* read in full; a divide by zero can no longer stop the FM-1. |
+
+Not taken (yet): parameter locks, micro timing and fills (they need room the project and the drum locks already use), the per-track filter, CHORD+, the visualiser, SLOOP's FM6 engine (sloopDX has its own DX7) and its new editor.
 
 ## From SLOOP 2.3
 
@@ -103,7 +119,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 
 ## Status
 
-**3.2, a usable beta.** What is known:
+**3.3, a usable beta.** What is known:
 
 - **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget) and the host test suite passes: audio renders against golden hashes, the voices, the sequencer (REC modes, count-in, MIDI clock), the UI pages and layers, the DX7 voice list, flash storage, the 8 banks, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages. On the FM-1: install, the boot screen, the DX7 voice list, a ROM bank in flash, the drum kits and the levels have been played.
 - **From 1.9:** projects, user presets and the editor's library keep their sounds. Three factory voices came in before INIT VOICE, so the bank moved from 18–49 to 21–52; older saves are renumbered when they load, and the new CUT starts open.
@@ -128,7 +144,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-3.2.fwsc`) with `python tools/fm1_install.py sloopdx-3.2.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-3.3.fwsc`) with `python tools/fm1_install.py sloopdx-3.3.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -188,11 +204,12 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **KEYS** | OFF / C KEYS / WHITE KEYS | the C keys, or every white key, glow too |
 | **NOTES** | OFF / ON | the notes playing on a synth track light their keys, on every page and in every layer |
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
+| **USB SERIAL** | OFF / ON | the serial console on USB (for developers), taken at the next start (*RESTART* shows until then). OFF, the default: macOS 13–15 show the USB audio input (3.3) |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 3.2*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 3.3*) and its build date, the credits |
 | **FACTORY RESET** | OCT+ twice | erases everything on the FM-1: the projects, the working project, the user presets, the 8 DX7 banks, MY KIT and the settings, then restarts as freshly installed. Stopped only; save a backup first (editor → Projects) if you want any of it back |
 
-Two more settings of the FM-1 live elsewhere: **SYNC** (GLO → SYSTEM: INT, USB or TRS) and the REC screen's **mode** and **start**.
+Four more settings of the FM-1 live elsewhere: **MIDI**, **SYNC** and **IN** (GLO → SYSTEM: see [MIDI and USB audio](#midi-and-usb-audio)) and the REC screen's **mode** and **start**.
 
 ## MIDI and USB audio
 
@@ -210,6 +227,10 @@ sloopDX takes MIDI from two places at once:
 | 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
 
 A USB keyboard plugged **straight into the FM-1** cannot work: both are USB devices, and a USB link needs a host (a computer, a phone, or a USB MIDI host box). Bluetooth MIDI is not supported: sloopDX, like Felucca, never switches the radio on.
+
+### MIDI out
+
+The keys always go out on USB MIDI, each track on its channel (1–3, drums on 10). With GLO → SYSTEM → **MIDI** = **SEQ** (3.3) the sequencer goes out too: the steps, the arp, the rolls, the OMNI chords and FLW, so another synth plays along or a DAW records the notes. Notes that come in are never sent back (no MIDI loop). STOP, or MIDI back to KEYS, ends every note it sent. GLO → SYSTEM → **IN** = **CLOCK** ignores the notes that come in and keeps the clock.
 
 ### MIDI clock in
 
@@ -265,7 +286,7 @@ The protocol is documented in [web/EDITOR_PROTOCOL.md](web/EDITOR_PROTOCOL.md) (
 
 **The USB recording is too quiet, or follows the volume knob.** Set HOME menu → **USB AUDIO** to **FULL**, or turn MASTER up.
 
-**Recorded notes move to the grid.** sloopDX quantises what you record to the steps of the track (its **DIV**: 1/4 … 1/32, triplets). For finer timing, set DIV to 1/32; for groove, use SWING.
+**Recorded notes move to the grid.** sloopDX quantises what you record to the steps of the track (its **DIV**: 1/4 … 1/32, triplets, or since 3.3 1/2, a bar, two bars). For finer timing, set DIV to 1/32; for groove, use SWING.
 
 **Notes fade out on a dense part.** The processor is at its limit: sloopDX fades one voice at a time (never the bass or the lead) rather than glitching. Fewer held notes help; 14 DX7 voices on this chip are still untested.
 

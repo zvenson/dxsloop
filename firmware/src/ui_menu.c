@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
-/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, LIGHTS, KEYS, NOTES, USB AUDIO, HARDWARE CALIBRATION, ABOUT, FACTORY RESET. */
+/* sloopDX menu (HOME held): COLOR, LOWCUT, ZOOM, LIGHTS, KEYS, NOTES, USB AUDIO, USB SERIAL, HARDWARE CALIBRATION, ABOUT,
+ * FACTORY RESET. */
 /* ------------------------------------------------------------ menu --- */
-enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_PANEL, MI_ABOUT, MI_RESET, MI_BACK, MI_COUNT };
-static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "LIGHTS", "KEYS", "NOTES", "USB AUDIO",
+enum { MI_COLOR, MI_LOWCUT, MI_ZOOM, MI_LIGHTS, MI_KEYS, MI_NOTES, MI_USB, MI_SERIAL, MI_PANEL, MI_ABOUT, MI_RESET, MI_BACK, MI_COUNT };
+static const char *const MI_NAME[MI_COUNT] = {"COLOR", "LOWCUT", "ZOOM", "LIGHTS", "KEYS", "NOTES", "USB AUDIO", "USB SERIAL",
                                               "HARDWARE CALIBRATION", "ABOUT", "FACTORY RESET", "BACK"};
 static const char *const LIGHTS_NAME[LIGHTS_N] = {"OFF", "LOW", "MID", "HIGH"};   /* every button lit, the labels readable */
 static const char *const KEYS_NAME[KEYS_N] = {"OFF", "C KEYS", "WHITE KEYS"};      /* keys lit too, at the LIGHTS level */
-#define MI_DY 16                                   /* rows between two menu lines */
+#define MI_DY 15                                   /* rows between two menu lines */
 
 /* FACTORY RESET: every object in flash erased (the projects, the working project, the user presets, the 8 DX7
  * banks, MY KIT, the settings with the panel table), then a reboot: the FM-1 starts as freshly installed.
@@ -31,7 +32,8 @@ static void draw_menu(void)
 {
     uint32_t i, pass, sig = ui.menu * 7u + ui.menu_sel * 131u + settings.palette * 1009u + settings.lowcut * 7919u +
                             settings.zoom * 104729u + lights_lvl * 1299709u + lights_keys * 15485863u +
-                            lights_notes * 32452843u + usb_full * 49979687u + ui.menu_arm * 97u;
+                            lights_notes * 32452843u + usb_full * 49979687u + ui.menu_arm * 97u +
+                            usb_serial * 86028121u;
     if (!ui.force && sig == ui.menu_sig)
         return;
     ui.menu_sig = sig;
@@ -79,6 +81,11 @@ static void draw_menu(void)
                     cv_text(100, y, &FONT_S, LIGHTS_NAME[lights_lvl % LIGHTS_N], C_HI);
                 if (i == MI_USB)                       /* the USB audio input: follows MASTER, or full level */
                     cv_text(100, y, &FONT_S, usb_full ? "FULL" : "MASTER", C_HI);
+                if (i == MI_SERIAL) {                  /* the serial console (usb.c): taken at the next start */
+                    cv_text(110, y, &FONT_S, usb_serial ? "ON" : "OFF", C_HI);
+                    if (usb_serial != (uint8_t)usb_cdc_now())
+                        cv_text(150, y, &FONT_S, "RESTART", C_AMB);
+                }
                 if (i == MI_KEYS)
                     cv_text(100, y, &FONT_S, KEYS_NAME[lights_keys % KEYS_N], lights_lvl ? C_HI : C_DIM);   /* (needs LIGHTS) */
                 if (i == MI_RESET)                     /* armed: the second OCT+ erases */
@@ -147,6 +154,10 @@ static void menu_input(uint32_t pressed)
     }
     if ((s != 0 || ok) && ui.menu == 1 && ui.menu_sel == MI_USB) {     /* right FULL, left MASTER; OCT+ toggles */
         usb_full = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !usb_full);
+        ok = 0;
+    }
+    if ((s != 0 || ok) && ui.menu == 1 && ui.menu_sel == MI_SERIAL) {  /* right ON, left OFF; OCT+ toggles */
+        usb_serial = (uint8_t)(s > 0 ? 1u : s < 0 ? 0u : !usb_serial);
         ok = 0;
     }
     if ((s != 0 || ok) && ui.menu == 1 && ui.menu_sel == MI_NOTES) {   /* (the same: right ON, left OFF) */

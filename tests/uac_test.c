@@ -3,7 +3,8 @@
 /* Host test of the USB audio input in src/usb.c (FELUCCA_UAC):
  *   descriptors  the configuration parsed as a host does: lengths, interface and endpoint counts,
  *                class codes, the UAC1 chain (AC header collection, terminals, AS general, type I
- *                format, the isochronous endpoint), the IADs; with and without CDC (-DT_CDC=0/1)
+ *                format, the isochronous endpoint), the IADs; with and without CDC (-DT_CDC=0/1), and with CDC
+ *                built in but the menu's USB SERIAL OFF (-DT_CDC=2: as a T_CDC=0 build, byte for byte: UAC_DUMP=1)
  *   ring         uac_render_start / uac_tap (the audio ISR) against uac_packet (TIMER5): renders of 256
  *                frames at the I2S rate, as late as the load makes them, packets at 1 kHz: sizes 43..46,
  *                44.1 on average, every frame delivered in order, then an underrun (repeats), an
@@ -12,12 +13,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #ifndef HALF_FRAMES
 #error "-DHALF_FRAMES=n (src/core.h; run_tests.sh passes it)"
 #endif
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #define FELUCCA_OTA 0
-#define FELUCCA_CDC T_CDC
+#define FELUCCA_CDC (T_CDC != 0)
+#define CDC_SHOWN (T_CDC == 1)            /* the console presented */
 #define FELUCCA_UAC 1
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
 #pragma GCC diagnostic ignored "-Wint-to-pointer-cast"   /* SIE register macros (never touched here) */
@@ -37,8 +40,9 @@ static uint32_t le16(const uint8_t *p) { return p[0] | (uint32_t)p[1] << 8; }
 /* ------------------------------------------------------------------ descriptors --- */
 static void test_descriptors(void)
 {
-    const uint8_t *c = CFG_DESC;
-    uint32_t total = le16(c + 2), n = sizeof CFG_DESC, off, nif = 0, i;
+    const uint8_t *c, *dv;
+    uint16_t cl, dl;
+    uint32_t total, n, off, nif = 0, i;
     int lens_ok = 1, eps_ok = 1, ac_ok = 0, it_ok = 0, ot_ok = 0, asg_ok = 0, fmt_ok = 0, iso_ok = 0, csep_ok = 0;
     int alt0_ok = 0, iad_ok = 1, midi_ok = 0, dup_ok = 1, coll_ok = 0;
     uint8_t seen_if[16] = {0}, if_class[16] = {0}, if_sub[16] = {0};
@@ -46,11 +50,25 @@ static void test_descriptors(void)
     uint8_t coll[8], ncoll = 0, iad_n = 0;
     uint32_t ep_seen[32] = {0};
     char name[96];
+#if T_CDC
+    usb_cdc_on = CDC_SHOWN;                            /* (main.c sets it from the menu before usb_start) */
+#endif
+    get_desc(0x0100, &dv, &dl);
+    get_desc(0x0200, &c, &cl);
+    total = le16(c + 2);
+    n = cl;
+    if (getenv("UAC_DUMP")) {                          /* the bytes a host reads (tests: T_CDC=0 and 2 compared) */
+        for (i = 0; i < dl; i++) printf("%02X", dv[i]);
+        printf("\n");
+        for (i = 0; i < cl; i++) printf("%02X", c[i]);
+        printf("\n");
+        exit(0);
+    }
 
-    check("device descriptor: 18 bytes, type 1, EP0 64", DEV_DESC[0] == 18 && DEV_DESC[1] == 1 && DEV_DESC[7] == 64);
-    check("bcdDevice bumped for the audio input (x.1x)", (DEV_DESC[12] & 0xF0u) == 0x10u && DEV_DESC[13] == 3);
-    check(T_CDC ? "device class misc / IAD (EF 02 01)" : "device class 0 (per interface)",
-          T_CDC ? DEV_DESC[4] == 0xEF && DEV_DESC[5] == 2 && DEV_DESC[6] == 1 : DEV_DESC[4] == 0);
+    check("device descriptor: 18 bytes, type 1, EP0 64", dv[0] == 18 && dv[1] == 1 && dv[7] == 64);
+    check("bcdDevice bumped for the audio input (x.1x)", (dv[12] & 0xF0u) == 0x10u && dv[13] == 3);
+    check(CDC_SHOWN ? "device class misc / IAD (EF 02 01)" : "device class 0 (per interface)",
+          CDC_SHOWN ? dv[4] == 0xEF && dv[5] == 2 && dv[6] == 1 : dv[4] == 0);
     check("configuration: type 2, wTotalLength = the bytes sent", c[1] == 2 && total == n);
 
     for (off = 0; off < n;) {
@@ -142,7 +160,7 @@ static void test_descriptors(void)
             coll_ok = 0;
 
     check("descriptor lengths add up to wTotalLength", lens_ok && off == n);
-    check("bNumInterfaces = the interfaces present", c[4] == nif && nif == (T_CDC ? 5u : 3u));
+    check("bNumInterfaces = the interfaces present", c[4] == nif && nif == (CDC_SHOWN ? 5u : 3u));
     check("each interface setting has bNumEndpoints endpoints", eps_ok);
     check("endpoint addresses unique", dup_ok);
     check("AC header: UAC 1.00, length 8 + collection", ac_ok);
@@ -156,8 +174,8 @@ static void test_descriptors(void)
     check("EP 0x84: isochronous async, 184 B (46 frames), every frame, alt 1", iso_ok);
     check("CS endpoint: sampling frequency control", csep_ok);
     check("MIDI bulk endpoints 0x01 / 0x81 unchanged", midi_ok == 2);
-    snprintf(name, sizeof name, "IADs: %s", T_CDC ? "audio IF 0-2, CDC IF 3-4" : "none");
-    check(name, iad_ok && iad_n == (T_CDC ? 2 : 0));
+    snprintf(name, sizeof name, "IADs: %s", CDC_SHOWN ? "audio IF 0-2, CDC IF 3-4" : "none");
+    check(name, iad_ok && iad_n == (CDC_SHOWN ? 2 : 0));
 }
 
 /* --------------------------------------------------------------------- the ring --- */
@@ -316,7 +334,7 @@ static void test_ring(void)
 
 int main(void)
 {
-    printf("-- USB audio input, CDC %s\n", T_CDC ? "on" : "off");
+    printf("-- USB audio input, CDC %s\n", T_CDC == 2 ? "built in, USB SERIAL OFF" : T_CDC ? "on" : "off");
     test_descriptors();
     test_ring();
     printf(fails ? "UAC TEST FAILED (%d)\n" : "uac: all ok\n", fails);

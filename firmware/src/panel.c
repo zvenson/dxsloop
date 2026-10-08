@@ -53,9 +53,15 @@ static void panel_led(uint32_t label, int on) { fm1_led_key(panel.btn[label], on
 
 /* steps of a role, + = clockwise */
 static uint32_t ui_input_ms;                    /* the last button, key or knob turn (ui_input.c; autosave) */
+/* the knobs (roles, bit per EN_*) not to be read again in this UI pass (ui_input: a layer took them; SLOOP 2.4,
+ * Felucca #102): panel_enc returns 0 and leaves their detents for the next pass */
+static uint32_t enc_hold;
 static int32_t panel_enc(uint32_t role)
 {
-    int32_t s = fm1_enc_take(panel.enc[role]) * panel.dir[role];
+    int32_t s;
+    if ((enc_hold >> role) & 1u)
+        return 0;
+    s = fm1_enc_take(panel.enc[role]) * panel.dir[role];
     if (s)
         ui_input_ms = fm1_ms;                      /* a knob turning is not idle either: autosave waits */
     return s;
@@ -73,13 +79,17 @@ enum { KEYS_OFF, KEYS_C, KEYS_WHITE, KEYS_N };
 static uint8_t lights_lvl, lights_keys;
 static uint8_t lights_notes;                   /* 1: on a synth track the sounding notes light their keys */
 static uint8_t lights_sync;                    /* GLO > SYSTEM > SYNC (G_SYNC), kept here: 0 INT, 1 USB, 2 TRS */
+static uint8_t lights_mout;                    /* GLO > SYSTEM > MIDI (G_MIDI): 1 = the sequencer goes to MIDI OUT too */
+static uint8_t lights_min;                     /* GLO > SYSTEM > IN (G_ROUTE): 1 = MIDI in takes the clock only, no notes */
+static uint8_t usb_serial;                     /* menu USB SERIAL: 1 = the serial console presented (usb.c), SLOOP 2.4 */
 static const uint16_t LIGHTS_NS[LIGHTS_N] = {0u, 500u, 1000u, 2000u};   /* the backlight pulse a frame (ns): a lit
                                                 * LED ~95 us, the glow (landmarks) 4 us (fm1_input.h) */
 static uint32_t lights_word(void)
 {
     return (uint32_t)lights_lvl | (uint32_t)lights_keys << 4 | (uint32_t)(lights_notes != 0u) << 8 |
            (uint32_t)(rec_tempo != 0u) << 9 | (uint32_t)(rec_count != 0u) << 10 | (uint32_t)(usb_full != 0u) << 11 |
-           (uint32_t)(lights_sync % 3u) << 12;
+           (uint32_t)(lights_sync % 3u) << 12 | (uint32_t)(lights_mout != 0u) << 14 | (uint32_t)(lights_min != 0u) << 15 |
+           (uint32_t)(usb_serial != 0u) << 16;
 }
 static void lights_from_word(uint32_t w)
 {
@@ -90,6 +100,9 @@ static void lights_from_word(uint32_t w)
     rec_count = (uint8_t)((w >> 10) & 1u);
     usb_full = (uint8_t)((w >> 11) & 1u);       /* menu USB AUDIO (fx.c) */
     lights_sync = (uint8_t)(((w >> 12) & 3u) % 3u);
+    lights_mout = (uint8_t)((w >> 14) & 1u);    /* GLO > SYSTEM > MIDI (seq.c) */
+    lights_min = (uint8_t)((w >> 15) & 1u);     /* GLO > SYSTEM > IN (seq.c) */
+    usb_serial = (uint8_t)((w >> 16) & 1u);     /* menu USB SERIAL (usb.c usb_cdc_on, at the next start); 0 before = OFF */
 }
 
 static void settings_save(void);              /* project.c: flash copy (FELUCCA_FLASH) */

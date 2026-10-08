@@ -297,17 +297,39 @@ static uint16_t lvl_col(uint32_t lvl)                   /* a hit's colour by its
     return lvl == LV_GHOST ? TE_DIM[3] : lvl == LV_SOFT ? TE_MID[3] : lvl == LV_HARD ? C_WHITE : TE_DRUM;
 }
 static uint16_t pad_lit[DRUM_LANES];                   /* pads and key LEDs: frames left lit */
+static uint8_t key_lit[27];                             /* menu NOTES, a synth track: frames its key stays lit */
+static uint8_t key_lit_trk = 0xFF;                      /* (the track key_lit is for) */
 static void pads_tick(void)                             /* once a frame: the hits since the last one */
 {
-    uint32_t i, hits;
+    uint32_t i, hits, n[NPART][4], k, w;
     fm1_irq_off();
     hits = drums.hits;
     drums.hits = 0;
+    for (i = 0; i < NPART; i++)
+        for (w = 0; w < 4u; w++) {
+            n[i][w] = note_hits[i][w];
+            note_hits[i][w] = 0;
+        }
     fm1_irq_on();
     for (i = 0; i < DRUM_LANES; i++) {
         if ((hits >> i) & 1u) pad_lit[i] = 6;
         else if (pad_lit[i]) pad_lit[i]--;
     }
+    /* a synth track: each note it started lights its key 6 frames (~0.1 s), so a short sequencer note (a 1/16 at
+     * GATE 50 %: 60..80 ms) is seen even when it ends between two frames (SLOOP 2.4) */
+    if (song.sel != key_lit_trk) {
+        memset(key_lit, 0, sizeof key_lit);
+        key_lit_trk = song.sel;
+    }
+    for (k = 0; k < 27u; k++)
+        if (key_lit[k])
+            key_lit[k]--;
+    if (song.sel < NPART && (n[song.sel][0] | n[song.sel][1] | n[song.sel][2] | n[song.sel][3]))
+        for (k = 0; k < 27u; k++) {
+            uint32_t note = kb_map(TSEL, k);
+            if (note < 128u && (n[song.sel][note >> 5] >> (note & 31u)) & 1u)
+                key_lit[k] = 6;
+        }
     if (drum_hand & 0x80u) {                            /* LANE edits the sound last played by hand (a key, MIDI),
                                                          * also while the sequencer plays: its hits do not move it */
         if (drum_page == 2u && song.sel == TRK_DRUM)

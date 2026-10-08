@@ -9,6 +9,8 @@
  *   levels   OCT- / OCT+ held on the drum track: ghost / hard hits, recorded as such
  *   chords   P_CHORD: one key plays the chord of the scale (white keys walk the degrees from C4)
  *   mute     P_MUTE / solo: no new notes, the output fades
+ *   2.4      (SLOOP 2.4, in sloopDX 3.3) a MIDI START cuts the count-in short, no swing on triplets, a DIV change
+ *            keeps the next step, DIV 1/2 / 1BAR / 2BAR, dotted delays, the sequencer to MIDI OUT, MIDI IN = CLOCK
  * Exit status: the number of failed checks. */
 #define main hostsim_main
 #include "hostsim.c"
@@ -550,6 +552,198 @@ static void t_usbfull(void)
     check(pk_usb > pk_dac * 3 && pk_usb <= 32767, "USB AUDIO FULL: the USB level stays up when MASTER is low, no clipping");
 }
 
+/* ---- from SLOOP 2.4 (tests/seq2_test.c), ported with the features (sloopDX 3.3) */
+
+/* SLOOP 2.4 fixes: a MIDI START cuts a count-in short (the master counts); swing is off on the
+ * triplet grids; a DIV change in the first beat after PLAY does not lose a step */
+static void t_fixes24(void)
+{
+    uint32_t k, i, bpb = (uint32_t)((double)FS * 60.0 / 100.0 / CTL + 0.5), n0;
+    /* MIDI START during the count-in */
+    transport_req = 2; run_block();                   /* (stopped: t_mute leaves it playing) */
+    reset(100);
+    mclk.alive = 0;                                   /* (t_mclk's master is gone: no clock drives yet) */
+    song.sel = 0;
+    rec_tempo = 1, rec_count = 1;
+    rec_wait = 1;
+    song.g[G_SYNC] = 1;
+    mi_r = mi_w;
+    transport_req = 1; run_block();                   /* PLAY: the count-in clicks */
+    for (k = 0; k < bpb; k++) run_block();
+    if (!(ci_on && !song.playing)) printf("seq2:   ci_on %u playing %u rec_wait %u empty %d mclk_on %d ft_on %u\n", (unsigned)ci_on,
+        (unsigned)song.playing, (unsigned)rec_wait, project_empty(), mclk_on(), (unsigned)ft_on);
+    check(ci_on && !song.playing, "2.4: count-in running before the master starts");
+    mclk_push(0xFA0Fu);                               /* the DAW starts: START */
+    run_block();
+    run_block();
+    check(!ci_on && song.playing && song.rec == 1u, "2.4: a MIDI START during the count-in starts and records at once");
+    transport_req = 2; run_block();
+    song.g[G_SYNC] = 0;
+    rec_wait = 0; rec_tempo = 0; rec_count = 0;
+    mi_r = mi_w;
+
+    /* swing on 8T: every beat the same */
+    reset(120);
+    song.g[G_SWING] = 80;
+    TDRUM->p[P_SDIV] = 4;                             /* 8T: 3 a beat */
+    TDRUM->p[P_SLEN] = 12;
+    for (i = 0; i < 12u; i++)
+        dstep_set(&TDRUM->dstep[i], 4, LV_NORM, 0);
+    transport_req = 1;
+    for (k = 0; k < 8u * (uint32_t)(FS / CTL) / 2u; k++) run_block();   /* 4 s = 8 beats */
+    {
+        uint64_t d[24]; uint32_t n = 0, ok = 1;
+        for (i = 0; i < nhits && n < 24u; i++)
+            if (hits[i].note == 36 || hits[i].note == 35 || hits[i].vel) d[n++] = hits[i].blk;
+        /* 3 hits a beat, evenly spaced: consecutive gaps within one block of each other */
+        for (i = 2; i < n; i++)
+            if (d[i] - d[i - 1] > d[i - 1] - d[i - 2] + 1u || d[i - 1] - d[i - 2] > d[i] - d[i - 1] + 1u) ok = 0;
+        check(n >= 20u && ok, "2.4: SWING on the 8T grid does nothing (triplets stay even)");
+    }
+    song.g[G_SWING] = 0;
+    transport_req = 2; run_block();
+
+    /* DIV 1/8 -> 1/4 in the first beat: beat 2 still plays */
+    reset(120);
+    TDRUM->p[P_SDIV] = 1;                             /* 1/8 */
+    TDRUM->p[P_SLEN] = 16;
+    for (i = 0; i < 16u; i++)
+        dstep_set(&TDRUM->dstep[i], 4, LV_NORM, 0);
+    transport_req = 1;
+    run_block();                                      /* (the clock is at 0 from here) */
+    while (clk_beat < 1u && clk_pos < BEAT_U * 6u / 10u) run_block();   /* 60 % into beat 1: abs 1 of 1/8 */
+    TDRUM->p[P_SDIV] = 0;                             /* 1/4 */
+    n0 = nhits;
+    while (clk_beat < 1u) run_block();                /* to the start of beat 2 */
+    for (k = 0; k < 3u; k++) run_block();
+    check(nhits > n0, "2.4: DIV 1/8 -> 1/4 in the first beat: the step on beat 2 plays");
+    transport_req = 2; run_block();
+}
+
+/* SLOOP 2.4: steps of whole beats (DIV 1/2, 1BAR, 2BAR) and the dotted delay times */
+static void t_longdiv(void)
+{
+    uint32_t i, k, n0, bpb = (uint32_t)((double)FS * 60.0 / 120.0 / CTL + 0.5);
+    reset(120);
+    TDRUM->p[P_SDIV] = 8;                             /* 2BAR: a step every 8 beats */
+    TDRUM->p[P_SLEN] = 2;
+    dstep_set(&TDRUM->dstep[0], 4, LV_NORM, 0);
+    dstep_set(&TDRUM->dstep[1], 5, LV_NORM, 0);
+    transport_req = 1;
+    run_block();
+    n0 = nhits;
+    for (k = 0; k < 16u * bpb + 4u; k++) run_block();   /* 16 beats: steps at beats 0 and 8, step 0 again at 16 */
+    {
+        uint32_t a = 0, b = 0;
+        for (i = 0; i < nhits; i++) a += hits[i].note == 36 || hits[i].note == 35, b += hits[i].note == 38 || hits[i].note == 37;
+        check(nhits - n0 + 1u == 3u && clk_beat == 16u, "2.4: DIV 2BAR: one step every 8 beats (3 hits in 16 beats)");
+        (void)a; (void)b;
+    }
+    transport_req = 2; run_block();
+    reset(120);
+    TDRUM->p[P_SDIV] = 6;                             /* 1/2: every 2 beats */
+    TDRUM->p[P_SLEN] = 4;
+    for (i = 0; i < 4u; i++) dstep_set(&TDRUM->dstep[i], 4, LV_NORM, 0);
+    transport_req = 1;
+    run_block();
+    n0 = nhits;
+    for (k = 0; k < 8u * bpb + 4u; k++) run_block();
+    check(nhits - n0 + 1u == 5u, "2.4: DIV 1/2: one step every 2 beats (5 hits in 8 beats)");
+    transport_req = 2; run_block();
+    song.g[G_BPM] = 120;
+    check(dly_samples(6) == (uint32_t)FS * 60u / 120u * 3u / 4u && dly_samples(7) == (uint32_t)FS * 60u / 120u * 3u / 8u,
+          "2.4: delay TIME 1/8D = 3/4 beat, 1/16D = 3/8 beat");
+    check(div_units(7) == BEAT_U * 4u && div_units(8) == BEAT_U * 8u && div_units(2) == BEAT_U / 4u,
+          "2.4: div_units: 1BAR = 4 beats, 2BAR = 8, 1/16 = a quarter beat");
+}
+
+/* SLOOP 2.4: GLO > SYSTEM > MIDI = SEQ sends what the sequencer plays to MIDI OUT (note on, then off),
+ * with the keys' channels; KEYS (the default) sends nothing of it; STOP ends every note sent */
+static void mo_drain(uint32_t *on, uint32_t *off, uint32_t *onDrum, uint32_t *last_note)
+{
+    while (mo_r != mo_w) {
+        uint32_t p = midi_out_q[mo_r % MQ], st = (p >> 8) & 0xF0u, ch = (p >> 8) & 15u;
+        mo_r++;
+        if (st == 0x90u && (p >> 24)) { (*on)++; if (ch == 9u) (*onDrum)++; else if (ch == 0u) *last_note = (p >> 16) & 127u; }
+        else if (st == 0x80u || st == 0x90u) (*off)++;
+    }
+}
+static void t_midiout(void)
+{
+    uint32_t k, i, on = 0, off = 0, od = 0, ln = 0, bpb = (uint32_t)((double)FS * 60.0 / 120.0 / CTL + 0.5);
+    reset(120);
+    usb.config = 1;
+    mo_r = mo_w;
+    song.g[G_MIDI] = 0;
+    trk[0].p[P_SDIV] = 0;                             /* 1/4: a note a beat */
+    trk[0].p[P_SLEN] = 4;
+    for (i = 0; i < 4u; i++) { trk[0].step[i].time = ST_NOTE; trk[0].step[i].n = 1; trk[0].step[i].note[0] = 60 + i; trk[0].step[i].vel = 100; }
+    TDRUM->p[P_SDIV] = 0;
+    TDRUM->p[P_SLEN] = 4;
+    dstep_set(&TDRUM->dstep[0], 4, LV_NORM, 0);
+    transport_req = 1;
+    for (k = 0; k < 4u * bpb + 2u; k++) run_block();
+    mo_drain(&on, &off, &od, &ln);
+    check(on == 0 && off == 0, "2.4: MIDI = KEYS: the sequencer sends nothing to MIDI OUT");
+    song.g[G_MIDI] = 1;
+    for (k = 0; k < 4u * bpb; k++) run_block();
+    mo_drain(&on, &off, &od, &ln);
+    if (!(on >= 4u && od >= 1u && ln >= 60u && ln < 64u)) printf("seq2:   on %u off %u drum %u last %u\n", on, off, od, ln);
+    check(on >= 4u && od >= 1u && ln >= 60u && ln < 64u, "2.4: MIDI = SEQ: the steps go out on their track's channel (drums on 10)");
+    transport_req = 2; run_block();
+    mo_drain(&on, &off, &od, &ln);
+    check(on == off, "2.4: MIDI = SEQ: every note sent on was ended (STOP ends the rest)");
+    song.g[G_MIDI] = 0;
+    usb.config = 0;
+    for (k = 0; k < (uint32_t)(FS / CTL); k++)
+        run_block();                                  /* (the released voices die down for the next test) */
+}
+
+
+/* sloopDX 3.3: the MIDI OUT of an OMNI chord step (each note on its own, ended once), and MIDI IN = CLOCK: notes
+ * from a computer play nothing */
+static void t_midi33(void)
+{
+    uint32_t k, i, on = 0, off = 0, v, bpb = (uint32_t)((double)FS * 60.0 / 120.0 / CTL + 0.5);
+    reset(120);
+    usb.config = 1;
+    mo_r = mo_w;
+    song.g[G_MIDI] = 1;
+    trk[1].p[P_AMODE] = AM_OMNI;
+    trk[1].p[P_SDIV] = 0;
+    trk[1].p[P_SLEN] = 2;
+    trk[1].step[0].time = ST_NOTE; trk[1].step[0].n = 3;
+    trk[1].step[0].note[0] = 57; trk[1].step[0].note[1] = 60; trk[1].step[0].note[2] = 64; trk[1].step[0].vel = 100;
+    transport_req = 1;
+    for (k = 0; k < 2u * bpb; k++) run_block();
+    transport_req = 2; run_block();
+    while (mo_r != mo_w) {
+        uint32_t p = midi_out_q[mo_r % MQ], st = (p >> 8) & 0xF0u, ch = (p >> 8) & 15u;
+        mo_r++;
+        if (st == 0x90u && (p >> 24) && ch == 1u) on++;
+        else if ((st == 0x80u || st == 0x90u) && ch == 1u) off++;
+    }
+    if (on != 3u || off != 3u) printf("seq2:   omni out: on %u off %u\n", on, off);
+    check(on == 3u && off == 3u, "3.3: MIDI = SEQ: an OMNI chord step goes out as its 3 notes on track 2's channel, ended once");
+    song.g[G_MIDI] = 0;
+    trk[1].p[P_AMODE] = 0;
+    reset(120);                                       /* IN = CLOCK */
+    song.g[G_ROUTE] = 1;
+    mi_r = mi_w;
+    midi_in_q[mi_w % MQ] = 0x09u | 0x90u << 8 | 60u << 16 | 100u << 24; mi_w++;
+    run_block(); run_block();
+    for (v = i = 0; i < NVOICE; i++) v += trk[0].v[i].active && trk[0].v[i].gate && trk[0].v[i].note == 60u;
+    check(v == 0u, "3.3: MIDI IN = CLOCK: a note from the computer plays nothing");
+    song.g[G_ROUTE] = 0;
+    midi_in_q[mi_w % MQ] = 0x09u | 0x90u << 8 | 60u << 16 | 100u << 24; mi_w++;
+    run_block(); run_block();
+    for (v = i = 0; i < NVOICE; i++) v += trk[0].v[i].active && trk[0].v[i].gate && trk[0].v[i].note == 60u;
+    check(v > 0u, "3.3: MIDI IN = NOTES: the same note plays");
+    midi_in_q[mi_w % MQ] = 0x08u | 0x80u << 8 | 60u << 16; mi_w++;
+    usb.config = 0;
+    for (k = 0; k < (uint32_t)(FS / CTL); k++) run_block();
+}
+
 int main(void)
 {
     t_usbfull();
@@ -566,6 +760,10 @@ int main(void)
     t_levels();
     t_chords();
     t_mute();
+    t_fixes24();
+    t_longdiv();
+    t_midiout();
+    t_midi33();
     printf("seq2: %s\n", fails ? "FAILED" : "all checks ok");
     return fails;
 }
