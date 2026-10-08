@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""One Matomo count for designburgapps.com, dx7.designburgapps.com and zp12.designburgapps.com (site ID 1 on the
-self-hosted matomo.designburgapps.com): every page title starts with its host, so the three are told apart in the
-reports. No cookies, Do Not Track respected (IPs are anonymised on the server).
+"""Matomo for designburgapps.com and its subdomains (self-hosted matomo.designburgapps.com): one Matomo site per host,
+picked by the page's hostname, so each has its own reports (dx7 = 1, zp12 = 3, fm1 = 4, designburgapps.com = 5).
+No cookies, Do Not Track respected (IPs are anonymised on the server); the heartbeat measures the time on a page.
     python3 tools/matomo_snippet.py FILE.html ...   replaces the Matomo block of each page, or puts it before </body>"""
 import sys
 from pathlib import Path
 
-BLOCK = """<!-- Matomo (self-hosted, matomo.designburgapps.com): one count for designburgapps.com, dx7. and zp12., the page
-     title with its host; no cookies, IPs anonymised on the server, Do Not Track respected -->
+BLOCK = """<!-- Matomo (self-hosted, matomo.designburgapps.com): one site per host (dx7 1, zp12 3, fm1 4, designburgapps.com 5);
+     no cookies, IPs anonymised on the server, Do Not Track respected -->
 <script>
   var _paq = window._paq = window._paq || [];
-  _paq.push(['setDocumentTitle', location.hostname + ' / ' + document.title]);
-  _paq.push(['setDomains', ['designburgapps.com', '*.designburgapps.com']]);
+  var _mtmSite = {"zp12.designburgapps.com": "3", "fm1.designburgapps.com": "4", "designburgapps.com": "5",
+                  "www.designburgapps.com": "5"}[location.hostname] || "1";
+  _paq.push(['setDomains', [location.hostname]]);
   _paq.push(['disableCookies']);
   _paq.push(['setDoNotTrack', true]);
+  _paq.push(['enableHeartBeatTimer']);
   _paq.push(['trackPageView']);
   _paq.push(['enableLinkTracking']);
   (function() {
     var u="https://matomo.designburgapps.com/";
     _paq.push(['setTrackerUrl', u+'matomo.php']);
-    _paq.push(['setSiteId', '1']);
+    _paq.push(['setSiteId', _mtmSite]);
     var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
     g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
   })();
