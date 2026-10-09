@@ -17,6 +17,7 @@ sloopDX 3.4 takes what fits from SLOOP 2.5 (none of it tried on a device in sloo
 - **USB audio at 48 kHz** as well, for phones and apps that take nothing else: the FM-1 resamples when the host picks 48 kHz (after Felucca 1.1.5); 44.1 kHz is bit for bit as before.
 - **SWING reads 0–100** (0 straight); it read MPC's 50–75 %. Nothing about the swing itself changed.
 - **SEL:** the button between FX and ENV, its pages SEL and SEL 2, named as printed (it was written SCL).
+- **DUST starts at 0** at every power-on (and so after an update): the working project no longer brings the hiss back by itself; a project loaded keeps its DUST.
 - **Fixes.** Chord mode: a key on the STEP page writes the chord it plays, not only its root. The click and the count-in are heard with the drum track muted or another soloed. The DRUMS page's level dial runs ghost (left) to hard (right).
 
 ### From SLOOP 2.4 (3.3)

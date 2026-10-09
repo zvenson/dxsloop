@@ -66,6 +66,7 @@ sloopDX 3.4 takes from SLOOP 2.5 what fits next to its DX7 and its drums. None o
 | **USB audio at 48 kHz too** | Phones, tablets and apps that only take 48 kHz can now record the FM-1: it resamples in the FM-1 when the host asks for 48 kHz (after Felucca 1.1.5). At 44.1 kHz nothing changed. |
 | **Swing reads 0 to 100** | 0 straight, 100 the most (it read 50–75 %). The swing itself and your projects did not change. |
 | **SEL** | The key / scale button between FX and ENV is called SEL everywhere, as printed on it (it was written SCL). |
+| **DUST off at power-on** | The master's hiss and crackle (GLO → MASTER DUST, FX + KNOB 2) start at 0 every time the FM-1 is switched on or updated; a project you load keeps its DUST. |
 | **Fixes** | In chord mode a key on the **STEP** page writes the whole chord it plays, not only its root; the **click** (and the REC count-in) is heard with the drum track muted or another track soloed; the DRUMS page's level dial goes from ghost on the left to hard on the right. |
 
 Not taken: SLOOP's PHYS and NOISE engines and their sounds, its drum synth (SYN kits; sloopDX has its own FM drums and MY KIT), the cartridge import into its FM6 bank. The editor's piano roll, MIDI file export / import and Song page are planned for sloopDX's own editor.

@@ -37,6 +37,8 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [x] MIDI-CCs (74 CUT, 71 RESO, 73/75/72 ATK/DEC/REL-Makros, 7 10 5 91 93 94; Drumkanal 7/91/94 → GLO › DRUMS, 10 PAN),
       Drum-Delay-Send GLO › DRUMS › DLY (der Bus; im Projekt im freien Kopfbyte `drdly`, kein neues Format),
       USB-Audio 48 kHz (usb.c, uac_fir.h), SWING 0–100, SCL → SEL, Fixes: STEP-Akkord, Click bei Mute/Solo, DRUMS-Pegelrad.
+- [x] DUST beim Einschalten immer 0 (autosave_resume): Sven hatte das Rauschen nach der Installation wieder, weil der
+      Autosave es mitnimmt. Ein geladenes Projekt behält sein DUST.
 - [ ] Am Gerät prüfen: 48 kHz am Handy/Mac, CC-Map mit einem Controller, Drum-DLY, Click bei stummer Drumspur.
 - [ ] Editor nach SLOOP 2.5: Piano Roll, MIDI-Export/-Import je Spur (Drums als GM), Song-Seite (A–D-Reihenfolge) —
       auf unser Protokoll portieren (LEN bis 128, Drum-Locks).

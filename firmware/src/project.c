@@ -605,6 +605,8 @@ static void autosave_resume(void)              /* power-on: the project as it wa
         return;
     autosave_hash = q->sum;
     proj_apply(q, 1);
+    song.g[G_DUST] = 0;                        /* (3.4: the master's hiss and crackle never come back by themselves,
+                                                * e.g. after a firmware install; a project loaded keeps its DUST) */
     song.sel = (uint8_t)(q->sel < NTRK ? q->sel : 0u);
     for (n = 0; n < NPART; n++)
         trk[n].engine = trk[n].eng_req;        /* (nothing sounds yet: no fade) */
