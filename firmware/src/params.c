@@ -127,6 +127,7 @@ static const param_desc_t GP[G_COUNT] = {
     [G_DRCH] = PD("CH", F_INT, 0, 16, 10),            /* GM drum part MIDI channel, 0 = off */
     [G_DRLVL] = PD("LVL", F_INT, 0, 127, 100),
     [G_DRREV] = PD("REV", F_INT, 0, 127, 16),
+    [G_DRDLY] = PD("DLY", F_INT, 0, 127, 0),
     [G_DUST] = PD("DUST", F_PCT, 0, 127, 0),
     [G_DUCK] = PD("DUCK", F_PCT, 0, 127, 0),
     [G_FILT] = PD("FILT", F_FILT, -64, 63, 0),
@@ -157,9 +158,9 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
         fmt_int(val, d->max > 0 ? (v * 100 + d->max / 2) / d->max : v);
         *unit = "%";
         break;
-    case F_SWING:                                     /* MPC style: the share of a step pair the first one gets */
-        fmt_int(val, 50 + (clamp(v, 0, 100) + 2) / 4);
-        *unit = "%";
+    case F_SWING:                                     /* 0 straight .. 100 the most (3.4, after SLOOP 2.5: it showed
+                                                       * MPC's 50..75 %, the share of a step pair the first one gets) */
+        fmt_int(val, clamp(v, 0, 100));
         break;
     case F_FILT:                                      /* LP 1..100 % closed, HP 1..100 % */
         if (!v) {
@@ -302,8 +303,8 @@ static const page_t PAGES[] = {
     {"DELAY", FAM_FX, SC_MIX, GR_NONE, {P_DLY, PG_G | G_DTIME, PG_G | G_DFDBK, PG_G | G_DMIX}},   /* (COLR: no page) */
     {"REVERB", FAM_FX, SC_MIX, GR_NONE, {P_REV, PG_G | G_RSIZE, PG_G | G_RDAMP, PG_G | G_RPRE}},
     {"SLICER", FAM_FX, SC_TRACK, GR_SLCR, {P_SLCR, P_SLPAT, P_SLRATE, P_SLDEPTH}},   /* drum track too */
-    {"SCL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_CHORD}},
-    {"SCL 2", FAM_SCL, SC_TRACK, GR_SCALE, {P_TRANS, 0xFF, 0xFF, 0xFF}},
+    {"SEL", FAM_SCL, SC_TRACK, GR_SCALE, {P_ROOT, P_SCALE, P_QUANT, P_CHORD}},
+    {"SEL 2", FAM_SCL, SC_TRACK, GR_SCALE, {P_TRANS, 0xFF, 0xFF, 0xFF}},
     {"DX7", FAM_EDIT, SC_VOICE, GR_NONE, {0xFF, 0xFF, 0xFF, 0xFF}},    /* the voice list (ui_voice.c) */
     {"EDIT 1", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E0, P_E1, P_E2, P_E3}},
     {"EDIT 2", FAM_EDIT, SC_ENGINE, GR_NONE, {P_E4, P_E5, P_E6, P_E7}},
@@ -312,7 +313,7 @@ static const page_t PAGES[] = {
     {"GLOBAL", FAM_GLO, SC_GLOBAL, GR_NONE, {G_BPM, G_SWING, G_CLOCK, G_TUNE}},
     {"MASTER", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DUST, G_DUCK, G_FILT, G_ROLL}},
     {"SYSTEM", FAM_GLO, SC_GLOBAL, GR_NONE, {G_MIDI, G_SYNC, G_ROUTE, G_INFO}},
-    {"DRUMS", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DRCH, G_DRLVL, G_DRREV, 0xFF}},   /* GM kit on MIDI ch 10 */
+    {"DRUMS", FAM_GLO, SC_GLOBAL, GR_NONE, {G_DRCH, G_DRLVL, G_DRREV, G_DRDLY}},   /* GM kit on MIDI ch 10 */
     {"PRESETS", FAM_SAVE, SC_GLOBAL, GR_BROWSE, {0xFF, 0xFF, 0xFF, 0xFF}},   /* browser: PRESETS knob / KNOB 1 */
     {"USER", FAM_SAVE, SC_GLOBAL, GR_USER, {0xFF, 0xFF, 0xFF, 0xFF}},       /* user presets: SLOT LOAD ERASE SAVE */
     {"PROJECT", FAM_SAVE, SC_GLOBAL, GR_SLOTS, {G_SLOT, 0xFF, G_LOAD, G_SAVE}},

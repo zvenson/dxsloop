@@ -1,16 +1,27 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 3.3
+# sloopDX 3.4
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 3.3, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 3.4, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+
+### From SLOOP 2.5 (3.4)
+
+sloopDX 3.4 takes what fits from SLOOP 2.5 (none of it tried on a device in sloopDX yet):
+
+- **MIDI CCs** set the sound, on the track the channel plays (as the notes), as a knob would: CC 74 **CUT**, 71 **RESO**, 73 / 75 / 72 the **ATK / DEC / REL** macros, 7 LEVEL, 10 PAN, 5 GLIDE, 91 / 93 / 94 the reverb, chorus and delay sends. The drum channel: 7, 91, 94 are GLO → DRUMS LVL, REV, DLY; 10 its PAN. IN = CLOCK ignores them.
+- **A delay send for the drums:** GLO → DRUMS → **DLY**, the whole drum bus into the tempo delay (each lane's REV stays its own). Kept in the project, 0 in older ones.
+- **USB audio at 48 kHz** as well, for phones and apps that take nothing else: the FM-1 resamples when the host picks 48 kHz (after Felucca 1.1.5); 44.1 kHz is bit for bit as before.
+- **SWING reads 0–100** (0 straight); it read MPC's 50–75 %. Nothing about the swing itself changed.
+- **SEL:** the button between FX and ENV, its pages SEL and SEL 2, named as printed (it was written SCL).
+- **Fixes.** Chord mode: a key on the STEP page writes the chord it plays, not only its root. The click and the count-in are heard with the drum track muted or another soloed. The DRUMS page's level dial runs ghost (left) to hard (right).
 
 ### From SLOOP 2.4 (3.3)
 
-sloopDX 3.3 takes SLOOP 2.4's fixes and the small additions that fit (none of it tried on a device in sloopDX yet):
+sloopDX 3.3 took SLOOP 2.4's fixes and the small additions that fit (none of it tried on a device in sloopDX yet):
 
 - **The sequencer to MIDI OUT.** GLO → SYSTEM → **MIDI** = **SEQ**: the steps, the arp, the rolls and the OMNI chords (and FLW) go out on USB MIDI on each track's channel (drums on 10). KEYS, the default: what you play, as before. GLO → SYSTEM → **IN** = **CLOCK**: notes coming in are ignored, the clock is kept. Both are settings of the FM-1, kept when a project loads.
 - **Longer steps and dotted delays.** DIV (PATTERN page, SEQ layer) goes on to **1/2**, **1BAR**, **2BAR**; the delay's TIME has **1/8D** and **1/16D**.
@@ -83,7 +94,7 @@ The FM-1 restarts on the sloopDX logo. The editor is at `http://localhost:8766/w
 2. Press **REC**: *rec ready*. **Play a beat freely, at your own tempo** — no click, no count-in. Hold **OCT−** while you hit for ghost notes, **OCT+** for hard ones.
 3. **Press REC on the "1" after your last bar.** The loop closes: its length sets the tempo, the hits snap to the grid, the loop plays at once.
 4. **REC** again while it plays: you record on top (overdub). Hold **ARP** and hold the hat key: a 1/16 hat roll, recorded as ratchets.
-5. Turn **ALGORITHM** to track **1** (cyan, *FM BASS*), **REC**, play a bass line. Hold **SCL** and press the key of your song (e.g. D); on track 2 (*EPIANO 1*) hold SCL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
+5. Turn **ALGORITHM** to track **1** (cyan, *FM BASS*), **REC**, play a bass line. Hold **SEL** and press the key of your song (e.g. D); on track 2 (*EPIANO 1*) hold SEL and turn **KNOB 1** to *7TH*: every white key is now a chord of the key.
 6. Hold **FX** and press a white key for a punch-in effect; still holding FX, turn **KNOB 2** for DUST, **KNOB 3** for DUCK.
 7. Made a mistake? Hold **EDIT** and press **OCT−**: undo.
 
@@ -112,7 +123,7 @@ The tiles are four rows of four, keys 1–4, 5–8, 9–12, 13–16. To find the
 | **EDIT** — *erase* | erase that sound / note from the pattern | SHIFT · LENGTH ×2 / ½ · TRANSPOSE · — | EDIT pages (drums: grid / kit) |
 | **ARP** — *roll* | note repeat on the grid | RATE · — · — · — | ARP pages |
 | **SEQ** — *steps* | steps 1–16 of the page | SOUND / NOTE · DIV · SWING · LENGTH | SEQ pages (drums: grid / kit) |
-| **SCL** — *key* | the key of the song | CHORD · SCALE · KEYS · TRANSPOSE | SCL pages |
+| **SEL** — *key* | the key of the song | CHORD · SCALE · KEYS · TRANSPOSE | SEL pages |
 | **GLO** — *mix* | 1–4 mute · 5–8 solo · 16 tap tempo | level of tracks 1 · 2 · 3 · 4 | GLO pages |
 | **SAVE** — *song* | 1–4 play section A–D (next bar; several tapped while held: a quick chain) · 5–8 save the loop into A–D · 13 loop / song · 14 SONG REC · 16 the chain | — | TRACKS: the SONG screen · else the SAVE pages |
 
@@ -173,7 +184,7 @@ MODE and START are settings of the FM-1: they stay as you left them. In a projec
 
 - While recording the REC light is solid and the track shows a red *rec*. Turn ALGORITHM and the take moves to the next track without stopping.
 - The **PLAY light flashes on every beat**: a visual metronome. An audible click: GLO → GLOBAL → **CLICK** (`OFF`, `REC`, `ON`); it is never recorded.
-- **Swing** is MPC swing: 50 % straight to 75 % (GLO → GLOBAL → SWING for all tracks, SEQ + KNOB 3 per track). The swing of a track adds to the global one.
+- **Swing** is MPC swing: 0 straight to 100, the most (a step pair played 75 / 25; GLO → GLOBAL → SWING for all tracks, SEQ + KNOB 3 per track). The swing of a track adds to the global one.
 
 ## Layers in detail
 
@@ -203,7 +214,7 @@ The 16 white keys are the 16 steps of the page; the lit ones play. **OCT− / OC
 - **Drum locks (2.1):** with a drum step held, **KNOB 4** locks the sound's **TUNE** (−16…+15 semitones) and **PRESETS** its **DECAY** for that hit only; the fourth dial shows *tune / decay*, the step a ★. One sound per step can be locked; clearing the hit clears its lock.
 - **No step held:** KNOB 1 the sound / note to set · KNOB 2 **DIV** (1/4 … 1/32, triplets, 1/2, 1BAR, 2BAR) · KNOB 3 **SWING** of the track · KNOB 4 **LENGTH** (1–128 steps; each track loops on its own length, polymeters stay in phase). The four tracks share **256 steps**: a track can have up to 128, and the others what is left (turn further and the screen says *STEPS FULL*). Only the steps inside a track's LENGTH are saved with the project.
 
-### SCL — key and chords
+### SEL — key and chords
 
 - **Any key** sets the **key of the song**: the root of all three synth tracks (*KEY D*).
 - **KNOB 1 CHORD** (selected synth track): OFF, TRIAD, 7TH, 9TH (1-3-7-9, the lo-fi / R&B voicing), SUS4, POWER. With a chord on, **the white keys walk the scale from C4** — C4 is the chord of the key's I, D4 the II, E4 the III… — and one finger plays the whole chord, recorded as a chord. With SCALE on CHR, the chords come from the minor scale.
@@ -280,7 +291,7 @@ Hold **FX**, then hold a white key — the 16 white keys from the lowest F to th
 - **REC READY / FREE TAKE** — while REC is armed: the tracks, then **mode**, **length** and **start** on KNOB 1–3 (4-3-2-1 during a count-in); during a free take: the seconds and the loop it makes.
 - **Holds** — the ring of REC (clear) while held.
 - **SONG** — the section chain.
-- **Sound pages** (ENV, LFO, FX, SCL, EDIT, ARP, SEQ, GLO, SAVE) — the full synth, colour-coded.
+- **Sound pages** (ENV, LFO, FX, SEL, EDIT, ARP, SEQ, GLO, SAVE) — the full synth, colour-coded.
 
 ## The DX7 engine
 
@@ -409,7 +420,7 @@ New in 2.5. ARP MODE **OMNI** turns the keys of a synth track into a chord harp,
 3. **The white keys are strings**: the 16 white keys play the tones of the chord now, low to high (from G3). Swipe across them for a harp glissando, tap single keys for a melody. Every string fits the chord, so nothing sounds wrong. Change the chord while strings ring: the next string plays the new chord.
 4. Pick a voice that rings: **PLUCK**, **KOTO**, **BELLS**, **MARIMBA** or **EPIANO 1**; a pad for the chords.
 
-**Fixed chords:** a button plays the chord it is named for, whatever the scale's ROOT. **TRN** (SCL 2) transposes all of them: at +2 the F button plays G, the C button D, and so on. **OCT− / OCT+** move chords and strings by an octave. OMNI always plays the whole chord, also on a track set to VOICE MONO.
+**Fixed chords:** a button plays the chord it is named for, whatever the scale's ROOT. **TRN** (SEL 2) transposes all of them: at +2 the F button plays G, the C button D, and so on. **OCT− / OCT+** move chords and strings by an octave. OMNI always plays the whole chord, also on a track set to VOICE MONO.
 
 **Recording:** record on an OMNI track and the **chords** and the **strings** go into the pattern (strings since 2.9: each as the note it played, up to 4 in a step, so a fast glissando keeps 4 per step). Played back, every chord step sets the chord again, so live strings and the bass follow the recorded progression while you strum on top. Only the strings you want recorded? Record the chords first, then strum with REC off. The message bar names a chord when you press its key, not when a recorded one plays (3.0). A recorded chord plays whole, also on a track set to VOICE MONO or LEGATO (2.8).
 
@@ -458,13 +469,15 @@ sloopDX takes MIDI from two places at once:
 | 10 | the drum track (the nearest of its 16 sounds; GLO → DRUMS → CH changes the channel) |
 | 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
 
+**Knobs (CCs, 3.4)** set the track the channel plays, as its knob would: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 LEVEL, 10 PAN, 5 GLIDE, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 its PAN. Other CCs are ignored, and all of them with IN = CLOCK.
+
 **MIDI clock in:** GLO → SYSTEM → **SYNC** = **USB** or **TRS** (INT: sloopDX's own tempo). START plays from the top, CONTINUE carries on where it stopped, STOP stops; the tempo (BPM) follows the master, and the steps follow its 24 pulses a beat, so sloopDX cannot drift away from it. When the clock stops for half a second, PLAY on the FM-1 plays at its own tempo again. SYNC is a setting of the FM-1: it stays when you load a project.
 
 Bluetooth MIDI is not supported: sloopDX, like Felucca, never switches the radio on.
 
 ## USB audio: record on a computer
 
-On USB the FM-1 is also an audio input, named **Felucca**: 44.1 kHz, 16-bit stereo, class compliant, so no driver is needed. In your DAW or in Audacity, choose that input and record: you get the master output, exactly what the headphones play (after DUST, DUCK and FILT; the click and the count-in too, if they are on).
+On USB the FM-1 is also an audio input, named **Felucca**: 44.1 kHz (or 48 kHz when the host asks, 3.4), 16-bit stereo, class compliant, so no driver is needed. In your DAW or in Audacity, choose that input and record: you get the master output, exactly what the headphones play (after DUST, DUCK and FILT; the click and the count-in too, if they are on).
 
 **Its level: HOME menu → USB AUDIO.**
 
@@ -483,7 +496,7 @@ Hold **HOME** for the menu: **LIGHTS**, **KEYS** and **NOTES** are together ther
 
 - **LIGHTS** — OFF, LOW, MID, HIGH: every button glows at that level, so its label can be read in the dark (on a black FM-1 the labels are unreadable unlit). What is on — the page, PLAY, REC, an octave — stays at full light and still blinks as before.
 - **KEYS** — OFF, C KEYS, WHITE KEYS: the Cs, or every white key, glow at the LIGHTS level too (KEYS turns LIGHTS on at LOW if it was off). Played keys and the layer landmarks keep their own light.
-- **NOTES** — ON: on a synth track, the notes sounding light their keys, played live or by the sequencer (the drum track always does). By @renebohne. It works on every page and in every layer: where the keys play or erase notes (EDIT, ARP, SAVE, SCL) the notes are lit — in SCL the scale and on the drum track in EDIT the sounds of the pattern then glow dimly underneath; where the keys are tiles (FX effects, SEQ steps, GLO mute / solo) the notes glow dimly and the tiles keep their full light.
+- **NOTES** — ON: on a synth track, the notes sounding light their keys, played live or by the sequencer (the drum track always does). By @renebohne. It works on every page and in every layer: where the keys play or erase notes (EDIT, ARP, SAVE, SEL) the notes are lit — in SEL the scale and on the drum track in EDIT the sounds of the pattern then glow dimly underneath; where the keys are tiles (FX effects, SEQ steps, GLO mute / solo) the notes glow dimly and the tiles keep their full light.
 
 The glow is a short pulse on every scan of the panel (about 900 times a second): no flicker. LOW, MID and HIGH are 0.5, 1 and 2 µs a scan; the landmarks (keys 1, 5, 9, 13 while a layer is held) and the notes under the tiles glow at 4 µs, a lit LED is about 95 µs.
 
@@ -494,13 +507,13 @@ The glow is a short pulse on every scan of the panel (about 900 times a second):
 | Tracks | 3 synth parts (8 DX7 voices shared) + drums (16 sounds, 6 DX7 voices) |
 | Engine | DX7: 6 operators, 32 algorithms, rate / level envelopes with scaling, pitch envelope, LFO, feedback; integer port of Dexed's msfa (99 % of samples identical to Dexed, the rest within 1-2 LSB) |
 | Sounds | 20 factory voices + 32 from your .syx bank (U01–U32); macros BRITE, ATK, DEC, REL, FDBK; a low-pass CUT / RESO; 32 user presets |
-| Sequencer | up to 128 steps per track from one pool of 256 for all four, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; MPC swing 50–75 %; one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
+| Sequencer | up to 128 steps per track from one pool of 256 for all four, own length and division each; chords with a level and ratchet per note; drums with a level and ratchet per sound; ties, slide; swing 0–100 (MPC 50–75 %); one sample-accurate clock for steps, arp, rolls, slicer and song (no drift) |
 | Performance | layers (hold a button: keys and knobs change job): punch-in FX, erase, note repeat, step entry, key / chords, mute / solo / tap tempo |
 | Drum kits | 4 FM kits (DX KIT, 808 FM, ELECTRO, METAL), 16 sounds each |
 | Effects | 16 punch-in effects; master DUST, DUCK, DJ filter; per track drive, slicer, sends to a stereo chorus, a tempo delay and a stereo reverb; master limiter |
 | Recording | live, quantised as heard (latency-compensated), overdub; records at once while playing; free take sets loop length and tempo, or the tempo set, from the first note or a one-bar count-in |
 | Memory | undo / redo, 4 projects, 32 user presets, one DX7 bank, autosave of the working project, song of 4 sections × 16 steps × 1–64 bars; full backup / restore from the editor |
-| Audio | 44.1 kHz, fixed-point DSP (no floating point on the chip); USB audio input (the master output, 16-bit stereo, class compliant) |
+| Audio | 44.1 kHz, fixed-point DSP (no floating point on the chip); USB audio input (the master output, 16-bit stereo, 44.1 or 48 kHz, class compliant) |
 | MIDI | USB class-compliant in / out; TRS MIDI IN (3.5 mm jack); channels 1–3 the synths, 10 the drums, 4–16 the selected track; MIDI clock in (USB or TRS); DX7 bulk dumps via the editor protocol |
 | Update | over USB from the browser (package SHA-256 and CRC checked) |
 

@@ -624,9 +624,9 @@ async function editorV5() {
     "v5: CHORD, DUST, DUCK, FILT, ROLL, NEW (mock == params.c)");
   /* the value formats (params.c fmt_value) */
   const fv = (fmt, v, max = 127, min = 0) => E.fmtValue({ fmt, min, max, names: [] }, v).join("");
-  ok(fv(E.F.SWING, 0, 100) === "50%" && fv(E.F.SWING, 50, 100) === "63%" && fv(E.F.SWING, 100, 100) === "75%"
+  ok(fv(E.F.SWING, 0, 100) === "0" && fv(E.F.SWING, 50, 100) === "50" && fv(E.F.SWING, 100, 100) === "100"
     && fv(E.F.FILT, 0, 63, -64) === "OFF" && fv(E.F.FILT, -64, 63, -64) === "LP100%" && fv(E.F.FILT, -32, 63, -64) === "LP50%" && fv(E.F.FILT, 63, 63, -64) === "HP100%"
-    && fv(E.F.PCT, 127) === "100%" && fv(E.F.PCT, 64) === "50%" && fv(E.F.PCT, 60, 120) === "50%", "v5: SWING 50..75 %, FILT LP / OFF / HP, PCT of the range");
+    && fv(E.F.PCT, 127) === "100%" && fv(E.F.PCT, 64) === "50%" && fv(E.F.PCT, 60, 120) === "50%", "SWING 0..100 (3.4), FILT LP / OFF / HP, PCT of the range");
   /* a synth step keeps its levels and ratchets; an old-style write clears them (as the firmware) */
   const w = E.parse[C.STEP_SET](await rq(E.req.stepSet(3, { n: 2, notes: [60, 67, 0, 0], time: 0, flags: 0, vel: 100, lvl: 0b11000110, rat: 0b10000011 })));
   const g = E.parse[C.STEP_GET](await rq(E.req.stepGet(3)));

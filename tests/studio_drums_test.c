@@ -30,8 +30,8 @@ int main(int argc,char **argv)
         TDRUM->p[P_E0]=(int16_t)i;
         drum_on(36,110);drum_on(38,100);drum_on(46,80);
         for(j=0;j<FS*3u/CTL;j++) {
-            int32_t l[CTL]={0},r[CTL]={0},rev[CTL]={0};
-            drums_render(l,r,rev,CTL);
+            int32_t l[CTL]={0},r[CTL]={0},rev[CTL]={0},dl[CTL]={0};
+            drums_render(l,r,rev,dl,CTL);
             for(k=0;k<CTL;k++){assert(l[k]>-131072 && l[k]<131072);energy[i]+=l[k]<0?-l[k]:l[k];}
         }
         assert(energy[i]>10000);

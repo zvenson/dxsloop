@@ -17,10 +17,10 @@ static uint32_t active_n(void)
 static void run(uint32_t blocks, int32_t *peak, uint64_t *energy)
 {
     uint32_t j, k;
-    int32_t l[CTL], r[CTL], rv[CTL];
+    int32_t l[CTL], r[CTL], rv[CTL], dl[CTL] = {0};
     for (j = 0; j < blocks; j++) {
         memset(l, 0, sizeof l), memset(r, 0, sizeof r), memset(rv, 0, sizeof rv);
-        drums_render(l, r, rv, CTL);
+        drums_render(l, r, rv, dl, CTL);
         for (k = 0; k < CTL; k++) {
             int32_t a = l[k] < 0 ? -l[k] : l[k];
             assert(a < 131072);
@@ -55,7 +55,7 @@ typedef struct { uint32_t blocks, zc; int32_t pl, pr, ps; uint64_t e; } hitst_t;
 static hitst_t lane_hit(uint32_t kit, uint32_t l)
 {
     hitst_t h = {0};
-    int32_t L[CTL], R[CTL], V[CTL], last = 0;
+    int32_t L[CTL], R[CTL], V[CTL], DL[CTL] = {0}, last = 0;
     uint32_t k;
     memset(&drums, 0, sizeof drums);
     TDRUM->p[P_E0] = (int16_t)kit;
@@ -64,7 +64,7 @@ static hitst_t lane_hit(uint32_t kit, uint32_t l)
     drum_on(LANE_NOTE[l], 110);
     while (h.blocks < FS * 9u / CTL) {
         memset(L, 0, sizeof L), memset(R, 0, sizeof R), memset(V, 0, sizeof V);
-        drums_render(L, R, V, CTL);
+        drums_render(L, R, V, DL, CTL);
         for (k = 0; k < CTL; k++) {
             h.pl = abs(L[k]) > h.pl ? abs(L[k]) : h.pl;
             h.pr = abs(R[k]) > h.pr ? abs(R[k]) : h.pr;
@@ -213,7 +213,7 @@ int main(int argc, char **argv)
         for (mode = 0; mode < 3u; mode++) {
             double sq = 0, pk = 0;
             uint32_t ns = 0;
-            int32_t l[CTL], r[CTL], rv[CTL];
+            int32_t l[CTL], r[CTL], rv[CTL], dl[CTL] = {0};
             memset(&drums, 0, sizeof drums);
             TDRUM->p[P_E0] = 0;
             TDRUM->p[P_DIST] = mode == 2u ? 90 : 0;
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
                 drum_on(LANE_NOTE[4], 80);
                 for (b = 0; b < step; b++) {
                     memset(l, 0, sizeof l), memset(r, 0, sizeof r), memset(rv, 0, sizeof rv);
-                    drums_render(l, r, rv, CTL);
+                    drums_render(l, r, rv, dl, CTL);
                     for (j = 0; j < CTL; j++) {
                         double x = l[j];
                         sq += x * x, ns++;
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
                                          0x10, 0x11, 0x10, 0x10, 0x1C, 0x10, 0x30, 0x30};
         uint32_t step = FS * 60u / 120u / 4u / CTL, s, b;
         FILE *w = fopen(argv[1], "wb");
-        int32_t l[CTL], r[CTL], rv[CTL];
+        int32_t l[CTL], r[CTL], rv[CTL], dl[CTL] = {0};
         wav_hdr(w, DRUM_KITS * 32u * step * CTL);
         for (kit = 0; kit < DRUM_KITS; kit++) {
             memset(&drums, 0, sizeof drums);
@@ -403,7 +403,7 @@ int main(int argc, char **argv)
                 if (s == 0u) drum_on(LANE_NOTE[11], 90);      /* crash */
                 for (b = 0; b < step; b++) {
                     memset(l, 0, sizeof l), memset(r, 0, sizeof r), memset(rv, 0, sizeof rv);
-                    drums_render(l, r, rv, CTL);
+                    drums_render(l, r, rv, dl, CTL);
                     for (j = 0; j < CTL; j++)
                         wav_put(w, l[j] / 2, r[j] / 2);   /* (the raw drum bus: no master stage here) */
                 }

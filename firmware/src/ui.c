@@ -3,7 +3,7 @@
 /* Felucca user interface. Four columns map to KNOB 1..4. Rendering is lazy:
  * every element remembers what it last drew and is redrawn only on change. */
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "sloopDX 3.3"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
+#define FELUCCA_VERSION "sloopDX 3.4"  /* SLOOP as a pure DX7 FM synth (SLOOP 2.3, based on Felucca) */
 #endif
 static void project_save(uint32_t slot);
 static void arrangement_save(void);
@@ -225,7 +225,7 @@ static void track_defaults_steps(track_t *t) { steps_clear(t); }
 
 /* what loading a sound (factory or user preset) leaves alone: the mix (LEVEL, PAN, MUTE:
  * the TRACKS faders), the pattern parameters (LEN, DIV, SWING, GATE) and the key the part plays
- * in (ROOT, SCALE, QNT, CHORD: the song's; SCL + key sets the root of every part). The SLICER is
+ * in (ROOT, SCALE, QNT, CHORD: the song's; SEL + key sets the root of every part). The SLICER is
  * part of the sound: a factory preset turns it OFF (its defaults), a user preset brings its own */
 static int param_kept(uint32_t i)
 {

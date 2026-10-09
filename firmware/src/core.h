@@ -80,6 +80,7 @@ enum {                          /* global parameters */
     G_ROLL,                     /* note repeat rate (ARP + key, seq.c) */
     G_NEWPRJ,                   /* TOOLS > NEW: a new project (GO) */
     G_CMIX, G_RPRE,             /* CHO page: the chorus' level; REV page: its pre-delay (2.7) */
+    G_DRDLY,                    /* the drums' delay send (3.4, after SLOOP 2.5; a project keeps it in its own byte) */
     G_COUNT
 };
 

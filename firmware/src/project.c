@@ -27,6 +27,7 @@
 #define PROJ_MAGIC_V2 0x46554E32u              /* "FUN2": four tracks, PROJ_NP_V2 parameters; read only */
 #define PROJ_MAGIC_V1 0x46554E31u              /* "FUN1": one instrument; loads into track 1 */
 #define PROJ_NP_V6 58u                         /* P_COUNT of formats 4..6 (P_E0 was 50) */
+#define PROJ_NG 34u                            /* the globals format 7 keeps in g[] (G_DRDLY, 3.4: in drdly) */
 #define PROJ_NG_V6 32u                         /* G_COUNT of formats 4..6 */
 #define PROJ_NP_V3 57u                         /* P_COUNT of format 3 (P_E0 was 49) */
 #define PROJ_NG_V3 27u                         /* G_COUNT of formats 1..3 */
@@ -42,8 +43,9 @@ typedef struct {                               /* one track of format 7: its par
 } proj_trk_t;
 typedef struct {                               /* format 7 (sloopDX 2.7): the steps of all tracks in one pool */
     uint32_t magic, size;
-    int16_t g[G_COUNT];
-    uint8_t sel, dxv, rsv[2];                  /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0) */
+    int16_t g[PROJ_NG];
+    uint8_t sel, dxv, drdly, rsv;              /* the selected track; dxv: PROJ_DXV (0: DX7 voices before 2.0);
+                                                * drdly: G_DRDLY (3.4; 0 before, its default) */
     proj_trk_t t[NTRK];
     step_t pool[STEP_POOL];                    /* track 1's steps, then track 2's ..; the drum track's are dstep_t */
     drum_ext_t dext;                           /* the drum lanes' macros and step locks (drums.c) */
@@ -64,6 +66,7 @@ typedef struct {                               /* format 6 (sloopDX 2.2 .. 2.6),
     uint32_t sum;
 } project_v6_t;
 _Static_assert(sizeof(step_t) == sizeof(dstep_t), "a pool step holds either");
+_Static_assert(PROJ_NG == G_DRDLY, "format 7 keeps the globals before G_DRDLY in g[]");
 typedef struct {                               /* a track of formats 4 and 5, read only */
     int16_t p[PROJ_NP_V6];
     uint8_t engine, preset;
@@ -311,7 +314,7 @@ static void proj_p_from_v6(int16_t *d, const int16_t *s)
 static void proj_g_from_v6(int16_t *d, const int16_t *s)
 {
     uint32_t i;
-    for (i = 0; i < G_COUNT; i++)
+    for (i = 0; i < PROJ_NG; i++)
         d[i] = i < PROJ_NG_V6 ? s[i] : GP[i].def;
 }
 
@@ -392,8 +395,9 @@ static void proj_capture(project_t *p)        /* what is playing now, as a proje
     p->size = sizeof *p;
     p->dxv = PROJ_DXV;
     p->dext = dext;
-    for (i = 0; i < G_COUNT; i++)
+    for (i = 0; i < PROJ_NG; i++)
         p->g[i] = song.g[i];
+    p->drdly = (uint8_t)song.g[G_DRDLY];
     p->sel = song.sel;
     {
         uint32_t used = 0;
@@ -418,9 +422,10 @@ static void proj_capture(project_t *p)        /* what is playing now, as a proje
 static void proj_apply(const project_t *p, int all)
 {
     uint32_t i, k;
-    for (i = 0; i < G_COUNT; i++)
+    for (i = 0; i < PROJ_NG; i++)
         if (all ? i != G_SLOT && i != G_LOAD && i != G_SAVE && i != G_SYNC && i != G_MIDI && i != G_ROUTE : i == G_DRLVL || i == G_DRREV)
             song.g[i] = (int16_t)clamp(p->g[i], GP[i].min, GP[i].max);
+    song.g[G_DRDLY] = (int16_t)clamp(p->drdly, GP[G_DRDLY].min, GP[G_DRDLY].max);   /* (a section too: the drums' sends) */
     for (k = 0; k < DRUM_LANES; k++)                    /* the drum lanes' macros, each inside its range; the locks */
         for (i = 0; i < DM_N; i++)
             dext.m[k][i] = (int8_t)clamp(p->dext.m[k][i], DM_DESC[i].min, DM_DESC[i].max);

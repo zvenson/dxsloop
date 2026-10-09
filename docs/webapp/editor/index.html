@@ -1134,7 +1134,7 @@ function fmtValue(d, v) {
   const sign = (x) => (x > 0 ? "+" + x : String(x));
   switch (d.fmt) {
     case F.PCT: return [String(d.max > 0 ? Math.trunc((v * 100 + Math.trunc(d.max / 2)) / d.max) : v), "%"];
-    case F.SWING: return [String(50 + Math.trunc((Math.max(0, Math.min(100, v)) + 2) / 4)), "%"];   /* MPC: 50 % straight .. 75 % */
+    case F.SWING: return [String(Math.max(0, Math.min(100, v))), ""];   /* 0 straight .. 100 the most (3.4; it showed MPC's 50..75 %) */
     case F.FILT: return !v ? ["OFF", ""] : v < 0 ? ["LP" + Math.trunc((-v * 100 + 32) / 64), "%"] : ["HP" + Math.trunc((v * 100 + 31) / 63), "%"];
     case F.BIPCT: return [sign(Math.trunc(v * 100 / 64)), "%"];
     case F.TIME: {
@@ -1584,6 +1584,7 @@ function makeMockDevice(opt = {}) {
     D("DUST", F.PCT, 0, 127, 0), D("DUCK", F.PCT, 0, 127, 0), D("FILT", F.FILT, -64, 63, 0),
     E("ROLL", ["1/8", "1/16", "1/32", "32T", "1/64"], 1), E("NEW", NGO, 0),
     D("MIX", F.PCT, 0, 127, 127), D("PRE", F.INT, 0, 90, 0, null, "ms"),
+    D("DLY", F.INT, 0, 127, 0),
   ];
   /* the drum track's P_E0: its kit (drums.c DRUM_KIT_NAMES: four treatments of the FM kit and USER, the
      first 16 voices of the DX7 user bank) */
@@ -1832,7 +1833,7 @@ function makeMockDevice(opt = {}) {
         b(0);
         break;
       case CMD.INFO:
-        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 3.3 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
+        s(opt.legacy ? "FELUCCA 0.4 BETA (MOCK)" : opt.v3 ? "FELUCCA 0.8 (MOCK)" : "FELUCCA sloopDX 3.4 (MOCK)"); b(ENG.length); b(P_COUNT); b(G_COUNT); b(NSTEP & 127); b(P_E0);
         ENG.forEach((e) => s(e.name));
         if (!opt.legacy) b(NTRK);
         if (v5) b(opt.noBackup ? 5 : opt.sloop23 ? 6 : opt.proto7 ? 7 : opt.proto8 ? 8 : opt.proto9 ? 9 : opt.proto10 ? 10 : 11);   /* 6 backup (SLOOP 2.3), 7 the DX7 bank, 8 voice editing, 9 8 banks, 10 MY KIT, 11 128 steps */
@@ -2234,7 +2235,7 @@ const GLYPH = {
 };
 /* section headings (LAYOUT titles) and page titles */
 const HEAD_IC = { ENV: "function_env_adsr_exp", LFO: "waveform_sine", EDIT: "ui_knob", VOICE: "symbol_keyboard",
-  FX: "symbol_effector", SCL: "symbol_tuning", ARP: "control_arrow_up_down", "SEQ PATTERN": "symbol_grid",
+  FX: "symbol_effector", SEL: "symbol_tuning", ARP: "control_arrow_up_down", "SEQ PATTERN": "symbol_grid",
   GLOBAL: "symbol_cog", MASTER: "ui_slider_vertical", DRUMS: "symbol_drum", INSTRUMENT: "symbol_keyboard" };
 const PAGE_IC = { FLT: "function_filter_lpf_peak", FILT: "function_filter_lpf_peak", DLY: "symbol_echo", "REV/CHO": "symbol_spring", DELAY: "symbol_echo", REVERB: "symbol_spring", SLICER: "symbol_grid" };
 /* WAVE / WAVE2 choices; phase-distortion shapes without a close glyph (SPLS, RSAW, RTRI, RTRP) get none */
@@ -2539,12 +2540,12 @@ const LAYOUT = (pe0, fx) => [
   { t: "EDIT", engine: true, pages: [["EDIT 1", 0, [pe0, pe0 + 1, pe0 + 2, pe0 + 3]], ["EDIT 2", 0, [pe0 + 4, pe0 + 5, pe0 + 6, pe0 + 7]]] },
   { t: "VOICE", pages: [["LEVEL", 0, [0]], ["VOICE", 0, [37, 38, 41, 42]], ["VOICE 2", 0, [43, 44, 39, 40]]] },
   { t: "FX", pages: FX_PAGES[fx] },
-  { t: "SCL", pages: [["SCL", 0, [25, 26, 27, 49]], ["SCL 2", 0, [28]]] },
+  { t: "SEL", pages: [["SEL", 0, [25, 26, 27, 49]], ["SEL 2", 0, [28]]] },
   { t: "ARP", pages: [["ARP", 0, [17, 18, 19, 20]], ["ARP 2", 0, [21, 22, 23, 24]]] },
   { t: "SEQ PATTERN", tab: "seqgroups", pages: [["PATTERN", 0, [29, 30, 31, 32]]] },
   { t: "GLOBAL", tab: "setgroups", pages: [["GLOBAL", 1, [0, 1, 2, 3]]] },
   { t: "MASTER", tab: "setgroups", pages: [["MASTER", 1, [27, 28, 29, 30]]] },
-  { t: "DRUMS", tab: "setgroups", pages: [["DRUMS", 1, [24, 25, 26]]] },
+  { t: "DRUMS", tab: "setgroups", pages: [["DRUMS", 1, [24, 25, 26, 34]]] },
 ];
 /* globals that are actions or placeholders on the device: buttons instead, or hidden */
 const G_SKIP = new Set(["SLOT", "NAME", "LOAD", "SAVE", "ENG", "SET", "CLRSQ", "INIT", "MIDI", "SYNC", "ROUT", "CPU", "NEW"]);

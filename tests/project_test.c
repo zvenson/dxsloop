@@ -132,7 +132,7 @@ int main(void)
 
     bad += check("layout: P_CHORD after P_SLDEPTH, then the DIST page's three before P_E0 (53); format 6 = format 3's + 1",
                  P_SLDEPTH + 1 == P_CHORD && P_DMIX + 1 == P_E0 && P_E0 == 53 && PROJ_NP_V6 == PROJ_NP_V3 + 1u &&
-                 P_COUNT == PROJ_NP_V6 + 3u && G_COUNT == PROJ_NG_V6 + 2u);
+                 P_COUNT == PROJ_NP_V6 + 3u && PROJ_NG == PROJ_NG_V6 + 2u && G_COUNT == PROJ_NG + 1u);
     bad += check("format 5 fits one flash object; 4 slots fit .noinit", sizeof(project_t) <= 4096u - 256u &&
                  4u * sizeof(project_t) < 0x3D50u - 1024u);
 
@@ -153,7 +153,7 @@ int main(void)
     ok = q.sel == 3 && q.g[G_SWING] == 40;
     for (i = 0; i < PROJ_NG_V3; i++)
         ok &= i == G_SWING || q.g[i] == (int16_t)(300 + i);
-    for (i = PROJ_NG_V3; i < G_COUNT; i++)
+    for (i = PROJ_NG_V3; i < PROJ_NG; i++)
         ok &= q.g[i] == GP[i].def;
     bad += check("FUN3 -> FUN4: globals (swing 50 -> 40: the MPC scale), the new ones default", ok);
     ok = 1;
@@ -244,12 +244,14 @@ int main(void)
     trk[1].step[2].lvl = 0x0D;
     dstep_set(&TDRUM->dstep[6], 4, LV_SOFT, 1);         /* (inside its LEN, 8: format 6 keeps LEN steps) */
     song.g[G_DUST] = 33;
+    song.g[G_DRDLY] = 77;
     proj_capture(&q);
     host_tracks_init();
+    song.g[G_DRDLY] = 0;
     proj_apply(&q, 1);
-    ok = trk[2].p[P_SLEN] == 7 && trk[1].step[2].n == 2 && trk[1].step[2].lvl == 0x0D && song.g[G_DUST] == 33 &&
+    ok = song.g[G_DRDLY] == 77 && q.drdly == 77u && trk[2].p[P_SLEN] == 7 && trk[1].step[2].n == 2 && trk[1].step[2].lvl == 0x0D && song.g[G_DUST] == 33 &&
          dstep_has(&TDRUM->dstep[6], 4) && dstep_lvl(&TDRUM->dstep[6], 4) == LV_SOFT && dstep_rat(&TDRUM->dstep[6], 4) == 1u;
-    bad += check("the working project: capture -> apply round trip (levels, lanes, DUST)", ok);
+    bad += check("the working project: capture -> apply round trip (levels, lanes, DUST, drum DLY)", ok);
 
     /* sloopDX 2.0 added three factory voices before INIT VOICE: a project saved before (dxv 0) has its DX7
      * voices from 16 on (INIT VOICE, the bank) moved up by three; one saved now keeps them */

@@ -685,13 +685,13 @@ static void drums_bus(int32_t *l, int32_t *r, int32_t *sb, uint32_t n)
     }
 }
 
-/* adds the drums into the dry mix and the reverb send; mono != 0: into mono instead, before the
- * pan and the send (the SLICER, slicer.c slicer_drums, does those after it). The voices go into the bus
+/* adds the drums into the dry mix and the reverb and delay sends (the delay: the bus, GLO > DRUMS DLY); mono != 0:
+ * into mono instead, before the pan and the sends (the SLICER, slicer.c slicer_drums, does those after it). The voices go into the bus
  * first (drums_bus) */
-static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mono, uint32_t n)
+static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *dly, int32_t *mono, uint32_t n)
 {
     uint32_t k, i, any = 0;
-    int32_t lvl = song.g[G_DRLVL] * 200, send = song.g[G_DRREV] * 258, pk = drums.peak;   /* (200: -0 dB at LVL 100;
+    int32_t lvl = song.g[G_DRLVL] * 200, send = song.g[G_DRREV] * 258, dsend = song.g[G_DRDLY] * 129, pk = drums.peak;   /* (200: -0 dB at LVL 100;
                                                                                            * 1.9 had 142, -3 dB) */
     int32_t pan = trk[TRK_DRUM].p[P_PAN], gl = 4096 - (pan > 0 ? pan * 64 : 0), gr = 4096 + (pan < 0 ? pan * 64 : 0);
     int32_t buf[DX_N], bl[DX_N], br[DX_N], bs[DX_N];
@@ -727,7 +727,8 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
         for (i = 0; i < DX_N; i++) {
             int32_t s = clamp(buf[i] >> 11, -65535, 65535);   /* one carrier at full level: 16384 (as the synth parts) */
             rp = s > rp ? s : -s > rp ? -s : rp;
-            s = mulq15(mulq15(s, drums.gain[k]),
+            s = mulq15(mulq15(s, drums.gain[k]),       /* (the click: not with the drum track's mute / solo, 3.4) */
+                       drums.drum[k] == DX_NDRUM - 1u ? lvl :
                        mulq15(lvl, 32767 - drums.a0 - (((drums.a1 - drums.a0) * (int32_t)i) >> CTL_LOG2)));
             v->s[7] = s;
             bl[i] += (s * pl) >> 12;
@@ -764,8 +765,10 @@ static inline void drums_mix(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *mo
         mr[i] += (r * gr) >> 12;
         if (send)
             rev[i] += mulq15(clamp(bs[i], -262143, 262143), send);
+        if (dsend)
+            dly[i] += mulq15(l + r, dsend);             /* (the sum: 129 = 258 / 2) */
     }
     drums.peak = pk;
 }
-static void drums_render(int32_t *ml, int32_t *mr, int32_t *rev, uint32_t n) { drums_mix(ml, mr, rev, 0, n); }
-static void drums_render_mono(int32_t *mono, uint32_t n) { drums_mix(0, 0, 0, mono, n); }
+static void drums_render(int32_t *ml, int32_t *mr, int32_t *rev, int32_t *dly, uint32_t n) { drums_mix(ml, mr, rev, dly, 0, n); }
+static void drums_render_mono(int32_t *mono, uint32_t n) { drums_mix(0, 0, 0, 0, mono, n); }

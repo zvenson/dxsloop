@@ -11,6 +11,7 @@
  *   mute     P_MUTE / solo: no new notes, the output fades
  *   2.4      (SLOOP 2.4, in sloopDX 3.3) a MIDI START cuts the count-in short, no swing on triplets, a DIV change
  *            keeps the next step, DIV 1/2 / 1BAR / 2BAR, dotted delays, the sequencer to MIDI OUT, MIDI IN = CLOCK
+ *   3.4      (SLOOP 2.5) MIDI CCs, the drums' delay send, the click with the drum track muted
  * Exit status: the number of failed checks. */
 #define main hostsim_main
 #include "hostsim.c"
@@ -744,6 +745,71 @@ static void t_midi33(void)
     for (k = 0; k < (uint32_t)(FS / CTL); k++) run_block();
 }
 
+/* sloopDX 3.4 (from SLOOP 2.5): MIDI CCs set the track the channel plays (DX7: 74 CUT, 73 ATK ...; the drum
+ * channel: 7 / 94 GLO > DRUMS LVL / DLY), none with IN = CLOCK; the drums' delay send; the click with the drum
+ * track muted */
+static void cc_in(uint32_t ch, uint32_t cc, uint32_t v)
+{
+    midi_in_q[mi_w % MQ] = 0x0Bu | (0xB0u | ch) << 8 | cc << 16 | v << 24;
+    mi_w++;
+}
+static int64_t blk_energy(const int32_t *b)          /* (of the change from sample to sample: no DC) */
+{
+    int64_t e = 0;
+    uint32_t i;
+    for (i = 1; i < CTL; i++)
+        e += b[i] < b[i - 1] ? b[i - 1] - b[i] : b[i] - b[i - 1];
+    return e;
+}
+static void t_cc34(void)
+{
+    uint32_t k, dch = (uint32_t)song.g[G_DRCH] - 1u;
+    int64_t e0 = 0, e1 = 0;
+    reset(120);
+    mi_r = mi_w;
+    dch = (uint32_t)song.g[G_DRCH] - 1u;
+    cc_in(0, 74, 0); cc_in(0, 73, 64); cc_in(1, 73, 127); cc_in(1, 7, 0); cc_in(0, 71, 127); cc_in(2, 10, 0);
+    cc_in(dch, 94, 127); cc_in(dch, 7, 64); cc_in(dch, 74, 0); cc_in(0, 20, 99);
+    run_block();
+    check(trk[0].p[P_E6] == 0 && trk[0].p[P_E2] == 0 && trk[1].p[P_E2] == 40 && trk[1].p[P_LEVEL] == 0 &&
+          trk[0].p[P_E7] == 127 && trk[2].p[P_PAN] == TP[P_PAN].min,
+          "3.4: CCs on the synth channels: 74 CUT, 73 ATK (64 = 0, 127 = +40), 7 LEVEL, 71 RESO, 10 PAN");
+    check(song.g[G_DRDLY] == 127 && song.g[G_DRLVL] == 64 && 1,
+          "3.4: CCs on the drum channel: 94 DLY, 7 LVL (74: no CUT there, ignored)");
+    song.g[G_ROUTE] = 1;
+    cc_in(0, 74, 127);
+    run_block();
+    check(trk[0].p[P_E6] == 0, "3.4: IN = CLOCK: CCs ignored");
+    song.g[G_ROUTE] = 0;
+    reset(120);                                       /* the drums' delay send */
+    for (k = 0; k < 2u; k++) {
+        int64_t *e = k ? &e1 : &e0;
+        uint32_t b;
+        song.g[G_DRDLY] = (int16_t)(k ? 127 : 0);
+        drum_on(36, 120);
+        for (b = 0; b < 40u; b++) {
+            run_block();
+            *e += blk_energy(send_d);
+        }
+        for (b = 0; b < (uint32_t)(FS / CTL); b++) run_block();
+    }
+    check(e0 == 0 && e1 > 0, "3.4: GLO > DRUMS DLY: the drum bus into the delay, nothing at 0");
+    song.g[G_DRDLY] = 0;
+    reset(120);                                       /* the click, the drum track muted */
+    TDRUM->p[P_MUTE] = 1;
+    for (k = 0; k < (uint32_t)(FS / CTL / 4); k++) run_block();
+    e0 = e1 = 0;
+    drum_on(36, 120);
+    for (k = 0; k < 40u; k++) { run_block(); e0 += blk_energy(mix_l); }
+    for (k = 0; k < (uint32_t)(FS / CTL); k++) run_block();
+    drum_on(77, 120);
+    for (k = 0; k < 40u; k++) { run_block(); e1 += blk_energy(mix_l); }
+    if (!(e0 < e1 / 100)) printf("seq2:   muted kick %lld, click %lld\n", (long long)e0, (long long)e1);
+    check(e0 < e1 / 100 && e1 > 0, "3.4: the click sounds with the drum track muted (a lane does not)");
+    TDRUM->p[P_MUTE] = 0;
+    for (k = 0; k < (uint32_t)(FS / CTL); k++) run_block();
+}
+
 int main(void)
 {
     t_usbfull();
@@ -764,6 +830,7 @@ int main(void)
     t_longdiv();
     t_midiout();
     t_midi33();
+    t_cc34();
     printf("seq2: %s\n", fails ? "FAILED" : "all checks ok");
     return fails;
 }

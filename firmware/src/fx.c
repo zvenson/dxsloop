@@ -494,7 +494,7 @@ static void mix_block(int32_t *out, uint32_t n)
         mix_part(&trk[i], n);
     drums.a0 = TDRUM->att;                              /* the drum track's mute / solo fade */
     drums.a1 = 32767 - gain_next(TDRUM);
-    slicer_drums(mix_l, mix_r, send_r, n);              /* drums_render, through the SLICER when on */
+    slicer_drums(mix_l, mix_r, send_r, send_d, n);      /* drums_render, through the SLICER when on */
     fx_buses(send_c, send_d, send_r, wet_l, wet_r, n);
     for (i = 0; i < n; i++) {
         mix_l[i] += wet_l[i];

@@ -17,7 +17,7 @@
  * Layers: a function button held turns the keys into something else (TE style: hold + touch):
  *   FX   punch-in effects (punch.c)       EDIT  erase that note / sound (while held, as it plays)
  *   ARP  note repeat (roll) at G_ROLL     SEQ   steps 1..16 (the UI: ui_layers.c)
- *   SCL  the key of the song (the UI)     GLO   mute / solo / tap tempo (the UI)
+ *   SEL  the key of the song (the UI)     GLO   mute / solo / tap tempo (the UI)
  * On the drum track OCT- / OCT+ held play (and record) ghost / hard hits. */
 static const uint16_t SCALE_MASK[] = {
     0xFFF,                                   /* CHR */
@@ -117,7 +117,7 @@ static uint32_t dyn_bit[2];              /* OCT- / OCT+: ghost / hard on the dru
  * stay in it with the button let go, as if it were held */
 static volatile uint8_t ly_lock = LY_PLAY;
 static uint32_t layer_buttons(void) { return fm1_in.buttons | (ly_lock != LY_PLAY ? ly_bit[ly_lock % LY_COUNT] : 0u); }
-/* the layer the keys are in: the held function button (FX, EDIT, ARP, SEQ, SCL, GLO in that order),
+/* the layer the keys are in: the held function button (FX, EDIT, ARP, SEQ, SEL, GLO in that order),
  * else the locked one */
 static uint32_t layer_now(void)
 {
@@ -1743,6 +1743,42 @@ static track_t *midi_track(uint32_t ch)
     return ch < NPART ? &trk[ch] : TSEL;
 }
 
+/* MIDI CCs set track parameters as a knob would (0..127 over the range, 64 the middle of a bipolar one), on the
+ * track the channel plays (as the notes). After SLOOP 2.5 / Felucca 1.1.5's map, on the DX7: 5 GLIDE, 7 LEVEL,
+ * 10 PAN, 71 RESO, 72 / 73 / 75 the REL / ATK / DEC macros, 74 CUT, 91 / 93 / 94 the reverb, chorus and delay
+ * sends. The drum track: 7, 91, 94 as GLO > DRUMS LVL, REV, DLY, and 10 PAN */
+static const uint8_t MIDI_CC_MAP[][2] = {
+    {5, P_GLIDE}, {7, P_LEVEL}, {10, P_PAN}, {71, P_E7}, {72, P_E4}, {73, P_E2}, {74, P_E6}, {75, P_E3},
+    {91, P_REV}, {93, P_CHOR}, {94, P_DLY},
+};
+static void __attribute__((noinline)) midi_cc(track_t *t, uint32_t cc, uint32_t value)
+{
+    const param_desc_t *d = 0;
+    int16_t *slot = 0;
+    uint32_t i, id = 0xFFFFu;
+    for (i = 0; i < sizeof MIDI_CC_MAP / sizeof MIDI_CC_MAP[0]; i++)
+        if (MIDI_CC_MAP[i][0] == cc)
+            id = MIDI_CC_MAP[i][1];
+    if (id == 0xFFFFu)
+        return;
+    if (is_drum(t)) {
+        if (id == P_LEVEL || id == P_REV || id == P_DLY) {
+            id = id == P_LEVEL ? G_DRLVL : id == P_REV ? G_DRREV : G_DRDLY;
+            d = &GP[id];
+            slot = &song.g[id];
+        } else if (id == P_PAN) {
+            d = &TP[id];
+            slot = &t->p[id];
+        }
+    } else {
+        d = id >= P_E0 && id <= P_E7 ? &ENGINES[t->engine % NENGINES]->edit[id - P_E0] : &TP[id];
+        slot = &t->p[id];
+    }
+    if (!d || d->max <= d->min)
+        return;
+    *slot = (int16_t)(d->min + ((int32_t)value * (d->max - d->min) + 63) / 127);
+}
+
 /* a channel that plays the selected track: its note-off goes to the track its note-on went to,
  * even when another track was selected in between (else that note would hang) */
 static uint8_t midi_sel_on[16][128];                  /* per channel and note: track + 1, 0 = none */
@@ -1954,6 +1990,11 @@ static void events_block(uint32_t n)
         mi_r++;
         if ((pkt & 15u) == 0xFu) {                    /* clock / transport: cable 0 USB, 1 TRS */
             mclk_event((pkt >> 8) & 0xFFu, ((pkt >> 4) & 15u) ? 2u : 1u);
+            continue;
+        }
+        if (st == 0xB0u) {                            /* a CC (IN = CLOCK: none) */
+            if (!song.g[G_ROUTE])
+                midi_cc(midi_track(ch), d1, d2);
             continue;
         }
         if (st != 0x90u && st != 0x80u)

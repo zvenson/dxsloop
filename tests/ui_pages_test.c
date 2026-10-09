@@ -9,7 +9,7 @@
  *           held + KNOB 2 / 3: level / ratchet
  *   EDIT    held + a key: erase; OCT- / OCT+: undo / redo; KNOB 1 shift, 2 length x2
  *   ARP     held + a key: a roll; KNOB 1 the rate
- *   SCL     held + a key: the key of the song
+ *   SEL     held + a key: the key of the song
  *   GLO     held + keys: mute, solo, tap tempo; knobs: levels
  *   REC     press: arm / record at once; held: the clear ring, to the end: cleared (undo brings it back)
  *   SAVE    tapped: the song page; held: the SONG layer (sections A..D: play / store, SONG REC)

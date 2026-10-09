@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #ifndef HALF_FRAMES
 #error "-DHALF_FRAMES=n (src/core.h; run_tests.sh passes it)"
 #endif
@@ -66,7 +67,7 @@ static void test_descriptors(void)
     }
 
     check("device descriptor: 18 bytes, type 1, EP0 64", dv[0] == 18 && dv[1] == 1 && dv[7] == 64);
-    check("bcdDevice bumped for the audio input (x.1x)", (dv[12] & 0xF0u) == 0x10u && dv[13] == 3);
+    check("bcdDevice bumped for the audio input at 44.1 / 48 kHz (x.2x)", (dv[12] & 0xF0u) == 0x20u && dv[13] == 3);
     check(CDC_SHOWN ? "device class misc / IAD (EF 02 01)" : "device class 0 (per interface)",
           CDC_SHOWN ? dv[4] == 0xEF && dv[5] == 2 && dv[6] == 1 : dv[4] == 0);
     check("configuration: type 2, wTotalLength = the bytes sent", c[1] == 2 && total == n);
@@ -141,8 +142,8 @@ static void test_descriptors(void)
                 if (d[2] == 1)
                     asg_ok = d[0] == 7 && d[3] == 2 && le16(d + 5) == 1u;
                 else if (d[2] == 2)
-                    fmt_ok = d[0] == 11 && d[3] == 1 && d[4] == 2 && d[5] == 2 && d[6] == 16 && d[7] == 1 &&
-                             (d[8] | d[9] << 8 | d[10] << 16) == 44100;
+                    fmt_ok = d[0] == 14 && d[3] == 1 && d[4] == 2 && d[5] == 2 && d[6] == 16 && d[7] == 2 &&
+                             (d[8] | d[9] << 8 | d[10] << 16) == 44100 && (d[11] | d[12] << 8 | d[13] << 16) == 48000;
             }
             break;
         case 0x25:
@@ -170,8 +171,8 @@ static void test_descriptors(void)
     check("output terminal 2: USB streaming, source 1", ot_ok);
     check("AS alt 0 has no endpoint", alt0_ok);
     check("AS general: terminal 2, PCM", asg_ok);
-    check("type I format: 2 ch, 2-byte subframe, 16 bit, 44100 Hz only", fmt_ok);
-    check("EP 0x84: isochronous async, 184 B (46 frames), every frame, alt 1", iso_ok);
+    check("type I format: 2 ch, 2-byte subframe, 16 bit, 44100 and 48000 Hz (2.5)", fmt_ok);
+    check("EP 0x84: isochronous async, 196 B (49 frames), every frame, alt 1", iso_ok && UA_MAXF == 49u);
     check("CS endpoint: sampling frequency control", csep_ok);
     check("MIDI bulk endpoints 0x01 / 0x81 unchanged", midi_ok == 2);
     snprintf(name, sizeof name, "IADs: %s", CDC_SHOWN ? "audio IF 0-2, CDC IF 3-4" : "none");
@@ -187,21 +188,39 @@ static uint32_t prod_n, cons_n, cons_bad, cons_rep, cons_zero, sizes[64], npk;
 static uint32_t last_frame;
 static int32_t blk[64];
 
+static int sine_mode;                                   /* 2.5: the producer plays sines (the 48 kHz tests) */
+static double sine_f = 1000.0;
 static void render_block(void)
 {
     uint32_t i;
     for (i = 0; i < 32u; i++, prod_n++) {
+        if (sine_mode) {                               /* L: a sine at sine_f, R: half of it, inverted */
+            double v = sin(2 * M_PI * sine_f * prod_n / 44100.0);
+            blk[2 * i] = (int32_t)lrint(16000.0 * v);
+            blk[2 * i + 1] = (int32_t)lrint(-8000.0 * v);
+            continue;
+        }
         blk[2 * i] = (int16_t)prod_n;
         blk[2 * i + 1] = (int16_t)~prod_n;
     }
     uac_tap(blk, 32);
 }
 
+#define CAP_N (48000u * 12u)
+static int16_t cap_l[CAP_N], cap_r[CAP_N];
+static uint32_t cap_n;
 static void take_packet(void)
 {
     uint32_t d[UA_MAXF + 2], n = uac_packet(d), i;
     sizes[n]++;
     npk++;
+    if (sine_mode) {                                   /* keep what the host records */
+        for (i = 0; i < n && cap_n < CAP_N; i++, cap_n++) {
+            cap_l[cap_n] = (int16_t)(uint16_t)d[i];
+            cap_r[cap_n] = (int16_t)(uint16_t)(d[i] >> 16);
+        }
+        return;
+    }
     for (i = 0; i < n; i++) {
         uint16_t l = (uint16_t)d[i], r = (uint16_t)(d[i] >> 16);
         if (d[i] == 0 && !uac.go) {
@@ -332,11 +351,140 @@ static void test_ring(void)
           uac.underruns + uac.overruns == base_p);
 }
 
+/* ------------------------------------------------------------ 2.5: 48 kHz --- */
+/* a sine of f Hz at fs in y[0..n): the fitted amplitude and the SNR (the residual after a sine + DC fit) */
+static void sine_fit(const int16_t *y, uint32_t n, double f, double fs, double *amp, double *snr)
+{
+    double a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0, m = 0, c1, c2, det, e = 0, p = 0;
+    uint32_t i;
+    for (i = 0; i < n; i++)
+        m += y[i];
+    m /= n;
+    for (i = 0; i < n; i++) {
+        double s = sin(2 * M_PI * f * i / fs), c = cos(2 * M_PI * f * i / fs), v = y[i] - m;
+        a11 += s * s; a12 += s * c; a22 += c * c; b1 += s * v; b2 += c * v;
+    }
+    det = a11 * a22 - a12 * a12;
+    c1 = (b1 * a22 - b2 * a12) / det;
+    c2 = (b2 * a11 - b1 * a12) / det;
+    for (i = 0; i < n; i++) {
+        double s = sin(2 * M_PI * f * i / fs), c = cos(2 * M_PI * f * i / fs), fit = c1 * s + c2 * c;
+        p += fit * fit;
+        e += (y[i] - m - fit) * (y[i] - m - fit);
+    }
+    *amp = sqrt(c1 * c1 + c2 * c2);
+    *snr = 10 * log10(p / (e > 1e-9 ? e : 1e-9));
+}
+
+static void test_rate(void)
+{
+    static const struct { uint32_t hz; uint8_t r48; } T[] = {
+        {44100, 0}, {48000, 1}, {44100, 0}, {32000, 0}, {46049, 0}, {46050, 1}, {96000, 1}, {0, 0}};
+    uint32_t i;
+    int ok = 1;
+    memset(&uac, 0, sizeof uac);
+    for (i = 0; i < sizeof T / sizeof T[0]; i++) {
+        uac.go = 1;
+        uac_rate_set(T[i].hz);
+        ok &= uac.r48 == T[i].r48;
+        if (i && T[i].r48 != T[i - 1].r48)
+            ok &= uac.go == 0;                          /* a change re-primes */
+    }
+    check("SET_CUR: 44100 / 48000, the nearer of the two; a change re-primes", ok);
+}
+
+/* the resampler alone: blocks of 32 frames of a sine through uac_tap (48 kHz), the ring drained after each */
+static void test_resampler(void)
+{
+    static const double FQ[] = {100, 1000, 5000, 10000, 12000, 16000};
+    static int16_t out_l[60000], out_r[60000];
+    uint32_t q, i, b, n;
+    char s[120];
+    for (q = 0; q < sizeof FQ / sizeof FQ[0]; q++) {
+        double amp, snr, ampr, snrr, g;
+        memset(&uac, 0, sizeof uac);
+        memset(&rs, 0, sizeof rs);
+        ua_w = ua_r = 0;
+        uac.feed = 1;
+        uac.ring48 = uac.r48 = 1;
+        n = 0;
+        for (b = 0; b < 1500u; b++) {                   /* 48000 input frames: ~52245 out */
+            int32_t in[64];
+            for (i = 0; i < 32u; i++) {
+                double v = sin(2 * M_PI * FQ[q] * (b * 32u + i) / 44100.0);
+                in[2 * i] = (int32_t)lrint(29000.0 * v);
+                in[2 * i + 1] = (int32_t)lrint(-14500.0 * v);
+            }
+            uac_tap(in, 32);
+            while (ua_r != ua_w && n < 60000u) {
+                uint32_t d = ua_ring[ua_r++ & (UA_N - 1u)];
+                out_l[n] = (int16_t)(uint16_t)d;
+                out_r[n] = (int16_t)(uint16_t)(d >> 16);
+                n++;
+            }
+        }
+        sine_fit(out_l + 200, n - 400, FQ[q], 48000.0, &amp, &snr);
+        sine_fit(out_r + 200, n - 400, FQ[q], 48000.0, &ampr, &snrr);
+        g = 20 * log10(amp / 29000.0);
+        snprintf(s, sizeof s, "48 kHz: %5.0f Hz: %u frames out of 48000, gain %+.2f dB, SNR %.1f dB (R %.1f)", FQ[q], n, g, snr, snrr);
+        if (FQ[q] <= 1000)
+            check(s, n == (160u * 48000u - 1u) / 147u + 1u && fabs(g) < 0.05 && snr > 78.0 && snrr > 72.0);
+        else if (FQ[q] <= 10000)
+            check(s, g > -0.5 && g < 0.1 && snr > 70.0);
+        else if (FQ[q] <= 12000)
+            check(s, g > -0.8 && snr > 65.0);
+        else
+            check(s, g > -1.5 && snr > 55.0);           /* 16 kHz: the top of the passband */
+    }
+}
+
+/* the stream at 48 kHz: renders at the I2S rate, packets at 1 kHz, what the host records is one clean sine */
+static void test_ring48(void)
+{
+    uint32_t i, sum = 0, base;
+    double amp, snr;
+    char s[140];
+    usb.config = 1;
+    memset(&uac, 0, sizeof uac);
+    ua_w = ua_r = 0;
+    uac_stream(1);
+    uac_rate_set(48000);
+    uac.flowing = 1;
+    sine_mode = 1;
+    sine_f = 997.0;
+    cap_n = 0;
+    run(500, 0, 1, 1);                                  /* (primed, settled) */
+    memset(sizes, 0, sizeof sizes);
+    npk = 0;
+    base = cap_n;
+    run(10000, 0, 1, 1);
+    for (i = 0; i < 64u; i++)
+        sum += sizes[i] * i;
+    snprintf(s, sizeof s, "48 kHz stream, 10 s: sizes 47..49 (47:%u 48:%u 49:%u), mean %.4f", sizes[47], sizes[48], sizes[49],
+             (double)sum / npk);
+    check(s, sizes[47] + sizes[48] + sizes[49] == npk && (double)sum / npk > 48.0 && (double)sum / npk < 48.05);
+    sine_fit(cap_l + base, cap_n - base, 997.0 * 44100.0 / FS_DEV, 48000.0 * 48000.0 / (FS_DEV * 160.0 / 147.0), &amp, &snr);
+    snprintf(s, sizeof s, "  what the host records: one sine, SNR %.1f dB, no underrun / overrun (%u / %u)", snr,
+             uac.underruns, uac.overruns);
+    check(s, snr > 60.0 && uac.underruns == 0 && uac.overruns == 0 && amp > 15000.0);
+    uac_rate_set(44100);                                /* back to 44.1 mid-stream: silence, primed again */
+    sine_mode = 0;
+    cons_n = 0;
+    cons_bad = cons_rep = 0;
+    base = uac.underruns + uac.overruns;
+    run(3000, 0, 1, 1);
+    check("48 -> 44.1 mid-stream: primed again, every frame in order", cons_n > 3000u * 44u && cons_bad == 0 &&
+          cons_rep == 0 && uac.underruns + uac.overruns == base);
+}
+
 int main(void)
 {
     printf("-- USB audio input, CDC %s\n", T_CDC == 2 ? "built in, USB SERIAL OFF" : T_CDC ? "on" : "off");
     test_descriptors();
     test_ring();
+    test_rate();
+    test_resampler();
+    test_ring48();
     printf(fails ? "UAC TEST FAILED (%d)\n" : "uac: all ok\n", fails);
     return fails != 0;
 }

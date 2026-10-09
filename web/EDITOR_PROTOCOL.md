@@ -213,7 +213,7 @@ slot count; a mismatch reads as an empty bank). A record keeps its layout versio
 and the P_COUNT it was stored with; another count is mapped by count (last 8 values = P_E0..P_E7, the
 first ones = P_LEVEL.. in order, missing ones = defaults). P_COUNT was 53 (P_E0 45) until the SLICER
 parameters (SLCR, PAT, RATE, DEPTH: ids 45..48) went in just before P_E0: P_COUNT 57, P_E0 49; SLOOP 2.0
-added CHORD (id 49): P_COUNT 58, P_E0 50 (and G_COUNT 32: DUST, DUCK, FILT, ROLL, NEW at 27..31). An
+added CHORD (id 49): P_COUNT 58, P_E0 50 (and G_COUNT 32: DUST, DUCK, FILT, ROLL, NEW at 27..31; sloopDX 2.7: CMIX, RPRE at 32, 33; 3.4: DRDLY, the drums' delay send, at 34, G_COUNT 35). An
 editor takes them from `INFO`; older records load with the SLICER off and CHORD off.
 
 ## v2: live sync

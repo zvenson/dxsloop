@@ -196,10 +196,9 @@ static void te_header(const char *title, uint16_t tc, uint32_t *cache)
 
 /* --------------------------------------------------------------- TRACKS --- */
 /* swing, MPC style: "62%" */
-static void swing_str(char *b, int32_t v)
+static void swing_str(char *b, int32_t v)            /* 0 straight .. 100 the most (params.c F_SWING) */
 {
-    fmt_int(b, 50 + (clamp(v, 0, 100) + 2) / 4);
-    str_cpy(b + str_len(b), "%", 2);
+    fmt_int(b, clamp(v, 0, 100));
 }
 
 static void studio_tracks_draw(void)
@@ -338,6 +337,7 @@ static void pads_tick(void)                             /* once a frame: the hit
     }
 }
 
+static uint32_t lvl_rank(uint32_t lvl);                 /* (below) ghost 0, soft 1, norm 2, hard 3 */
 static void drum_screen_draw(void)
 {
     static uint32_t head, title_sig, body_sig, footer;
@@ -435,7 +435,8 @@ static void drum_screen_draw(void)
             ratio[0] = (int32_t)drum_lane * 1000 / (DRUM_LANES - 1);
             ratio[1] = (int32_t)drum_cursor * 1000 / (int32_t)(len > 1u ? len - 1u : 1u);
             ratio[2] = v[2][0] == 'o' ? 1000 : 0;
-            ratio[3] = dstep_has(s, drum_lane) ? (int32_t)((dstep_lvl(s, drum_lane) + 1u) % 4u) * 333 : 0;
+            ratio[3] = dstep_has(s, drum_lane) ? (int32_t)lvl_rank(dstep_lvl(s, drum_lane)) * 333 : 0;   /* ghost left .. hard
+                                                                     * right (SLOOP 2.5: it followed the stored order) */
             te_dials(184, LG, val, ratio, 1u, &footer);
         } else if (drum_page == 2u) {                  /* LANE: four macros of the page (TUNE DECAY SWEEP BRIGHT,
                                                         * NOISE LEVEL PAN CHOKE, REV) */
