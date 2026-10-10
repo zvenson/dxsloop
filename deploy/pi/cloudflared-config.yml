@@ -12,4 +12,8 @@ ingress:
     service: http://web:80
   - hostname: fm1.designburgapps.com
     service: http://web:80
+  - hostname: thefirmwarehub.com
+    service: http://web:80
+  - hostname: www.thefirmwarehub.com
+    service: http://web:80
   - service: http_status:404

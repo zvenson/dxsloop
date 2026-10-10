@@ -12,7 +12,9 @@ services:
       - ./repo/deploy/designburgapps:/usr/share/nginx/apex:ro
       - ./zp12repo/docs:/usr/share/nginx/zp12:ro
       - ./zp12repo/fm1:/usr/share/nginx/fm1:ro
+      - ./zp12repo/firmwarehub:/usr/share/nginx/firmwarehub:ro
       - ./fm1src:/usr/share/nginx/fm1src:ro
+      - ./fm1live:/usr/share/nginx/fm1live:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
   cloudflared:
     image: cloudflare/cloudflared:latest
