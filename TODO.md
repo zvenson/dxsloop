@@ -42,7 +42,7 @@ Firmware-Build läuft (`./build.sh`: RAM 85 KB von 96 KB); auf dem FM-1 lief noc
 - [ ] Am Gerät prüfen: 48 kHz am Handy/Mac, CC-Map mit einem Controller, Drum-DLY, Click bei stummer Drumspur.
 - [ ] Editor nach SLOOP 2.5: Piano Roll, MIDI-Export/-Import je Spur (Drums als GM), Song-Seite (A–D-Reihenfolge) —
       auf unser Protokoll portieren (LEN bis 128, Drum-Locks).
-- [ ] Cheat-Sheet-PDFs neu drucken (SCL → SEL, 3.4): hier kein Chrome erreichbar.
+- [x] Cheat-Sheet-PDFs neu drucken (SCL → SEL, 3.4): mit 3.5 gedruckt.
 - Nicht übernommen: PHYS, NOISE, 77 Sounds, Arena, Drum-Synth SYN1–4, Cartridge → FM6-Bank, AMS-Fix (anderer DX7-Kern).
 
 ## 1n. 3.3, erledigt: aus SLOOP 2.4 übernommen

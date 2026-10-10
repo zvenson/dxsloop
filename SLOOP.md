@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo/sloopdx-logo.png" alt="sloopDX" width="440"></p>
 
-# sloopDX 3.4
+# sloopDX 3.5
 
 **SLOOP as a pure DX7 FM synth, for the M-VAVE FM-1.** Four tracks — three synth parts and a drum machine with 16 sounds on the white keys — one engine: a six-operator DX7 voice (Dexed's msfa core, ported to integer C and within 1 LSB of Dexed against Dexed), 20 factory voices and your own DX7 banks (.syx, 32 voices), a low-pass behind each voice, four FM drum kits made with the same engine and one of your own (every sound with eight macros, a noise operator, step locks, the dice; drive and compression on the drum bus), ghost notes and ratchets, note repeat, one-key chords, 16 punch-in effects, a vinyl / sidechain / DJ-filter master, and a teenage-engineering-style screen that always shows what your hands can do next. No factory patterns, nothing to load: everything you hear, you play.
 
 sloopDX is free and open source (GPL-3.0), a fork of [SLOOP](https://github.com/isod89/sloop-fm1) by isod89, which is based on [Felucca](https://github.com/hugelton/Felucca) by Leo Kuroshita / Hügelton Instruments. This manual is based on SLOOP's manual: the workflow is SLOOP's, the sound is the DX7's.
 
-> **Status:** 3.4, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
+> **Status:** 3.5, a usable beta: it builds, the host tests pass, and it is installed and played on a real FM-1; the web editor against the device and the CPU with every voice sounding are still being checked. Install at your own risk.
 
 ### From SLOOP 2.5 (3.4)
 
@@ -470,7 +470,7 @@ sloopDX takes MIDI from two places at once:
 | 10 | the drum track (the nearest of its 16 sounds; GLO → DRUMS → CH changes the channel) |
 | 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
 
-**Knobs (CCs, 3.4)** set the track the channel plays, as its knob would: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 LEVEL, 10 PAN, 5 GLIDE, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 its PAN. Other CCs are ignored, and all of them with IN = CLOCK.
+**Knobs (CCs, 3.4)** set the track the channel plays, as its knob would: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 LEVEL, 10 PAN, 5 GLIDE, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 its PAN. Other CCs are ignored, and all of them with IN = CLOCK. **Program Change (3.5)** loads a preset into the track the channel plays, as the PRESETS knob: program 0 is 01 EPIANO 1, 0–19 the factory presets, 20–51 the voices of the DX7 bank in use, then the user presets; not on the drum channel, nothing beyond the list.
 
 **MIDI clock in:** GLO → SYSTEM → **SYNC** = **USB** or **TRS** (INT: sloopDX's own tempo). START plays from the top, CONTINUE carries on where it stopped, STOP stops; the tempo (BPM) follows the master, and the steps follow its 24 pulses a beat, so sloopDX cannot drift away from it. When the clock stops for half a second, PLAY on the FM-1 plays at its own tempo again. SYNC is a setting of the FM-1: it stays when you load a project.
 

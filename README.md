@@ -19,9 +19,9 @@ Free and open source (GPL-3.0). A fork of <a href="https://github.com/isod89/slo
 
 sloopDX turns the FM-1 into what it says on the box: an FM synthesizer. There is one engine, a six-operator DX7 voice (Dexed's msfa core, ported to integer C and checked against Dexed (99 % of samples identical, the rest within 1-2 LSB)). The drum track plays FM drums made with the same engine. SLOOP's live workflow stays as it is: tracks, layers, sequencer, song mode and effects — and, from SLOOP 2.3, **USB audio**, a **MIDI keyboard on the jack**, **MIDI clock**, **lights for playing in the dark** and a **full backup**. The sample engines, sample sets and the other eight engines are gone.
 
-**New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
+**New in 3.5: a DAW picks the sounds.** MIDI Program Change loads a preset into the track the channel plays, as the PRESETS knob does ([MIDI](#midi-in)). **New in 2.2: patterns up to 128 steps.** The four tracks share 256 steps: one track can run 128, the others take what is left; OCT− / OCT+ page through 8 pages. **New in 2.1: a drum machine you can program.** Every one of the 16 drum sounds has eight macros on the FM-1 (TUNE, DECAY, SWEEP, BRIGHT, NOISE, LEVEL, PAN, CHOKE, plus its own reverb send). A real **noise operator** gives snares, claps and hats their hiss. Steps can **lock TUNE and DECAY** per hit. **MY KIT** keeps your own kit in flash and travels as a .syx, and the **dice** rolls a whole new kit from a seed you can roll again.
 
-> **Status: 3.4, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
+> **Status: 3.5, a usable beta.** It builds, every host test passes, and it is installed and played on a real FM-1. Still open: a full check of the web editor against the device, and the CPU with all 14 DX7 voices sounding at once. Install at your own risk, and please [report](../../issues) what you find. See [Status](#status).
 
 ## Why sloopDX
 
@@ -136,7 +136,7 @@ sloopDX carries everything SLOOP 2.3 added to the FM-1 itself. None of it has be
 
 ## Status
 
-**3.4, a usable beta.** What is known:
+**3.5, a usable beta.** What is known:
 
 - **Works:** the firmware builds with the JieLi toolchain (RAM about 85 KB of the 96 KB budget) and the host test suite passes: audio renders against golden hashes, the voices, the sequencer (REC modes, count-in, MIDI clock), the UI pages and layers, the DX7 voice list, flash storage, the 8 banks, the update loader, the .syx import, the bank upload, MIDI and USB audio, and the web pages. On the FM-1: install, the boot screen, the DX7 voice list, a ROM bank in flash, the drum kits and the levels have been played.
 - **From 1.9:** projects, user presets and the editor's library keep their sounds. Three factory voices came in before INIT VOICE, so the bank moved from 18–49 to 21–52; older saves are renumbered when they load, and the new CUT starts open.
@@ -161,7 +161,7 @@ Nothing to download or compile. Your projects, user presets and settings are kep
 
 ### Other ways
 
-- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-3.4.fwsc`) with `python tools/fm1_install.py sloopdx-3.4.fwsc` (needs `pip install mido python-rtmidi`).
+- **Python:** the `.fwsc` of a [release](../../releases) (or `docs/firmware/sloopdx-3.5.fwsc`) with `python tools/fm1_install.py sloopdx-3.5.fwsc` (needs `pip install mido python-rtmidi`).
 - **Build it yourself:** see [Building and tests](#building-and-tests); on Windows, `INSTALL-SLOOPDX.bat` builds sloopDX and opens the installer locally.
 
 ### Going back
@@ -223,7 +223,7 @@ Hold **HOME**. **PRESETS** moves, **KNOB 1** sets, **OCT+** steps round, **OCT�
 | **USB AUDIO** | MASTER / FULL | the level of the USB audio input: follows the MASTER knob, or a fixed full level |
 | **USB SERIAL** | OFF / ON | the serial console on USB (for developers), taken at the next start (*RESTART* shows until then). OFF, the default: macOS 13–15 show the USB audio input (3.3) |
 | **HARDWARE CALIBRATION** | | the panel table, if a key or a knob answers wrongly |
-| **ABOUT** | | the version (*sloopDX 3.4*) and its build date, the credits |
+| **ABOUT** | | the version (*sloopDX 3.5*) and its build date, the credits |
 | **FACTORY RESET** | OCT+ twice | erases everything on the FM-1: the projects, the working project, the user presets, the 8 DX7 banks, MY KIT and the settings, then restarts as freshly installed. Stopped only; save a backup first (editor → Projects) if you want any of it back |
 
 Four more settings of the FM-1 live elsewhere: **MIDI**, **SYNC** and **IN** (GLO → SYSTEM: see [MIDI and USB audio](#midi-and-usb-audio)) and the REC screen's **mode** and **start**.
@@ -243,7 +243,7 @@ sloopDX takes MIDI from two places at once:
 | 10 | the drum track (the nearest of its 16 sounds; GLO → DRUMS → CH changes the channel) |
 | 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
 
-**Knobs (CCs, 3.4)** set the track the channel plays: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 level, 10 pan, 5 glide, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 the pan. Other CCs are ignored. **Program Change** loads a preset into the track the channel plays, as the PRESETS knob: program 0 is 01 EPIANO 1, 0–19 the factory presets, 20–51 the voices of the DX7 bank in use, then your user presets (not on the drum channel).
+**Knobs (CCs, 3.4)** set the track the channel plays: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 level, 10 pan, 5 glide, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 the pan. Other CCs are ignored. **Program Change (3.5)** loads a preset into the track the channel plays, as the PRESETS knob: program 0 is 01 EPIANO 1, 0–19 the factory presets, 20–51 the voices of the DX7 bank in use, then your user presets (not on the drum channel).
 
 A USB keyboard plugged **straight into the FM-1** cannot work: both are USB devices, and a USB link needs a host (a computer, a phone, or a USB MIDI host box). Bluetooth MIDI is not supported: sloopDX, like Felucca, never switches the radio on.
 
