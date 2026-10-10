@@ -144,6 +144,24 @@ int main(int argc, char **argv)
     go_home(); ui.force = 1; frame(); ppm("page-tracks");
     open_family(FAM_ENV); ui.force = 1; ui.hot_col = 1; ui.hot_t = 30; frame(); ppm("page-env");
     open_family(FAM_EDIT); ui.force = 1; frame(); ppm("page-edit");
+    {   /* MIDI Program Change: program n = entry n of the PRESETS list, into the track the channel plays (seq.c
+         * notes it, the main loop loads it); the selected track stays; the drum channel, beyond the list: nothing */
+        uint32_t sel = song.sel, total, dch = (uint32_t)song.g[G_DRCH] - 1u;
+        uint8_t p1 = trk[1].preset;
+        mi_r = mi_w;
+        midi_in_q[mi_w % MQ] = 0x0Cu | (0xC0u | 1u) << 8 | 2u << 16; mi_w++;       /* channel 2: 03 FM BASS */
+        midi_in_q[mi_w % MQ] = 0x0Cu | (0xC0u | dch) << 8 | 5u << 16; mi_w++;
+        frame();
+        check(midi_pc[1] == 3u && !midi_pc[trk_index(TDRUM) % NTRK], "MIDI PC: noted for the track, not for the drums");
+        midi_pc_take();
+        check(trk[1].preset == bank_pi[2] && trk[1].preset != p1 && song.sel == sel && !midi_pc[1],
+              "MIDI PC: channel 2, program 2 = 03 FM BASS on track 2, the selected track stays");
+        song.sel = 1; preset_pos(&total); song.sel = (uint8_t)sel;
+        midi_in_q[mi_w % MQ] = 0x0Cu | (0xC0u | 1u) << 8 | 127u << 16; mi_w++;
+        frame(); midi_pc_take();
+        check(total < 128u && trk[1].preset == bank_pi[2], "MIDI PC: beyond the list: nothing");
+        apply_preset_to(&trk[1], p1); frame();
+    }
     {   /* DX7 voice edit (ui_voice.c): the list, ALGORITHM = value, EDIT = into a group, HOME = back, SAVE */
         uint32_t e0 = (uint32_t)TSEL->p[P_E0], alg0 = DX_SYNTH[e0 % DX_NSYNTH][134], slot;
         dx_bank_clear();

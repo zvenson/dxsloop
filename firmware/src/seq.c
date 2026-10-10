@@ -1735,6 +1735,8 @@ static void seq_tick(track_t *t, uint32_t adv)
     seq_ratchets(t, into, slen);
 }
 
+static volatile uint8_t midi_pc[NTRK];               /* a MIDI Program Change per track: program + 1 (ui.c midi_pc_take) */
+
 /* MIDI in: the track a channel plays (0..15) */
 static track_t *midi_track(uint32_t ch)
 {
@@ -1995,6 +1997,12 @@ static void events_block(uint32_t n)
         if (st == 0xB0u) {                            /* a CC (IN = CLOCK: none) */
             if (!song.g[G_ROUTE])
                 midi_cc(midi_track(ch), d1, d2);
+            continue;
+        }
+        if (st == 0xC0u) {                            /* a Program Change: the preset, loaded by the main loop */
+            t = midi_track(ch);
+            if (!is_drum(t))
+                midi_pc[trk_index(t) % NTRK] = (uint8_t)(d1 + 1u);
             continue;
         }
         if (st != 0x90u && st != 0x80u)

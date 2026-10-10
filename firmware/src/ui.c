@@ -403,6 +403,24 @@ static void preset_go(uint32_t n)                    /* load list index n into t
     ui.force = 1;
 }
 
+/* MIDI Program Change (seq.c): program n loads entry n of the PRESETS list (0 = 01 EPIANO 1, 20.. the bank
+ * voices, then the user presets) into the track its channel plays, as the knob would; beyond the list: nothing.
+ * (song.sel stands for the track meanwhile: a note on the selected-track channel in that moment goes there) */
+static void midi_pc_take(void)
+{
+    uint32_t i, total, sel = song.sel;
+    for (i = 0; i < NTRK; i++)
+        if (midi_pc[i]) {
+            uint32_t n = midi_pc[i] - 1u;
+            midi_pc[i] = 0;
+            song.sel = (uint8_t)i;
+            preset_pos(&total);
+            if (n < total)
+                preset_go(n);
+            song.sel = (uint8_t)sel;
+        }
+}
+
 /* HOME: what KNOB k edits: the engine's four main parameters; on the drum track
  * LEVEL and REV (GLO > DRUMS), PAN and LEN */
 static const param_desc_t *home_param(uint32_t k, int16_t **vp)

@@ -259,6 +259,7 @@ static void fm1_main(void)
         felucca_dbg.page = ui.page;
         felucca_dbg.home = ui.home;
         felucca_dbg.stage = 1;
+        midi_pc_take();                                 /* a MIDI Program Change: its preset */
         ui_input();
         felucca_dbg.stage = 2;
         ui_leds();

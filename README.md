@@ -243,7 +243,7 @@ sloopDX takes MIDI from two places at once:
 | 10 | the drum track (the nearest of its 16 sounds; GLO → DRUMS → CH changes the channel) |
 | 4–16 | the selected track: set your keyboard to channel 4 and it follows ALGORITHM |
 
-**Knobs (CCs, 3.4)** set the track the channel plays: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 level, 10 pan, 5 glide, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 the pan. Other CCs are ignored.
+**Knobs (CCs, 3.4)** set the track the channel plays: 74 CUT, 71 RESO, 73 / 75 / 72 the ATK / DEC / REL macros, 7 level, 10 pan, 5 glide, 91 / 93 / 94 the reverb, chorus and delay sends; on the drum channel 7, 91, 94 are GLO → DRUMS LVL, REV, DLY and 10 the pan. Other CCs are ignored. **Program Change** loads a preset into the track the channel plays, as the PRESETS knob: program 0 is 01 EPIANO 1, 0–19 the factory presets, 20–51 the voices of the DX7 bank in use, then your user presets (not on the drum channel).
 
 A USB keyboard plugged **straight into the FM-1** cannot work: both are USB devices, and a USB link needs a host (a computer, a phone, or a USB MIDI host box). Bluetooth MIDI is not supported: sloopDX, like Felucca, never switches the radio on.
 
