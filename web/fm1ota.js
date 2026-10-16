@@ -235,6 +235,13 @@ export class Updater {
       ota.link.close();
       throw fail("foreign", `the FM-1 is in the update mode of another firmware (${ota.id.text}): finish that update with its own updater`, ota.id.text);
     }
+    // the loader's own device, as the package's (ota-FM-1 for an FM-1 package): another device in update mode on the same
+    // USB (an SMK-37: an FM-1 image there erases its calibration) is never written, whatever the package
+    const [model] = (opts.product || "FM-1_").split("_");
+    if (ota.id.model.replace(/^ota-/i, "") !== model) {
+      ota.link.close();
+      throw fail("model", `the device in update mode is ${ota.id.text}, the package is for ${opts.product || "the FM-1"}: nothing was written`, ota.id.text);
+    }
     const step = onStep || (() => {});
     if (!(await this.write(ota, image, step)).finished) return false;
     if (opts.product) {
