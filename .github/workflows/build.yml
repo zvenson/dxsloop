@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write          # the release on a tag (the default token may only read)
+      id-token: write          # the build attestation's signing identity
+      attestations: write
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +59,13 @@ jobs:
           name: sloopdx-fwsc
           path: build/felucca*.fwsc
           if-no-files-found: error
+
+      # a signed build attestation for the package (the Firmware Hub shows "Built from source" for an attested release file)
+      - name: Attest the package
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: build/felucca*.fwsc
 
       - name: Release (tags only)
         if: github.ref_type == 'tag'
