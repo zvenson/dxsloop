@@ -202,7 +202,15 @@ export class Updater {
     step("loader");
     await sleep(3000);
     const ota = await this.waitFor(IS_OTA, 30000);
-    if (!ota) throw fail("noloader", "the update loader did not appear. Replug the USB cable and press Install again: the device stays in update mode until it is finished.");
+    if (!ota) {
+      // what answers instead, for the report: the FM-1 back in a firmware (the running one did not start the loader) or nothing
+      const now = await this.find(() => true);
+      if (now) now.link.close();
+      const why = `step 1: ${s1.served} reads; ${now ? `the FM-1 restarted as ${now.id.text}, not in update mode` : "no FM-1 answers"}`;
+      throw fail("noloader", now
+        ? `the update loader did not appear (${why})${this.seen()}. Hold OCT− while switching on to start it in update mode, then press Install again.`
+        : `the update loader did not appear (${why})${this.seen()}. Replug the USB cable and press Install again: the device stays in update mode until it is finished.`, now ? now.id.text : "");
+    }
     const s2 = await this.write(ota, image, step);
     if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);
     step("reboot");
