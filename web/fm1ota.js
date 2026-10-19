@@ -19,6 +19,10 @@ export const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
 // name an earlier one left: macOS keeps a device's port name, a loader then shows as "JIANT Update"), and the names
 // Windows / macOS give the stock firmware (as SLOOP 2.6's fm1ota.js)
 export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi/i;
+// the ports the visitor said are their FM-1 (a firmware that names its port after itself, unknown here): asked only after a
+// click on that port's name, never on its own; the page keeps them (localStorage) and fills this set
+export const CHOSEN = new Set();
+export const MAY_PROBE = (name) => FM1_PORT.test(name || "") || CHOSEN.has(name || "");
 // the ports of a MIDIInputMap / MIDIOutputMap as an array: by forEach, as iOS Web MIDI apps (Web MIDI Browser)
 // hand out maps whose values() is no iterable, so [...map.values()] and for..of throw there
 // (some hand the arguments over as (key, port): the port is whichever is an object)
@@ -130,7 +134,7 @@ export class Updater {
     const outs = ports(this.access.outputs);
     for (const input of ports(this.access.inputs)) {
       if (input.state === "disconnected") continue;
-      if (!FM1_PORT.test(input.name || "")) continue;   // never probe other gear
+      if (!MAY_PROBE(input.name)) continue;            // never probe other gear (only what the visitor chose)
       const output = outs.find((o) => o.name === input.name) || (outs.length === 1 ? outs[0] : null);
       if (!output) continue;
       try { await input.open(); await output.open(); } catch (_) { continue; }
@@ -140,6 +144,11 @@ export class Updater {
       link.close();
     }
     return null;
+  }
+
+  // the MIDI inputs the installer skipped (another name): the page offers them, one click each, as "this is my FM-1"
+  others() {
+    return [...new Set(ports(this.access.inputs).filter((p) => p.state !== "disconnected" && p.name && !MAY_PROBE(p.name)).map((p) => p.name))];
   }
 
   // the MIDI inputs there are, for the "not found" message: " (MIDI: a, b)" (a port the installer skipped shows)
