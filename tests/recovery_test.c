@@ -41,6 +41,7 @@ static int ota_session(void)
 }
 static void fm1_input_init(void) { fm1_in.buttons = 0; }
 static void fm1_input_scan(void) { scans++; ticks += 24000u; fm1_in.buttons = input_buttons; }
+#define FL_JEDEC_OK(id) ((id) == 0x856014u || (id) == 0xB36014u)   /* as fm1_flash.h */
 static uint32_t fl_jedec_ram(void) { jedec_reads++; return jedec; }
 static void lcd_init(void) { lcd_calls++; }
 static void lcd_fill(int x, int y, int w, int h, int c) { (void)x;(void)y;(void)w;(void)h;(void)c; }
