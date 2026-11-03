@@ -912,7 +912,7 @@ const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
 class FakeFM1 {
   constructor(image, { unplugAfter = Infinity, finalIdentity = "FM-1_900" } = {}) {
     this.image = image; this.unplugAfter = unplugAfter; this.served = 0; this.bad = 0;
-    this.finalIdentity = finalIdentity;
+    this.finalIdentity = finalIdentity; this.open = 0;   // (ports open now: fm1ota.js closes every one it opened)
     this.access = { inputs: new Map(), outputs: new Map() };
     this.boot("FM-1_015", "FM-1");
   }
@@ -920,8 +920,9 @@ class FakeFM1 {
     this.identity = identity; this.waiting = null; this.queue = [];
     for (const m of [this.access.inputs, this.access.outputs]) { for (const p of m.values()) p.state = "disconnected"; m.clear(); }
     const id = Math.random().toString(36).slice(2);
-    this.input = { id: "i" + id, name, state: "connected", onmidimessage: null, open: async () => {} };
-    this.output = { id: "o" + id, name, state: "connected", open: async () => {}, send: (d) => {
+    const oc = { open: async () => { this.open++; }, close: async () => { this.open--; } };
+    this.input = { id: "i" + id, name, state: "connected", onmidimessage: null, ...oc };
+    this.output = { id: "o" + id, name, state: "connected", ...oc, send: (d) => {
       if (this.output.state !== "connected") throw new Error("InvalidStateError");
       setTimeout(() => this.rx(Array.from(d)), 1);
     } };
@@ -973,6 +974,7 @@ async function updater() {
   const got = await new Updater(dev.access).install(image, "FM-1_900", (k) => steps.push(k));
   ok(got === "FM-1_900" && dev.bad === 0 && steps.includes("write") && steps.at(-1) === "done",
     `fm1ota.js: install: running firmware -> loader -> Felucca (${dev.served} reads)`);
+  ok(dev.open === 0, "fm1ota.js: every port it opened is closed again (Chromium 155 on Windows: noloader otherwise)");
 
   const rescue = new FakeFM1(image);
   rescue.boot("FM-1_000", "Felucca");

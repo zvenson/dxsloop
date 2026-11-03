@@ -105,7 +105,16 @@ class Link {
     }
     return this.q.shift() || null;
   }
-  close() { this.input.onmidimessage = null; }
+  // closes the ports for real (not only the listener): Windows Chromium 155 keeps an open port's handle across the FM-1's
+  // restart into the loader, the loader then never answers on it ("noloader") and closing the tab hangs the browser.
+  // The last answer leaves first (close drops what is still queued); ports without close() (iOS Web MIDI apps) are left
+  async close() {
+    this.input.onmidimessage = null;
+    const ps = [this.input, this.output].filter((p) => p && typeof p.close === "function");
+    if (!ps.length) return;
+    await sleep(100);
+    await Promise.all(ps.map((p) => Promise.resolve().then(() => p.close()).catch(() => {})));
+  }
 }
 
 async function handshake(link, tries = 3) {
@@ -141,7 +150,7 @@ export class Updater {
       const link = new Link(input, output);
       const id = await handshake(link, 2);
       if (id && (!filter || filter(id))) return { link, id, name: input.name };
-      link.close();
+      await link.close();
     }
     return null;
   }
@@ -202,12 +211,12 @@ export class Updater {
     const dev = await this.find((id) => !IS_OTA(id));
     if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)", this.seen());
     const [model] = product.split("_");
-    if (dev.id.model !== model) { dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
+    if (dev.id.model !== model) { await dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
     step("start", dev.id.text);
     dev.link.send(UPGRADE);
     await sleep(2000);
     const s1 = await this.serve(dev.link, image, 0xE0000000, 8000, (n) => step("verify", n));
-    dev.link.close();
+    await dev.link.close();                         // before the FM-1 restarts as the loader
     if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `the device ${s1.lost ? "was disconnected" : "stopped"} after ${s1.served} requests: nothing was written`);
     step("loader");
     await sleep(3000);
@@ -215,7 +224,7 @@ export class Updater {
     if (!ota) {
       // what answers instead, for the report: the FM-1 back in a firmware (the running one did not start the loader) or nothing
       const now = await this.find(() => true);
-      if (now) now.link.close();
+      if (now) await now.link.close();
       const why = `step 1: ${s1.served} reads; ${now ? `the FM-1 restarted as ${now.id.text}, not in update mode` : "no FM-1 answers"}`;
       throw fail("noloader", now
         ? `the update loader did not appear (${why})${this.seen()}. Hold OCT− while switching on to start it in update mode, then press Install again.`
@@ -227,7 +236,7 @@ export class Updater {
     await sleep(3000);
     const back = await this.waitFor((id) => !IS_OTA(id), 40000);
     if (!back) throw fail("noreturn", "the device did not come back: power-cycle it");
-    back.link.close();
+    await back.link.close();
     if (back.id.text !== product) throw fail("mismatch", `installed, but the device reports ${back.id.text}`, back.id.text);
     step("done", back.id.text);
     return back.id.text;
@@ -238,7 +247,7 @@ export class Updater {
     ota.link.send(UPGRADE);
     await sleep(2000);
     const s2 = await this.serve(ota.link, image, 0xF0000000, 180000, (n) => step("write", n));
-    ota.link.close();
+    await ota.link.close();
     return s2;
   }
 
@@ -250,14 +259,14 @@ export class Updater {
     const ota = await this.find(IS_OTA);
     if (!ota) return false;
     if (!OUR_LOADER(ota.id) && !opts.product) {
-      ota.link.close();
+      await ota.link.close();
       throw fail("foreign", `the FM-1 is in the update mode of another firmware (${ota.id.text}): finish that update with its own updater`, ota.id.text);
     }
     // the loader's own device, as the package's (ota-FM-1 for an FM-1 package): another device in update mode on the same
     // USB (an SMK-37: an FM-1 image there erases its calibration) is never written, whatever the package
     const [model] = (opts.product || "FM-1_").split("_");
     if (ota.id.model.replace(/^ota-/i, "") !== model) {
-      ota.link.close();
+      await ota.link.close();
       throw fail("model", `the device in update mode is ${ota.id.text}, the package is for ${opts.product || "the FM-1"}: nothing was written`, ota.id.text);
     }
     const step = onStep || (() => {});
@@ -267,7 +276,7 @@ export class Updater {
       await sleep(3000);
       const back = await this.waitFor((id) => !IS_OTA(id), 40000);
       if (!back) throw fail("noreturn", "the FM-1 did not come back after the write: power-cycle it");
-      back.link.close();
+      await back.link.close();
       if (back.id.text !== opts.product) throw fail("mismatch", `written, but the FM-1 reports ${back.id.text}`, back.id.text);
       step("done", back.id.text);
     }

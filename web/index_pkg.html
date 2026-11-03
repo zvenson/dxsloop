@@ -400,7 +400,7 @@ $("go").addEventListener("click", async () => {
     const up = new Updater(midi, log);
     const ota = await up.find((id) => /^ota-/i.test(id.model));
     if (ota) {
-      ota.link.close();
+      await ota.link.close();
       sayK((await up.resume(image, step)) ? "done" : "stopped");
     } else {
       await up.install(image, meta.product, step);
@@ -431,7 +431,7 @@ $("stock-go").addEventListener("click", async () => {
     const up = new Updater(midi, log);
     const ota = await up.find((id) => /^ota-/i.test(id.model));
     if (ota) {
-      ota.link.close();
+      await ota.link.close();
       if (OUR_LOADER(ota.id)) sayK("stockFinish");    /* SLOOP's loader: finish SLOOP first (Install) */
       else sayK((await up.resume(stock.image, step, { product: stock.product })) ? "done" : "stopped");
     } else {
