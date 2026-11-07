@@ -18,7 +18,7 @@ export const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
 // CLIPPER ("Clipper"), under a firmware named after itself ("SLOOP", "ETCH", "JIANT"), the update loaders (also by the
 // name an earlier one left: macOS keeps a device's port name, a loader then shows as "JIANT Update"), and the names
 // Windows / macOS give the stock firmware (as SLOOP 2.6's fm1ota.js)
-export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi/i;
+export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link/i;
 // the ports the visitor said are their FM-1 (a firmware that names its port after itself, unknown here): asked only after a
 // click on that port's name, never on its own; the page keeps them (localStorage) and fills this set
 export const CHOSEN = new Set();
