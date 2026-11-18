@@ -166,6 +166,23 @@ export class Updater {
     return names.length ? ` (MIDI: ${names.join(", ")})` : " (MIDI: none)";
   }
 
+  // the device back from the loader as the package's firmware (18.11.2026): a firmware on fm1-base answers with its short
+  // identity (NAME_ddd, the package's beginning) while it still starts, the whole one a moment later (Charles Vestal's
+  // fm1_install b8e43f7); FRASIL 3.3's first start can take a few seconds (Styves). Another answer is asked again for up
+  // to 20 s; the short one that begins the package's is the same firmware
+  async backAs(product, ms) {
+    const same = (t) => t === product || (/^[^_]+_\d{3}$/.test(t) && product.startsWith(t));
+    let back = await this.waitFor((id) => !IS_OTA(id), ms);
+    const end = Date.now() + 20000;
+    while (back && back.id.text !== product && Date.now() < end) {
+      back.link.close();
+      await sleep(2000);
+      back = (await this.waitFor((id) => !IS_OTA(id), 5000)) || back;
+    }
+    if (back && same(back.id.text)) back.id = { ...back.id, text: product };
+    return back;
+  }
+
   async waitFor(filter, ms) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
@@ -234,7 +251,7 @@ export class Updater {
     if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);
     step("reboot");
     await sleep(3000);
-    const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+    const back = await this.backAs(product, 40000);
     if (!back) throw fail("noreturn", "the device did not come back: power-cycle it");
     await back.link.close();
     if (back.id.text !== product) throw fail("mismatch", `installed, but the device reports ${back.id.text}`, back.id.text);
@@ -274,7 +291,7 @@ export class Updater {
     if (opts.product) {
       step("reboot");
       await sleep(3000);
-      const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+      const back = await this.backAs(opts.product, 40000);
       if (!back) throw fail("noreturn", "the FM-1 did not come back after the write: power-cycle it");
       await back.link.close();
       if (back.id.text !== opts.product) throw fail("mismatch", `written, but the FM-1 reports ${back.id.text}`, back.id.text);
