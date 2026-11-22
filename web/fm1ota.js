@@ -18,7 +18,11 @@ export const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
 // CLIPPER ("Clipper"), under a firmware named after itself ("SLOOP", "ETCH", "JIANT"), the update loaders (also by the
 // name an earlier one left: macOS keeps a device's port name, a loader then shows as "JIANT Update"), and the names
 // Windows / macOS give the stock firmware (as SLOOP 2.6's fm1ota.js)
-export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link/i;
+export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link|pocket fm/i;
+// devices that are an FM-1 under another name (22.11.2026): the Donner Pocket FM is the FM-1's board (DX7 MB V07, same
+// JieLi chip) with the stock firmware renamed ("POCKET FM_015" = FM-1_015); its port is "POCKET FM Midi" (Laurent Stuber)
+const SAME_HW = { "POCKET FM": "FM-1" };
+const hw = (model) => SAME_HW[(model || "").toUpperCase()] || model;
 // the ports the visitor said are their FM-1 (a firmware that names its port after itself, unknown here): asked only after a
 // click on that port's name, never on its own; the page keeps them (localStorage) and fills this set
 export const CHOSEN = new Set();
@@ -228,7 +232,7 @@ export class Updater {
     const dev = await this.find((id) => !IS_OTA(id));
     if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)", this.seen());
     const [model] = product.split("_");
-    if (dev.id.model !== model) { await dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
+    if (hw(dev.id.model) !== model) { await dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
     step("start", dev.id.text);
     dev.link.send(UPGRADE);
     await sleep(2000);
@@ -282,7 +286,7 @@ export class Updater {
     // the loader's own device, as the package's (ota-FM-1 for an FM-1 package): another device in update mode on the same
     // USB (an SMK-37: an FM-1 image there erases its calibration) is never written, whatever the package
     const [model] = (opts.product || "FM-1_").split("_");
-    if (ota.id.model.replace(/^ota-/i, "") !== model) {
+    if (hw(ota.id.model.replace(/^ota-/i, "")) !== model) {
       await ota.link.close();
       throw fail("model", `the device in update mode is ${ota.id.text}, the package is for ${opts.product || "the FM-1"}: nothing was written`, ota.id.text);
     }
