@@ -18,7 +18,9 @@ export const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
 // CLIPPER ("Clipper"), under a firmware named after itself ("SLOOP", "ETCH", "JIANT"), the update loaders (also by the
 // name an earlier one left: macOS keeps a device's port name, a loader then shows as "JIANT Update"), and the names
 // Windows / macOS give the stock firmware (as SLOOP 2.6's fm1ota.js)
-export const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link|pocket fm/i;
+// (27.11.2026) and the names fm1-base's finder knows (charlesvestal/fm1-base web/fm1ports.js PORT_NAMES): "fm1" (the Open
+// firmware's "FM1 Community", fm1-base apps such as "fm1-radio"), "optimist", "melodee", "loom-8" / "loom8"
+export const FM1_PORT = /fm-1|fm1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link|pocket fm|optimist|melodee|loom-?8/i;
 // devices that are an FM-1 under another name (22.11.2026): the Donner Pocket FM is the FM-1's board (DX7 MB V07, same
 // JieLi chip) with the stock firmware renamed ("POCKET FM_015" = FM-1_015); its port is "POCKET FM Midi" (Laurent Stuber)
 const SAME_HW = { "POCKET FM": "FM-1" };
