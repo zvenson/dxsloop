@@ -346,7 +346,13 @@ const OUR_LOADER = (id) => /^ota-FM-1_9\d\d$/i.test(id.text);
 // CLIPPER ("Clipper"), under a firmware named after itself ("SLOOP", "ETCH", "JIANT"), the update loaders (also by the
 // name an earlier one left: macOS keeps a device's port name, a loader then shows as "JIANT Update"), and the names
 // Windows / macOS give the stock firmware (as SLOOP 2.6's fm1ota.js)
-const FM1_PORT = /fm-1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi/i;
+// (27.11.2026) and the names fm1-base's finder knows (charlesvestal/fm1-base web/fm1ports.js PORT_NAMES): "fm1" (the Open
+// firmware's "FM1 Community", fm1-base apps such as "fm1-radio"), "optimist", "melodee", "loom-8" / "loom8"
+const FM1_PORT = /fm-1|fm1|felucca|sloop|clipper|etch|jiant|ota|update|composite|sinco|usb-midi|vibe fm link|pocket fm|optimist|melodee|loom-?8/i;
+// devices that are an FM-1 under another name (22.11.2026): the Donner Pocket FM is the FM-1's board (DX7 MB V07, same
+// JieLi chip) with the stock firmware renamed ("POCKET FM_015" = FM-1_015); its port is "POCKET FM Midi" (Laurent Stuber)
+const SAME_HW = { "POCKET FM": "FM-1" };
+const hw = (model) => SAME_HW[(model || "").toUpperCase()] || model;
 // the ports the visitor said are their FM-1 (a firmware that names its port after itself, unknown here): asked only after a
 // click on that port's name, never on its own; the page keeps them (localStorage) and fills this set
 const CHOSEN = new Set();
@@ -494,6 +500,23 @@ class Updater {
     return names.length ? ` (MIDI: ${names.join(", ")})` : " (MIDI: none)";
   }
 
+  // the device back from the loader as the package's firmware (18.11.2026): a firmware on fm1-base answers with its short
+  // identity (NAME_ddd, the package's beginning) while it still starts, the whole one a moment later (Charles Vestal's
+  // fm1_install b8e43f7); FRASIL 3.3's first start can take a few seconds (Styves). Another answer is asked again for up
+  // to 20 s; the short one that begins the package's is the same firmware
+  async backAs(product, ms) {
+    const same = (t) => t === product || (/^[^_]+_\d{3}$/.test(t) && product.startsWith(t));
+    let back = await this.waitFor((id) => !IS_OTA(id), ms);
+    const end = Date.now() + 20000;
+    while (back && back.id.text !== product && Date.now() < end) {
+      back.link.close();
+      await sleep(2000);
+      back = (await this.waitFor((id) => !IS_OTA(id), 5000)) || back;
+    }
+    if (back && same(back.id.text)) back.id = { ...back.id, text: product };
+    return back;
+  }
+
   async waitFor(filter, ms) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
@@ -539,7 +562,7 @@ class Updater {
     const dev = await this.find((id) => !IS_OTA(id));
     if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)", this.seen());
     const [model] = product.split("_");
-    if (dev.id.model !== model) { await dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
+    if (hw(dev.id.model) !== model) { await dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
     step("start", dev.id.text);
     dev.link.send(UPGRADE);
     await sleep(2000);
@@ -562,7 +585,7 @@ class Updater {
     if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);
     step("reboot");
     await sleep(3000);
-    const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+    const back = await this.backAs(product, 40000);
     if (!back) throw fail("noreturn", "the device did not come back: power-cycle it");
     await back.link.close();
     if (back.id.text !== product) throw fail("mismatch", `installed, but the device reports ${back.id.text}`, back.id.text);
@@ -593,7 +616,7 @@ class Updater {
     // the loader's own device, as the package's (ota-FM-1 for an FM-1 package): another device in update mode on the same
     // USB (an SMK-37: an FM-1 image there erases its calibration) is never written, whatever the package
     const [model] = (opts.product || "FM-1_").split("_");
-    if (ota.id.model.replace(/^ota-/i, "") !== model) {
+    if (hw(ota.id.model.replace(/^ota-/i, "")) !== model) {
       await ota.link.close();
       throw fail("model", `the device in update mode is ${ota.id.text}, the package is for ${opts.product || "the FM-1"}: nothing was written`, ota.id.text);
     }
@@ -602,7 +625,7 @@ class Updater {
     if (opts.product) {
       step("reboot");
       await sleep(3000);
-      const back = await this.waitFor((id) => !IS_OTA(id), 40000);
+      const back = await this.backAs(opts.product, 40000);
       if (!back) throw fail("noreturn", "the FM-1 did not come back after the write: power-cycle it");
       await back.link.close();
       if (back.id.text !== opts.product) throw fail("mismatch", `written, but the FM-1 reports ${back.id.text}`, back.id.text);
@@ -698,7 +721,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "4.0.1", "product": "FM-1_940", "pkg": "../../firmware/sloopdx-4.0.1.fwsc", "sha256": "cebc88c0f996f338d4741502ec7f99d05ecb9c6de3715ab674401a14d6a255d7"};
+const meta = {"version": "4.0.2", "product": "FM-1_940", "pkg": "../../firmware/sloopdx-4.0.2.fwsc", "sha256": "286ef5db0b3c683b6a4994cce921d467a338b904b82fe34a94a200eadf48fc16"};
 
 let writing = false, stock = null;
 const lockAll = (on) => {
